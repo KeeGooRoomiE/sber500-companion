@@ -1,0 +1,29 @@
+[Unit]
+Description=Companion backend server
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=companion
+Group=companion
+WorkingDirectory=/opt/companion
+ExecStart=/opt/companion/server
+Restart=always
+RestartSec=5s
+
+# Load env from file (created on server, not in repo)
+EnvironmentFile=/opt/companion/.env
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/companion /var/log/companion
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=companion
+
+[Install]
+WantedBy=multi-user.target

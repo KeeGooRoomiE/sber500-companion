@@ -1,0 +1,32 @@
+# Caddyfile — replace YOUR_DOMAIN with actual domain or IP
+# Caddy auto-provisions TLS certificates via Let's Encrypt
+
+YOUR_DOMAIN {
+    reverse_proxy localhost:8080
+
+    # Compress responses
+    encode gzip
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Health check — no logs
+    @healthz path /health
+    handle @healthz {
+        reverse_proxy localhost:8080
+        log_skip @healthz
+    }
+
+    log {
+        output file /var/log/caddy/companion.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+}
