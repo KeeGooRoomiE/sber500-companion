@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: companion
+      POSTGRES_USER: companion
+      POSTGRES_PASSWORD: companion_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://companion:companion_dev@db:5432/companion?sslmode=disable
+      PORT: "8080"
+      ENV: development
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
