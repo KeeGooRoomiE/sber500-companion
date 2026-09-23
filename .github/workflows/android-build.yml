@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -32,7 +32,12 @@ jobs:
           gradle-version: '8.11.1'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        working-directory: android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" 2>&1 | tail -10
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -42,10 +47,6 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/libs.versions.toml') }}
           restore-keys: gradle-
-
-      - name: Make gradlew executable
-        working-directory: android
-        run: chmod +x gradlew || true
 
       - name: Build debug APK
         working-directory: android
