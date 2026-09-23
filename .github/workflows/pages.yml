@@ -47,15 +47,11 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           STATUS="${{ job.status }}"
-          ICON="✅"
-          [ "$STATUS" != "success" ] && ICON="❌"
-          MSG="${ICON} <b>Pages Deploy</b> — ${STATUS}"
-          [ "$STATUS" = "success" ] && MSG="${MSG}
-🌐 <a href='${PAGE_URL}'>${PAGE_URL}</a>"
-          MSG="${MSG}
-<a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'>открыть run</a>"
+          [ "$STATUS" = "success" ] && ICON="✅" || ICON="❌"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="${ICON} Pages Deploy — ${STATUS} | ${RUN_URL}"
+          [ -n "${PAGE_URL}" ] && MSG="${MSG} | ${PAGE_URL}"
           curl -sSf -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT}" \
-            -d parse_mode="HTML" \
-            -d disable_web_page_preview="false" \
-            --data-urlencode text="${MSG}"
+            -d disable_web_page_preview="true" \
+            --data-urlencode "text=${MSG}"
