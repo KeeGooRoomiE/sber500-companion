@@ -10,6 +10,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,19 @@ val HealthWarnBg = Color(0xFFFFF0DC)
 val HealthBad    = Color(0xFFB22020)
 val HealthBadBg  = Color(0xFFFDEAEA)
 
+// ── Health level → color, readable in both themes ────────────────────────────
+enum class HealthLevel { Good, Warn, Bad }
+
+@Composable
+fun HealthLevel.color(): Color {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return when (this) {
+        HealthLevel.Good -> if (dark) Color(0xFF5FD39A) else HealthGood
+        HealthLevel.Warn -> if (dark) Color(0xFFF2A94A) else HealthWarn
+        HealthLevel.Bad  -> if (dark) Color(0xFFFF7A7A) else HealthBad
+    }
+}
+
 // ── Shape tokens — единый набор, нигде не отступаем ──────────────────────────
 object AppShapes {
     val card     = RoundedCornerShape(16.dp)  // stat tiles, small cards
@@ -44,6 +58,7 @@ object AppShapes {
     val button   = RoundedCornerShape(14.dp)  // filled/outlined buttons
     val chip     = RoundedCornerShape(10.dp)  // feel buttons
     val tag      = RoundedCornerShape(6.dp)   // MOCK badge, small labels
+    val sheet    = RoundedCornerShape(28.dp)  // stat detail sheet
     val circle   = CircleShape
 }
 

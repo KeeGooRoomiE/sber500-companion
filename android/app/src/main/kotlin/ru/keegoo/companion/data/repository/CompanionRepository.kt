@@ -23,11 +23,11 @@ class CompanionRepository @Inject constructor(
         api.postPassiveData(
             PassiveDataRequest(
                 date           = snapshot.date.format(DATE_FMT),
-                screen_min     = snapshot.usage.screenMinutes,
-                unlocks        = snapshot.usage.unlocks,
-                first_unlock   = snapshot.usage.firstUnlock?.format(TIME_FMT),
-                last_unlock    = snapshot.usage.lastUnlock?.format(TIME_FMT),
-                top_apps       = snapshot.usage.topApps.map { AppUsageDto(it.packageName, it.minutes) },
+                screen_min     = snapshot.usage?.screenMinutes,
+                unlocks        = snapshot.usage?.unlocks,
+                first_unlock   = snapshot.usage?.firstUnlock?.format(TIME_FMT),
+                last_unlock    = snapshot.usage?.lastUnlock?.format(TIME_FMT),
+                top_apps       = snapshot.usage?.topApps.orEmpty().map { AppUsageDto(it.packageName, it.minutes) },
                 sleep_min      = snapshot.sleep?.durationMinutes,
                 bedtime        = snapshot.sleep?.bedtime?.format(TIME_FMT),
                 wakeup         = snapshot.sleep?.wakeup?.format(TIME_FMT),
@@ -38,11 +38,16 @@ class CompanionRepository @Inject constructor(
         Log.d("CompanionRepo", "daily snapshot posted: ${snapshot.date}")
     }
 
-    suspend fun postCheckIn(date: java.time.LocalDate, feel: DayFeel): Result<Unit> = runCatching {
+    suspend fun postCheckIn(
+        date: java.time.LocalDate,
+        feel: DayFeel,
+        tags: List<String> = emptyList(),
+    ): Result<Unit> = runCatching {
         api.postCheckIn(
             CheckInRequest(
                 date     = date.format(DATE_FMT),
                 day_feel = feel.name.lowercase(),
+                tags     = tags,
             )
         )
     }

@@ -5,7 +5,7 @@ import java.time.LocalTime
 
 data class DailySnapshot(
     val date: LocalDate,
-    val usage: UsageSnapshot,
+    val usage: UsageSnapshot?,   // null without usage access — never send zeros as data
     val sleep: SleepSnapshot?,
     val battery: BatterySnapshot,
     val steps: Int? = null,

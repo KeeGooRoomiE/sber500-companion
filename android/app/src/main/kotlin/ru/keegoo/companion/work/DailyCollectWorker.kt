@@ -31,8 +31,8 @@ class DailyCollectWorker @AssistedInject constructor(
         val dayStart = today.atStartOfDay(zone).toInstant()
         val dayEnd = Instant.now()
 
+        // Without usage access we still send Health Connect data; usage fields go as null.
         val usage = usageStats.collect(dayStart.toEpochMilli(), dayEnd.toEpochMilli())
-            ?: return Result.retry()
 
         val sleep = healthConnect.collectSleep(
             from = today.minusDays(1).atStartOfDay(zone).toInstant(),

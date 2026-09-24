@@ -2,7 +2,11 @@ package ru.keegoo.companion.data.collector
 
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.Manifest
+import android.app.AppOpsManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Process
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ru.keegoo.companion.domain.model.AppUsage
 import ru.keegoo.companion.domain.model.UsageSnapshot
@@ -16,7 +20,9 @@ import javax.inject.Singleton
 class UsageStatsCollector @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+    /** Returns null without usage access: an empty event list is "no data", not "0 minutes". */
     fun collect(dayStartMs: Long, dayEndMs: Long): UsageSnapshot? {
+        if (!hasPermission()) return null
         val mgr = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
         val events = mgr.queryEvents(dayStartMs, dayEndMs) ?: return null
@@ -74,10 +80,16 @@ class UsageStatsCollector @Inject constructor(
         )
     }
 
-    fun hasPermission(): Boolean {
-        val mgr = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val now = System.currentTimeMillis()
-        val stats = mgr.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 86_400_000, now)
-        return stats != null && stats.isNotEmpty()
+    fun hasPermission(): Boolean = context.hasUsageAccess()
+}
+
+/** Usage access («Доступ к истории использования») is a special app-op, not a runtime permission. */
+fun Context.hasUsageAccess(): Boolean {
+    val appOps = getSystemService(AppOpsManager::class.java) ?: return false
+    val mode = appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+    return if (mode == AppOpsManager.MODE_DEFAULT) {
+        checkSelfPermission(Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED
+    } else {
+        mode == AppOpsManager.MODE_ALLOWED
     }
 }
