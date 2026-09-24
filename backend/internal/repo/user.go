@@ -2,7 +2,14 @@ package repo
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,6 +24,47 @@ type User struct {
 type UserRepo struct{ db *pgxpool.Pool }
 
 func NewUserRepo(db *pgxpool.Pool) *UserRepo { return &UserRepo{db: db} }
+
+// Register creates a user with a random id and returns (id, token). Only the token's
+// hash is stored; the token itself is shown once.
+func (r *UserRepo) Register(ctx context.Context) (string, string, error) {
+	id, err := randomString(16)
+	if err != nil {
+		return "", "", err
+	}
+	token, err := randomString(32)
+	if err != nil {
+		return "", "", err
+	}
+	_, err = r.db.Exec(ctx, `INSERT INTO users (id, token_hash) VALUES ($1, $2)`, "u_"+id, HashToken(token))
+	return "u_" + id, token, err
+}
+
+// ByToken resolves a bearer token to a user id and bumps last_seen. ok=false if unknown.
+func (r *UserRepo) ByToken(ctx context.Context, token string) (string, bool, error) {
+	var id string
+	err := r.db.QueryRow(ctx, `
+		UPDATE users SET last_seen = NOW() WHERE token_hash = $1 RETURNING id
+	`, HashToken(token)).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	return id, err == nil, err
+}
+
+// HashToken is the stored form of a device token.
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+func randomString(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
 
 // Upsert creates a user on first call, updates last_seen on subsequent calls.
 func (r *UserRepo) Upsert(ctx context.Context, id string, fcmToken *string) error {

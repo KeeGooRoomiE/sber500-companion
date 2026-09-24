@@ -15,11 +15,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/admin"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/api"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
 )
@@ -45,7 +47,9 @@ func main() {
 	devUserIDs := splitCSV(os.Getenv("DEV_USER_IDS"))
 	callLog := analytics.NewLogger(db, devUserIDs)
 	morningRepo := repo.NewMorningRepo(db)
-	generator := forecast.NewGenerator(db, repo.NewDailyRepo(db), repo.NewCheckInRepo(db), morningRepo, llm.NewClient(), callLog)
+	llmClient := llm.NewClient()
+	promptStore := prompts.NewStore(db, map[string]string{prompts.MorningSystem: llm.DefaultMorningSystem})
+	generator := forecast.NewGenerator(db, repo.NewDailyRepo(db), repo.NewCheckInRepo(db), morningRepo, llmClient, callLog, promptStore)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -72,21 +76,28 @@ func main() {
 	sched := scheduler.New(morningRepo, generator)
 	sched.Start(ctx)
 	go heartbeat(ctx, repo.NewActivityRepo(db))
+	admin.New(db, promptStore, llmClient, callLog).Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
+	// Production sets LISTEN_ADDR=127.0.0.1:8080 so the API is reachable only through Caddy.
+	addr := os.Getenv("LISTEN_ADDR")
+	if addr == "" {
+		addr = ":" + port
+	}
+
 	srv := &http.Server{
-		Addr:         ":" + port,
+		Addr:         addr,
 		Handler:      r,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
 
 	go func() {
-		slog.Info("server started", "port", port)
+		slog.Info("server started", "addr", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server error", "err", err)
 			os.Exit(1)

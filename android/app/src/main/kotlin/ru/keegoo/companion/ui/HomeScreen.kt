@@ -571,6 +571,18 @@ private fun DebugPanel(
                         showCheckinNotification(context, EveningCopies.random())
                     }
                 }
+                // Server-issued id — put it into DEV_USER_IDS on the server to exclude this phone from metrics
+                val userId = remember {
+                    context.getSharedPreferences("device_auth", android.content.Context.MODE_PRIVATE)
+                        .getString("user_id", null) ?: "ещё не зарегистрирован"
+                }
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        text = "user_id: $userId",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     DebugButton(if (evening) "Показать утро" else "Показать вечер", Modifier.weight(1f), onToggleEvening)
                     DebugButton("Сбросить чек-ин", Modifier.weight(1f), onResetCheckIn)
