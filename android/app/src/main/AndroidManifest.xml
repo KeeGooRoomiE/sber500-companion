@@ -42,6 +42,15 @@
                 android:value="androidx.startup" />
         </provider>
 
+        <!-- Check-in notification actions -->
+        <receiver
+            android:name=".notifications.CheckInReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ru.keegoo.companion.ACTION_CHECKIN" />
+            </intent-filter>
+        </receiver>
+
         <!-- Health Connect intent filter -->
         <activity-alias
             android:name=".ui.HealthConnectActivity"

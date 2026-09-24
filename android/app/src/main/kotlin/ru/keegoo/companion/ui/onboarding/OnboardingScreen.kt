@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui.onboarding
 
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +18,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.keegoo.companion.ui.theme.Primary
 import ru.keegoo.companion.ui.theme.PrimaryFaint
+
+@Preview(showBackground = true, showSystemUi = true, name = "Onboarding — step 1")
+@androidx.compose.runtime.Composable
+private fun OnboardingPreview() {
+    ru.keegoo.companion.ui.theme.CompanionTheme { OnboardingScreen(onFinish = {}) }
+}
 
 private data class Step(
     val emoji: String,

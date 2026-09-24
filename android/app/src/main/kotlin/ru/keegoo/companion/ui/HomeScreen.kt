@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui
 
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -17,10 +19,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.keegoo.companion.domain.model.DayFeel
+import ru.keegoo.companion.notifications.showCheckinNotification
+import ru.keegoo.companion.notifications.showMorningNotification
 import ru.keegoo.companion.ui.theme.*
 
 @Composable
 fun HomeScreen() {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -31,10 +36,20 @@ fun HomeScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         TopBar()
-        MorningCard(message = null) // null = ещё не сгенерировано
+        MorningCard(message = null)
         StatsRow(screenMin = null, sleepMin = null, unlocks = null)
         CheckInSection()
+        NotifDebugCard(
+            onMorning = { showMorningNotification(context) },
+            onCheckin  = { showCheckinNotification(context) },
+        )
     }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Home — light")
+@Composable
+private fun HomeScreenPreview() {
+    ru.keegoo.companion.ui.theme.CompanionTheme { HomeScreen() }
 }
 
 @Composable
@@ -218,6 +233,37 @@ private fun CheckInSection() {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun NotifDebugCard(onMorning: () -> Unit, onCheckin: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "Тест уведомлений",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(
+                onClick = onMorning,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(10.dp),
+            ) { Text("🌅 Прогноз", style = MaterialTheme.typography.labelMedium) }
+            OutlinedButton(
+                onClick = onCheckin,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(10.dp),
+            ) { Text("🌙 Чек-ин", style = MaterialTheme.typography.labelMedium) }
         }
     }
 }
