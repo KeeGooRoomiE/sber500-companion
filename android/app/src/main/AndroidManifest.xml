@@ -37,9 +37,11 @@
             android:exported="false"
             tools:node="merge"
             xmlns:tools="http://schemas.android.com/tools">
+            <!-- Removed: WorkManager is configured in CompanionApp with HiltWorkerFactory -->
             <meta-data
                 android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup" />
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
 
         <!-- Check-in notification actions -->
