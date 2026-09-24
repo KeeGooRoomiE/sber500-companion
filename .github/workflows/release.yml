@@ -45,21 +45,28 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk companion-latest.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk companion-${VERSION}.apk
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ github.ref_name }}"
-          gh release create "${VERSION}" \
-            companion-latest.apk \
-            companion-${VERSION}.apk \
-            --title "Companion ${VERSION}" \
-            --notes "$(cat <<'EOF'
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            # Release already exists (created manually) — just attach APKs
+            gh release upload "${VERSION}" \
+              companion-latest.apk \
+              companion-${VERSION}.apk \
+              --clobber
+          else
+            gh release create "${VERSION}" \
+              companion-latest.apk \
+              companion-${VERSION}.apk \
+              --title "Companion ${VERSION}" \
+              --notes "$(cat <<'EOF'
           ## Что нового
           <!-- заполнить перед релизом -->
 
           ## Установка
-          1. Скачай `companion-${VERSION}.apk`
+          1. Скачай \`companion-${VERSION}.apk\`
           2. Разреши установку из неизвестных источников
           3. Установи файл
 
@@ -67,6 +74,7 @@ jobs:
           Android 10 (API 29)
           EOF
           )"
+          fi
 
       - name: Notify Telegram
         if: always()
