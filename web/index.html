@@ -669,11 +669,12 @@
     secondaryBlend: 0.45,
   };
 
-  let tick = Date.now() % 50000;
+  // Per-wave independent phases replace a single shared tick
+  const phases = new Array(CFG.waves).fill(0);
   let W = 0, H = 0;
   let rafId = null;
 
-  // Scroll-driven speed boost
+  // Scroll-driven speed boost — each wave gets its own multiplier
   let scrollBoost = 0;
   let prevScrollY = window.scrollY;
   window.addEventListener('scroll', () => {
@@ -695,12 +696,14 @@
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Waves
+    // Waves — each advances its own phase, boost scales with wave index
     for (let i = 0; i < CFG.waves; i++) {
-      const speed = CFG.baseSpeed + i * CFG.speedStep;
+      const speed      = CFG.baseSpeed + i * CFG.speedStep;
+      const waveBoost  = scrollBoost * (0.4 + i * 0.37); // wave 0 = 0.4×, wave 7 = 3×
+      phases[i]       += speed * (1 + waveBoost);
       const amp   = CFG.baseAmplitude + i * CFG.amplitudeStep;
       const yBase = H * (CFG.yStart + i * CFG.yStep);
-      const phase = tick * speed + i * CFG.phaseOffset;
+      const phase = phases[i] + i * CFG.phaseOffset;
       const wHue  = (CFG.hueBase + i * CFG.hueStep) % 360;
 
       ctx.beginPath();
@@ -717,7 +720,7 @@
       ctx.fill();
     }
 
-    tick += 1 + scrollBoost;
+    scrollBoost *= 0.88;
     scrollBoost *= 0.88; // decay ~90ms half-life at 60fps
     rafId = requestAnimationFrame(draw);
   }
