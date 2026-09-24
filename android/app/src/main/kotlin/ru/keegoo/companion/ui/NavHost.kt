@@ -27,9 +27,11 @@ import ru.keegoo.companion.ui.motion.BackdropState
 import ru.keegoo.companion.ui.motion.CompanionBackdrop
 import ru.keegoo.companion.ui.motion.LocalBackdrop
 import ru.keegoo.companion.ui.onboarding.OnboardingScreen
+import ru.keegoo.companion.ui.profile.ProfileScreen
 
 private const val ROUTE_ONBOARDING = "onboarding"
 private const val ROUTE_HOME = "home"
+private const val ROUTE_PROFILE = "profile"
 
 // One backdrop and one SharedTransitionLayout above NavHost: the background never
 // restarts between screens, and the orb / hero card can fly from one screen to the other.
@@ -78,6 +80,14 @@ fun CompanionNavHost() {
                             HomeScreen(
                                 sharedScope = this@SharedTransitionLayout,
                                 animatedScope = this@composable,
+                                onOpenProfile = { navController.navigate(ROUTE_PROFILE) { launchSingleTop = true } },
+                            )
+                        }
+                        composable(ROUTE_PROFILE) {
+                            ProfileScreen(
+                                sharedScope = this@SharedTransitionLayout,
+                                animatedScope = this@composable,
+                                onBack = { navController.popBackStack() },
                             )
                         }
                     }

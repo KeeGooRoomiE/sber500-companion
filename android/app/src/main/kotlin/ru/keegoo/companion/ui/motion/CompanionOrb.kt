@@ -6,6 +6,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -42,7 +45,9 @@ private val SatelliteColors = listOf(Color(0xFFB3A6FF), Color(0xFF6FA8FF), Color
  * its own bounds on purpose, so the orb keeps its layout size in shared transitions.
  */
 @Composable
-fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier) {
+fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = false) {
+    val blob = remember { Path() }
+    val badgeColor = MaterialTheme.colorScheme.primary
     val palette = LocalBackdrop.current.feel.orbPalette()
     val light by animateColorAsState(palette.light, tween(900), label = "orbLight")
     val mid by animateColorAsState(palette.mid, tween(900), label = "orbMid")
@@ -58,17 +63,37 @@ fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val t = time.floatValue
         val c = center
+        // badge sits on the edge — keep the breathing radius for everything else
         val breathe = 1f + .02f * (1f + sin(t * 1.5f))
         val r = min(size.width, size.height) / 2f * breathe
 
-        // glow
+        // glow — slow pulse, a bit out of phase with breathing
+        val glowPulse = 1f + .06f * sin(t * .9f + 1f)
         val glowC = c + Offset(0f, r * .25f)
         drawCircle(
-            Brush.radialGradient(listOf(mid.copy(alpha = .35f), mid.copy(alpha = 0f)), glowC, r * 1.4f),
-            radius = r * 1.4f, center = glowC,
+            Brush.radialGradient(listOf(mid.copy(alpha = .35f), mid.copy(alpha = 0f)), glowC, r * 1.4f * glowPulse),
+            radius = r * 1.4f * glowPulse, center = glowC,
         )
-        // sphere
-        drawCircle(
+
+        // body — a softly wobbling blob instead of a perfect circle
+        blob.reset()
+        val steps = 72
+        for (i in 0..steps) {
+            val a = i / steps.toFloat() * 2f * PI.toFloat()
+            val wobble = 1f +
+                .028f * sin(3f * a + t * .8f) +
+                .018f * sin(5f * a - t * 1.1f + 1.7f) +
+                .010f * sin(2f * a + t * .5f)
+            val p = c + Offset(cos(a) * r * wobble, sin(a) * r * wobble)
+            if (i == 0) blob.moveTo(p.x, p.y) else blob.lineTo(p.x, p.y)
+        }
+        blob.close()
+
+        // highlight drifts slowly over the surface, like light on a glass ball
+        val hl = -2.25f + .35f * sin(t * .45f)
+        val hlCenter = c + Offset(cos(hl) * r * .5f, sin(hl) * r * .5f)
+        drawPath(
+            blob,
             Brush.radialGradient(
                 colorStops = arrayOf(
                     0f to Color.White.copy(alpha = .95f),
@@ -77,11 +102,24 @@ fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier) {
                     .62f to mid,
                     1f to deep,
                 ),
-                center = c + Offset(-r * .32f, -r * .40f),
+                center = hlCenter,
                 radius = r * 1.75f,
             ),
-            radius = r, center = c,
         )
+        // inner shimmer: a faint light band sweeping around
+        val sweep = t * .6f
+        val shimmerC = c + Offset(cos(sweep) * r * .35f, sin(sweep) * r * .35f)
+        drawPath(
+            blob,
+            Brush.radialGradient(listOf(light.copy(alpha = .28f), light.copy(alpha = 0f)), shimmerC, r * .7f),
+        )
+
+        if (badge) {
+            val br = r * .22f
+            val bc = c + Offset(r * .72f, -r * .72f)
+            drawCircle(Color.White, radius = br * 1.25f, center = bc)
+            drawCircle(badgeColor, radius = br, center = bc)
+        }
 
         // Data: three satellites — screen, sleep, steps
         if (dataA > 0f) {

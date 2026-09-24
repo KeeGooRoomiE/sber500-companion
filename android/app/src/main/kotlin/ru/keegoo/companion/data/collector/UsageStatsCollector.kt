@@ -81,6 +81,35 @@ class UsageStatsCollector @Inject constructor(
     }
 
     fun hasPermission(): Boolean = context.hasUsageAccess()
+
+    /**
+     * Longest stretch with the screen off inside [fromMs, toMs] — a proxy for sleep when
+     * Health Connect has nothing. Returns start/end epoch millis, or null without data.
+     */
+    fun longestScreenOff(fromMs: Long, toMs: Long): Pair<Long, Long>? {
+        if (!hasPermission()) return null
+        val mgr = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val events = mgr.queryEvents(fromMs, toMs) ?: return null
+        val event = UsageEvents.Event()
+        var offSince: Long? = null
+        var best: Pair<Long, Long>? = null
+        var sawAny = false
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            when (event.eventType) {
+                UsageEvents.Event.SCREEN_NON_INTERACTIVE -> { offSince = event.timeStamp; sawAny = true }
+                UsageEvents.Event.SCREEN_INTERACTIVE -> {
+                    sawAny = true
+                    val start = offSince
+                    if (start != null && (best == null || event.timeStamp - start > best.second - best.first)) {
+                        best = start to event.timeStamp
+                    }
+                    offSince = null
+                }
+            }
+        }
+        return if (sawAny) best else null
+    }
 }
 
 /** Usage access («Доступ к истории использования») is a special app-op, not a runtime permission. */

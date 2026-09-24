@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import ru.keegoo.companion.ui.MainActivity
+import java.time.LocalDate
 
 const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
@@ -17,20 +19,35 @@ const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
 
-private val TIPS = listOf(
-    "Попробуй первые 30 минут после пробуждения не брать телефон — мозг острее на свежем воздухе.",
-    "Три коротких перерыва по 5 минут эффективнее одного длинного часового.",
-    "Самые сложные задачи лучше делать в первые 2–3 часа работы, когда воля ещё не потрачена.",
-    "Стакан воды до кофе — простой способ чуть ускорить метаболизм с утра.",
-    "Если чувствуешь тревогу — запиши три конкретных дела, которые от тебя зависят сегодня.",
-    "Вечером 10 минут на подготовку к завтрашнему дню экономят утром полчаса хаоса.",
-    "Короткая прогулка (15–20 мин) снижает кортизол сильнее, чем большинство других перерывов.",
-    "Переключение между задачами стоит ~23 минуты — старайся завершать блоки полностью.",
-    "Телефон лицом вниз на столе реально снижает желание проверить его без причины.",
-    "Если день ощущается тяжёлым — вспомни одно конкретное дело, которое сегодня сделал хорошо.",
-    "Хорошее освещение рабочего места уменьшает усталость глаз и влияет на настроение.",
-    "Плейлист без слов помогает концентрации лучше, чем привычная музыка с текстом.",
+data class NotificationCopy(val title: String, val body: String)
+
+// Morning mockups until the LLM forecast is wired: no invented numbers, only tone and one idea.
+val MorningCopies = listOf(
+    NotificationCopy("Доброе утро", "Прогноз на сегодня готов. Загляни — там пара цифр про вчера и одна мысль на день."),
+    NotificationCopy("Новый день", "Самые сложные задачи лучше ставить на первые 2–3 часа, пока внимание свежее."),
+    NotificationCopy("Утро без спешки", "Попробуй первые 30 минут не брать телефон — день начнётся спокойнее."),
+    NotificationCopy("Как спалось?", "Посмотри, сколько получилось сна и во сколько ты отложил телефон вчера."),
+    NotificationCopy("Прогноз на сегодня", "Если вчера было тяжело — сегодня хватит одной большой задачи. Остальное подождёт."),
+    NotificationCopy("Доброе утро", "Стакан воды до кофе — самый простой способ проснуться чуть бодрее."),
+    NotificationCopy("План на день", "Запиши три дела, которые зависят только от тебя. С ними проще начать."),
+    NotificationCopy("Утро", "Короткая прогулка днём снижает стресс сильнее, чем кажется. 15 минут достаточно."),
+    NotificationCopy("Новый день", "Переключение между задачами съедает много времени — старайся закрывать блоки целиком."),
+    NotificationCopy("Доброе утро", "Вчерашний день уже в цифрах. Посмотри, что получилось, и сравни со своей обычной неделей."),
+    NotificationCopy("Прогноз готов", "Телефон экраном вниз на столе заметно снижает желание проверять его без причины."),
+    NotificationCopy("Утро", "Хорошее начало — это не про продуктивность. Начни с чего-то приятного и простого."),
 )
+
+// Evening check-in: answered right from the notification with three buttons.
+val EveningCopies = listOf(
+    NotificationCopy("Как прошёл день?", "Нажми — и готово"),
+    NotificationCopy("Вечер", "Одно касание: как сегодня?"),
+    NotificationCopy("День подходит к концу", "Каким он был? Это поможет завтрашнему прогнозу"),
+    NotificationCopy("Пара секунд на себя", "Как ты сегодня? Ответ прямо из уведомления"),
+    NotificationCopy("Подведём итог", "Отлично, нормально или тяжело — выбери, и всё"),
+)
+
+/** Deterministic pick per day, so the same text doesn't repeat two days in a row. */
+fun <T> List<T>.forToday(): T = this[LocalDate.now().dayOfYear % size]
 
 fun createNotificationChannels(context: Context) {
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -46,23 +63,27 @@ fun createNotificationChannels(context: Context) {
     )
 }
 
-fun showMorningNotification(context: Context, text: String? = null) {
-    val full = text ?: TIPS.random()
-    // First sentence for collapsed preview (~50 chars visible); full text in expanded BigText.
-    val preview = full.substringBefore(". ").trimEnd('.').take(80)
+private fun openAppIntent(context: Context): PendingIntent = PendingIntent.getActivity(
+    context, 0,
+    Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+)
+
+fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCopies.forToday()) {
     val notif = NotificationCompat.Builder(context, CHANNEL_MORNING)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
-        .setContentTitle("Прогноз на сегодня")
-        .setContentText(preview)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(full))
+        .setContentTitle(copy.title)
+        .setContentText(copy.body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(openAppIntent(context))
         .setAutoCancel(true)
         .build()
 
-    NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif)
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif) }
 }
 
-fun showCheckinNotification(context: Context) {
+fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {
     fun actionIntent(feel: String): PendingIntent {
         val intent = Intent(ACTION_CHECKIN).apply {
             setPackage(context.packageName)
@@ -77,14 +98,16 @@ fun showCheckinNotification(context: Context) {
 
     val notif = NotificationCompat.Builder(context, CHANNEL_CHECKIN)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
-        .setContentTitle("Как прошёл день?")
-        .setContentText("Нажми — и готово")
+        .setContentTitle(copy.title)
+        .setContentText(copy.body)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(openAppIntent(context))
         .setAutoCancel(true)
         .addAction(0, "😊 Отлично",   actionIntent("OK"))
         .addAction(0, "😐 Нормально", actionIntent("MEH"))
         .addAction(0, "😮‍💨 Тяжело",   actionIntent("HARD"))
         .build()
 
-    NotificationManagerCompat.from(context).notify(NOTIF_ID_CHECKIN, notif)
+    // POST_NOTIFICATIONS may be denied — notify() then throws SecurityException on some OEMs
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_CHECKIN, notif) }
 }

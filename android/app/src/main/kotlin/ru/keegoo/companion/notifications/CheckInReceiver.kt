@@ -9,6 +9,7 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.domain.model.DayFeel
 import java.time.LocalDate
@@ -47,8 +48,15 @@ class CheckInReceiver : BroadcastReceiver() {
             .fromApplication(context.applicationContext, CheckInEntryPoint::class.java)
             .repository()
 
+        val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            repo.postCheckIn(LocalDate.now(), feel)
+            try {
+                // Local first: Home shows the check-in as done even without a backend
+                context.saveCheckIn(feel, emptySet())
+                repo.postCheckIn(LocalDate.now(), feel)
+            } finally {
+                pending.finish()
+            }
         }
     }
 }

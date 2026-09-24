@@ -9,12 +9,19 @@ import dagger.hilt.android.HiltAndroidApp
 import ru.keegoo.companion.notifications.createNotificationChannels
 import ru.keegoo.companion.work.DailyCollectWorker
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import ru.keegoo.companion.notifications.NotificationScheduler
 
 @HiltAndroidApp
 class CompanionApp : Application(), Configuration.Provider {
 
     // DailyCollectWorker is a @HiltWorker: WorkManager's default factory can't build it.
     @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -25,6 +32,7 @@ class CompanionApp : Application(), Configuration.Provider {
         super.onCreate()
         createNotificationChannels(this)
         DailyCollectWorker.schedule(this)
+        appScope.launch { NotificationScheduler.ensureScheduled(this@CompanionApp) }
         if (BuildConfig.DEBUG) {
             // Debug: collect once on launch so /data/passive can be checked without waiting 12 h.
             WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<DailyCollectWorker>().build())

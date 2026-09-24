@@ -1,52 +1,60 @@
 package ru.keegoo.companion.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import ru.keegoo.companion.BuildConfig
+import ru.keegoo.companion.data.local.SleepSource
+import ru.keegoo.companion.data.local.TodayData
+import ru.keegoo.companion.data.local.TodayRepository
+import ru.keegoo.companion.data.prefs.clearCheckIn
+import ru.keegoo.companion.data.prefs.profileAnswers
+import ru.keegoo.companion.data.prefs.saveCheckIn
+import ru.keegoo.companion.data.prefs.todayCheckIn
 import ru.keegoo.companion.data.repository.CompanionRepository
+import ru.keegoo.companion.domain.forecast.ForecastFact
+import ru.keegoo.companion.domain.forecast.buildLocalForecast
+import ru.keegoo.companion.domain.forecast.formatMinutes
 import ru.keegoo.companion.domain.model.DayFeel
+import ru.keegoo.companion.domain.profile.ProfileIds
+import ru.keegoo.companion.domain.profile.ProfileQuestions
 import java.time.LocalDate
 import javax.inject.Inject
 
 enum class StatKind { Screen, Sleep, Unlocks }
 
-/** One line under «Почему такой прогноз»: yesterday vs the person's own usual. */
-data class ForecastFact(
-    val label: String,
-    val value: String,
-    val usual: String,
-    val fraction: Float,       // yesterday, 0..1 of the bar
-    val usualFraction: Float,  // usual marker, 0..1
-)
-
-/** Last 7 days, oldest first; the last value is yesterday. */
-data class StatDetail(val week: List<Int>, val note: String?)
+/** 7 values, oldest first; the last one is today / last night. Null = no data that day. */
+data class StatDetail(val week: List<Int?>, val note: String?)
 
 data class HomeUiState(
-    val morningMessage: String? = null,
-    val action: String? = null,
-    val actionDone: Boolean = false,
+    val isLoading: Boolean = true,
+    val hasUsageAccess: Boolean = true,
+    val forecast: String? = null,
     val facts: List<ForecastFact> = emptyList(),
     val screenMin: Int? = null,
     val sleepMin: Int? = null,
+    val sleepLabel: String = "Сон",
     val unlocks: Int? = null,
     val details: Map<StatKind, StatDetail> = emptyMap(),
     val checkedIn: DayFeel? = null,
     val tags: Set<String> = emptySet(),
-    val isLoading: Boolean = true,
+    val name: String? = null,
+    val unansweredQuestions: Int = 0,
 )
 
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val today: TodayRepository,
     private val repository: CompanionRepository,
 ) : ViewModel() {
 
@@ -54,72 +62,93 @@ class HomeViewModel @Inject constructor(
     val state: StateFlow<HomeUiState> = _state
 
     private var checkInJob: Job? = null
+    private var refreshJob: Job? = null
 
     init {
-        if (BuildConfig.DEBUG) loadMock() else loadReal()
-    }
-
-    private fun loadMock() {
-        _state.value = HomeUiState(
-            morningMessage = "Сон на 48 минут короче твоего обычного, зато экрана меньше обычного. Начни с простой задачи и выйди на 15 минут до обеда.",
-            action = "Выйти на 15 минут до обеда",
-            facts = listOf(
-                ForecastFact("Сон", "6 ч 22 м", "обычно 7 ч 10 м", .74f, .83f),
-                ForecastFact("Экран", "3 ч 34 м", "обычно 3 ч 50 м", .62f, .67f),
-                ForecastFact("Instagram", "1 ч 12 м", "обычно 58 м", .55f, .44f),
-            ),
-            screenMin = 214,
-            sleepMin = 382,
-            unlocks = 47,
-            details = mapOf(
-                StatKind.Screen to StatDetail(
-                    listOf(251, 198, 236, 276, 203, 230, 214),
-                    "Вчера меньше твоего среднего. Больше всего экрана было в воскресенье: 4 ч 36 м, из них YouTube 1 ч 40 м.",
-                ),
-                StatKind.Sleep to StatDetail(
-                    listOf(455, 440, 415, 470, 428, 420, 382),
-                    "Вторую ночь подряд сон короче обычного. Последнее разблокирование вчера — в 00:47.",
-                ),
-                StatKind.Unlocks to StatDetail(
-                    listOf(52, 44, 61, 49, 38, 55, 47),
-                    "Обычный день. Реже всего телефон брал в понедельник: 38 раз.",
-                ),
-            ),
-            isLoading = false,
-        )
-    }
-
-    private fun loadReal() {
+        refresh()
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            repository.getMorning()
-                .onSuccess { resp -> _state.update { it.copy(morningMessage = resp.message, isLoading = false) } }
-                .onFailure { _state.update { it.copy(isLoading = false) } }
+            context.todayCheckIn().collect { saved ->
+                _state.update { it.copy(checkedIn = saved?.feel, tags = saved?.tags.orEmpty()) }
+            }
+        }
+        viewModelScope.launch {
+            context.profileAnswers().collect { answers ->
+                _state.update {
+                    it.copy(
+                        name = answers[ProfileIds.NAME]?.takeIf(String::isNotBlank),
+                        unansweredQuestions = ProfileQuestions.count { q -> q.id !in answers && !q.onlyOnWifi },
+                    )
+                }
+            }
+        }
+    }
+
+    /** Re-read today's data — on start and every time Home comes back to the foreground. */
+    fun refresh() {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            val data = runCatching { today.load() }.getOrNull()
+            _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
         }
     }
 
     fun onCheckIn(feel: DayFeel) {
         _state.update { it.copy(checkedIn = feel) }
-        sendCheckIn(debounceMs = 0)
+        save(debounceMs = 0)
     }
 
     fun onToggleTag(tag: String) {
         _state.update { s -> s.copy(tags = if (tag in s.tags) s.tags - tag else s.tags + tag) }
-        sendCheckIn(debounceMs = 800)
+        save(debounceMs = 800)
     }
 
-    fun onToggleAction() {
-        _state.update { it.copy(actionDone = !it.actionDone) }
+    fun resetCheckIn() {
+        viewModelScope.launch { context.clearCheckIn() }
     }
 
-    // Tags are tapped in bursts — send one upsert after the person stops tapping.
-    private fun sendCheckIn(debounceMs: Long) {
+    // Tags are tapped in bursts — save once after the person stops tapping.
+    private fun save(debounceMs: Long) {
         val feel = _state.value.checkedIn ?: return
         checkInJob?.cancel()
         checkInJob = viewModelScope.launch {
             if (debounceMs > 0) delay(debounceMs)
-            val tags = CheckInTags.filter { it in _state.value.tags }
-            repository.postCheckIn(LocalDate.now(), feel, tags)
+            val tags = _state.value.tags
+            context.saveCheckIn(feel, tags)
+            repository.postCheckIn(LocalDate.now(), feel, CheckInTags.filter { it in tags })
         }
     }
+}
+
+private fun HomeUiState.withData(d: TodayData): HomeUiState {
+    val forecast = buildLocalForecast(d)
+    val phoneFree = d.sleepSource == SleepSource.PhoneFree
+    return copy(
+        isLoading = false,
+        hasUsageAccess = d.hasUsageAccess,
+        forecast = forecast?.text,
+        facts = forecast?.facts.orEmpty(),
+        screenMin = d.screenMin,
+        unlocks = d.unlocks,
+        sleepMin = d.sleepMin,
+        sleepLabel = if (phoneFree) "Без телефона" else "Сон",
+        details = mapOf(
+            StatKind.Screen to StatDetail(
+                d.weekScreen,
+                d.weekScreen.dropLast(1).filterNotNull().takeIf { it.isNotEmpty() }
+                    ?.let { "Сегодня — пока что, день ещё идёт. В среднем за день у тебя ${formatMinutes(it.average().toInt())}." },
+            ),
+            StatKind.Sleep to StatDetail(
+                d.weekSleep,
+                if (phoneFree) {
+                    "Это самая длинная пауза без экрана ночью. Если носишь часы или браслет, подключи Health Connect — сон будет точнее."
+                } else {
+                    "Сон из Health Connect: с часов, браслета или приложения, которое его записывает."
+                },
+            ),
+            StatKind.Unlocks to StatDetail(
+                d.weekUnlocks,
+                d.usualUnlocksSoFar?.let { "К этому часу ты обычно разблокируешь телефон $it раз." },
+            ),
+        ),
+    )
 }
