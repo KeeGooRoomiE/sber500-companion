@@ -42,8 +42,8 @@ jobs:
       - name: Rename APK
         run: |
           VERSION="${{ github.ref_name }}"
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             companion-${VERSION}.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk companion-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk companion-${VERSION}.apk
 
       - name: Create GitHub Release
         env:
@@ -51,6 +51,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           gh release create "${VERSION}" \
+            companion-latest.apk \
             companion-${VERSION}.apk \
             --title "Companion ${VERSION}" \
             --notes "$(cat <<'EOF'
