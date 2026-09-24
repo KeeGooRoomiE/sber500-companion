@@ -47,7 +47,7 @@ private val steps = listOf(
         "Каждое утро — короткий прогноз на основе твоих реальных данных.\nНичего не нужно вводить вручную.",
         "Начать"),
     Step("📊", "Что мы смотрим",
-        "Время экрана, сон, шаги — и вечером одно касание о том, как прошёл день.\nНужен доступ к Health Connect.",
+        "Время экрана, сон, шаги — и вечером одно касание о том, как прошёл день.",
         "Дать доступ к данным"),
     Step("🔔", "Уведомления",
         "Утренний прогноз и вечерний чек-ин придут как пуши. Ответить можно прямо из уведомления.",
@@ -58,13 +58,12 @@ private val steps = listOf(
 fun OnboardingScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
     var step by remember { mutableIntStateOf(0) }
+    var hcUnavailable by remember { mutableStateOf(false) }
 
-    // Health Connect permission launcher (step 2)
     val healthLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
-    ) { _ -> step++ }   // advance regardless — app works without it
+    ) { _ -> step++ }
 
-    // POST_NOTIFICATIONS launcher (step 3, API 33+)
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> onFinish() }
@@ -127,14 +126,32 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
         Spacer(Modifier.weight(1f))
 
+        if (hcUnavailable && step == 2) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Text(
+                    text = "⚠️ Health Connect недоступен на этом устройстве — сон и шаги собираться не будут. Остальное работает.",
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
         Button(
             onClick = {
                 when (step) {
                     0 -> step++
                     1 -> {
                         if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+                            hcUnavailable = false
                             healthLauncher.launch(HEALTH_PERMISSIONS)
                         } else {
+                            hcUnavailable = true
                             step++
                         }
                     }
