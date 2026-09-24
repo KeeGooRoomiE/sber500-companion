@@ -170,6 +170,40 @@
   const API_URL = 'https://api.companion.keegooroomie.ru/api/v1/metrics';
   const LLM_BUDGET_RUB = 50000; // бюджет cloud.ru Foundation Models
 
+  // ── Мок-данные (используются при ?demo=1 или когда бэкенд недоступен) ────
+  const MOCK_DATA = {
+    // Рост
+    users_total:              156,
+    new_users_today:            9,
+    dau_today:                 42,
+    dau_7d_avg:                38,
+    retention_d7_pct:          34.2,
+    // Вовлечённость
+    checkin_rate_pct:          71.4,
+    morning_delivered_today:   39,
+    calls_per_dau:              3.2,
+    // LLM и инфра
+    llm_calls_total:         1240,
+    llm_cost_rub_per_dau:       1.4,
+    llm_cost_rub_total:      1847,
+    p50_latency_ms:           310,
+    p95_latency_ms:           820,
+    error_rate_pct:             0.3,
+    uptime_24h_pct:            99.8,
+    // Chart
+    dau_history: [
+      { date: '2026-09-18', dau: 28 },
+      { date: '2026-09-19', dau: 33 },
+      { date: '2026-09-20', dau: 31 },
+      { date: '2026-09-21', dau: 37 },
+      { date: '2026-09-22', dau: 40 },
+      { date: '2026-09-23', dau: 38 },
+      { date: '2026-09-24', dau: 42 },
+    ],
+    updated_at: new Date().toISOString(),
+  };
+  const IS_DEMO = new URLSearchParams(location.search).has('demo');
+
   // ── Секции с тайлами ──────────────────────────────────────────────────────
   const SECTIONS = [
     {
@@ -299,8 +333,9 @@
     document.getElementById('content').innerHTML = html;
 
     const ts = data.updated_at ? new Date(data.updated_at) : new Date();
+    const tsText = 'Данные на ' + ts.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('updated-at').textContent =
-      'Данные на ' + ts.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+      data._isMock ? '⚠ Демо-данные · бэкенд недоступен' : tsText;
   }
 
   function renderError() {
@@ -315,12 +350,14 @@
   }
 
   async function fetchMetrics() {
+    if (IS_DEMO) { renderMetrics(MOCK_DATA); return; }
     try {
       const res = await fetch(API_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       renderMetrics(await res.json());
     } catch {
-      renderError();
+      // бэкенд недоступен — показываем мок с плашкой
+      renderMetrics({ ...MOCK_DATA, _isMock: true });
     }
   }
 
