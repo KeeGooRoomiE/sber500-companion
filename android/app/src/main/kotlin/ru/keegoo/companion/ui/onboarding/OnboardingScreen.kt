@@ -4,11 +4,18 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -80,10 +88,16 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
     val current = steps[step]
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        OnboardingOrbBackground(Modifier.fillMaxSize())
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
             .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -203,5 +217,33 @@ fun OnboardingScreen(onFinish: () -> Unit) {
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+    } // end Box
+}
+
+// ─── Onboarding orb background ───────────────────────────────────────────────
+
+@Composable
+private fun OnboardingOrbBackground(modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "orbs_ob")
+    val o1x by t.animateFloat(0.05f, 0.50f, infiniteRepeatable(tween(15000, easing = LinearEasing), RepeatMode.Reverse), "ob1x")
+    val o1y by t.animateFloat(0.02f, 0.30f, infiniteRepeatable(tween(18000, easing = LinearEasing), RepeatMode.Reverse), "ob1y")
+    val o2x by t.animateFloat(0.50f, 0.95f, infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Reverse), "ob2x")
+    val o2y by t.animateFloat(0.50f, 0.90f, infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse), "ob2y")
+    Canvas(modifier = modifier) {
+        drawRect(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF6B5CE7).copy(alpha = 0.22f), Color.Transparent),
+                center = Offset(size.width * o1x, size.height * o1y),
+                radius = size.width * 0.65f,
+            )
+        )
+        drawRect(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF8B7CF8).copy(alpha = 0.16f), Color.Transparent),
+                center = Offset(size.width * o2x, size.height * o2y),
+                radius = size.width * 0.55f,
+            )
+        )
     }
 }
