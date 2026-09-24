@@ -41,35 +41,39 @@ func (r *DailyRepo) Upsert(ctx context.Context, d *DailyData) error {
 		VALUES
 		  ($1, $2, $3, $4::time, $5::time, $6,
 		   $7, $8, $9::time, $10::time, $11, $12)
+		-- A later snapshot of the same day may lack a field (e.g. yesterday's has no
+		-- morning battery): keep what we already have instead of overwriting with NULL.
 		ON CONFLICT (user_id, date) DO UPDATE SET
-		  sleep_min       = EXCLUDED.sleep_min,
-		  bedtime         = EXCLUDED.bedtime,
-		  wakeup          = EXCLUDED.wakeup,
-		  steps           = EXCLUDED.steps,
-		  screen_min      = EXCLUDED.screen_min,
-		  unlocks         = EXCLUDED.unlocks,
-		  first_unlock    = EXCLUDED.first_unlock,
-		  last_unlock     = EXCLUDED.last_unlock,
-		  top_apps        = EXCLUDED.top_apps,
-		  battery_morning = EXCLUDED.battery_morning
+		  sleep_min       = COALESCE(EXCLUDED.sleep_min, daily_data.sleep_min),
+		  bedtime         = COALESCE(EXCLUDED.bedtime, daily_data.bedtime),
+		  wakeup          = COALESCE(EXCLUDED.wakeup, daily_data.wakeup),
+		  steps           = COALESCE(EXCLUDED.steps, daily_data.steps),
+		  screen_min      = COALESCE(EXCLUDED.screen_min, daily_data.screen_min),
+		  unlocks         = COALESCE(EXCLUDED.unlocks, daily_data.unlocks),
+		  first_unlock    = COALESCE(EXCLUDED.first_unlock, daily_data.first_unlock),
+		  last_unlock     = COALESCE(EXCLUDED.last_unlock, daily_data.last_unlock),
+		  top_apps        = CASE WHEN jsonb_array_length(COALESCE(EXCLUDED.top_apps, '[]')) > 0
+		                         THEN EXCLUDED.top_apps ELSE daily_data.top_apps END,
+		  battery_morning = COALESCE(EXCLUDED.battery_morning, daily_data.battery_morning)
 	`, d.UserID, d.Date, d.SleepMin, d.Bedtime, d.Wakeup, d.Steps,
 		d.ScreenMin, d.Unlocks, d.FirstUnlock, d.LastUnlock, topApps, d.BatteryMorning)
 	return err
 }
 
-// LastN returns the last n days of data for a user, newest first.
-func (r *DailyRepo) LastN(ctx context.Context, userID string, n int) ([]*DailyData, error) {
+// LastN returns up to n days of data for a user ending at `until` (inclusive), oldest first.
+// Times come back as "HH:MM" — the prompt parses them with "15:04".
+func (r *DailyRepo) LastN(ctx context.Context, userID string, n int, until time.Time) ([]*DailyData, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT user_id, date, sleep_min,
-		       bedtime::text, wakeup::text,
+		       to_char(bedtime, 'HH24:MI'), to_char(wakeup, 'HH24:MI'),
 		       steps, screen_min, unlocks,
-		       first_unlock::text, last_unlock::text,
+		       to_char(first_unlock, 'HH24:MI'), to_char(last_unlock, 'HH24:MI'),
 		       top_apps, battery_morning
 		FROM daily_data
-		WHERE user_id = $1
+		WHERE user_id = $1 AND date <= $3
 		ORDER BY date DESC
 		LIMIT $2
-	`, userID, n)
+	`, userID, n, until)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +94,10 @@ func (r *DailyRepo) LastN(ctx context.Context, userID string, n int) ([]*DailyDa
 		}
 		_ = json.Unmarshal(topAppsRaw, &d.TopApps)
 		out = append(out, d)
+	}
+	// Query is newest-first for LIMIT; callers (the prompt) expect oldest-first.
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
 	}
 	return out, rows.Err()
 }

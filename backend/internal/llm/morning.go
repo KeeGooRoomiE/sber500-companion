@@ -51,6 +51,9 @@ const systemPrompt = `Ты персональный цифровой компа�
 Второе предложение — одно конкретное действие или поддержка.
 Без приветствий, подписей и вводных слов.`
 
+// Model is the configured model name (stored with each message for cost accounting).
+func (c *Client) Model() string { return c.model }
+
 func (c *Client) GenerateMorning(ctx context.Context, days []*repo.DailyData, last *repo.CheckIn) (*GenerateResult, error) {
 	prompt := buildPrompt(days, last)
 

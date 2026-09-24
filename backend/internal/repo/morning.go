@@ -58,13 +58,16 @@ func (r *MorningRepo) MarkSent(ctx context.Context, userID string, date time.Tim
 	return err
 }
 
-// UsersWithoutMessage returns user IDs that have daily_data for today but no morning message yet.
-func (r *MorningRepo) UsersWithoutMessage(ctx context.Context, date time.Time) ([]string, error) {
+// UsersToGenerate returns users who sent data for the last two days before `date`
+// and have no message for `date` yet. Stale or never-active ids are skipped —
+// they would only burn LLM budget.
+func (r *MorningRepo) UsersToGenerate(ctx context.Context, date time.Time) ([]string, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT DISTINCT d.user_id
 		FROM daily_data d
 		LEFT JOIN morning_messages m ON m.user_id = d.user_id AND m.date = $1
-		WHERE d.date = $1 AND m.id IS NULL
+		WHERE d.date BETWEEN $1::date - 2 AND $1::date - 1
+		  AND m.id IS NULL
 	`, date)
 	if err != nil {
 		return nil, err

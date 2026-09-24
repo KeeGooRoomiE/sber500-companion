@@ -1,49 +1,54 @@
 # Deployment Guide
 
 ## Stack
-- **Server**: Ubuntu 22.04 VPS (1 vCPU / 1 GB minimum)
+- **Server**: Ubuntu 22.04/24.04 VPS (1 vCPU / 1 GB minimum)
 - **Reverse proxy**: Caddy (auto TLS via Let's Encrypt)
 - **App**: Go binary managed by systemd
-- **DB**: PostgreSQL 16
+- **DB**: PostgreSQL (local), nightly `pg_dump` to `/var/backups/companion`
 
-## Quick start (fresh VPS)
+## From zero to running
 
-```bash
-# 1. Run setup script as root
-bash deploy/setup.sh your.domain.com
+1. Point DNS `api.companion.keegooroomie.ru` (A record) to the server IP — the APK release build
+   and `web/metrics.html` both use this host.
+2. On the server, as root:
+   ```bash
+   scp deploy/setup.sh root@SERVER:/root/ && ssh root@SERVER bash /root/setup.sh api.companion.keegooroomie.ru
+   ```
+   Installs Postgres + Caddy, generates the DB password, writes `/opt/companion/.env`, firewall, backups.
+3. Put the LLM key into `/opt/companion/.env` (`LLM_API_KEY=…`), optionally your own user id into `DEV_USER_IDS`.
+4. From the repo root on your machine (needs Go 1.23):
+   ```bash
+   bash deploy/deploy.sh SERVER
+   ```
+   Builds, copies binary + migrations + systemd unit, applies **new** migrations (tracked in
+   `schema_migrations`), restarts, checks `/health` (returns 200 only if the DB answers).
+5. Check: `curl https://api.companion.keegooroomie.ru/api/v1/metrics`
 
-# 2. Create env file on server
-scp backend/.env.example root@SERVER:/opt/companion/.env
-# Then edit /opt/companion/.env with real values
-
-# 3. Deploy
-bash deploy/deploy.sh SERVER_IP
-```
+Re-deploy = step 4 again.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `Caddyfile` | Caddy config template (replace YOUR_DOMAIN) |
-| `companion.service` | systemd unit for the Go binary |
-| `setup.sh` | One-time server provisioning |
-| `deploy.sh` | Build + copy + restart |
+| `setup.sh` | One-time provisioning (safe to re-run; keeps existing `.env`) |
+| `deploy.sh` | Build + copy + migrate + restart + health check |
+| `companion.service` | systemd unit (installed by `deploy.sh`) |
+| `Caddyfile` | Reference config; `setup.sh` writes the same one for your domain |
 
 ## Environment variables
 
-See `backend/.env.example` — copy to `/opt/companion/.env` on server, fill in values.
-The `.env` file is never committed to the repository.
+See `backend/.env.example`. The real file lives only on the server at `/opt/companion/.env` (mode 600).
 
 ## Logs
 
 ```bash
-journalctl -u companion -f       # app logs
-tail -f /var/log/caddy/companion.log  # access logs
+journalctl -u companion -f              # app logs (JSON)
+tail -f /var/log/caddy/companion.log    # access logs
 ```
 
 ## Load test (required for MVP criteria)
 
 ```bash
-# Install hey: go install github.com/rakyll/hey@latest
-hey -n 1000 -c 50 https://your.domain.com/health
+# go install github.com/rakyll/hey@latest
+hey -n 1000 -c 50 https://api.companion.keegooroomie.ru/health
 ```

@@ -18,12 +18,14 @@ const (
 	CallTypeTool       CallType = "tool"
 	CallTypeBackground CallType = "background"
 
-	ComponentLLMMorning  Component = "llm_morning"
-	ComponentLLMCheckin  Component = "llm_checkin"
-	ComponentLLMWeekly   Component = "llm_weekly"
-	ComponentUsageStats  Component = "usagestats"
-	ComponentHealthConn  Component = "health_connect"
-	ComponentCalendar    Component = "calendar"
+	ComponentLLMMorning Component = "llm_morning"
+	ComponentLLMCheckin Component = "llm_checkin"
+	ComponentLLMWeekly  Component = "llm_weekly"
+	ComponentUsageStats Component = "usagestats"
+	ComponentHealthConn Component = "health_connect"
+	ComponentCalendar   Component = "calendar"
+	ComponentCheckin    Component = "checkin"
+	ComponentMorningAPI Component = "morning_api"
 
 	TriggerUserAction Trigger = "user_action"
 	TriggerScheduled  Trigger = "scheduled"
@@ -56,12 +58,17 @@ func NewLogger(db *pgxpool.Pool, devUserIDs []string) *Logger {
 	return &Logger{db: db, devUserIDs: m}
 }
 
+// Log writes the event asynchronously. The request context is cancelled as soon as the
+// handler returns, so the write runs detached from it (WithoutCancel) with its own timeout —
+// otherwise most inserts would fail with "context canceled" and the anti-fraud log would have holes.
 func (l *Logger) Log(ctx context.Context, e CallEvent) {
 	if l.devUserIDs[e.UserID] {
 		return
 	}
 	go func() {
-		if err := l.persist(ctx, e); err != nil {
+		wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if err := l.persist(wctx, e); err != nil {
 			b, _ := json.Marshal(e)
 			slog.Error("call_log persist failed", "err", err, "event", string(b))
 		}

@@ -17,6 +17,8 @@ import (
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/api"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
@@ -26,6 +28,12 @@ func main() {
 	_ = godotenv.Load()
 
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	slog.Info("config", "tz", clock.Location().String(), "llm_model", os.Getenv("LLM_MODEL"))
+
+	if os.Getenv("DATABASE_URL") == "" {
+		slog.Error("DATABASE_URL is not set")
+		os.Exit(1)
+	}
 
 	db, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -34,31 +42,36 @@ func main() {
 	}
 	defer db.Close()
 
-	callLog := analytics.NewLogger(db, splitCSV(os.Getenv("DEV_USER_IDS")))
+	devUserIDs := splitCSV(os.Getenv("DEV_USER_IDS"))
+	callLog := analytics.NewLogger(db, devUserIDs)
+	morningRepo := repo.NewMorningRepo(db)
+	generator := forecast.NewGenerator(db, repo.NewDailyRepo(db), repo.NewCheckInRepo(db), morningRepo, llm.NewClient(), callLog)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+	// 200 only when the database answers — uptime checks should see a broken DB as down.
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := db.Ping(ctx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	})
 
-	api.Mount(r, db, callLog)
+	api.Mount(r, api.Deps{DB: db, CallLog: callLog, Generator: generator, DevUserIDs: devUserIDs})
 
 	// Background morning-message scheduler.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sched := scheduler.New(
-		repo.NewDailyRepo(db),
-		repo.NewCheckInRepo(db),
-		repo.NewMorningRepo(db),
-		llm.NewClient(),
-		callLog,
-	)
+	sched := scheduler.New(morningRepo, generator)
 	sched.Start(ctx)
+	go heartbeat(ctx, repo.NewActivityRepo(db))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -89,6 +102,22 @@ func main() {
 	defer shutCancel()
 	_ = srv.Shutdown(shutCtx)
 	slog.Info("server stopped")
+}
+
+// heartbeat records one row per minute; /api/v1/metrics turns it into uptime_24h.
+func heartbeat(ctx context.Context, activity *repo.ActivityRepo) {
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		if err := activity.Heartbeat(ctx, time.Now()); err != nil {
+			slog.Warn("heartbeat failed", "err", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }
 
 func splitCSV(s string) []string {

@@ -2,20 +2,38 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 )
 
 type Handler struct {
-	users   *repo.UserRepo
-	daily   *repo.DailyRepo
-	checkin *repo.CheckInRepo
-	morning *repo.MorningRepo
-	callLog *analytics.Logger
+	users     *repo.UserRepo
+	daily     *repo.DailyRepo
+	checkin   *repo.CheckInRepo
+	morning   *repo.MorningRepo
+	activity  *repo.ActivityRepo
+	generator *forecast.Generator
+	callLog   *analytics.Logger
+}
+
+// touch marks the user active today (DAU / retention). Failures only get logged.
+func (h *Handler) touch(r *http.Request, uid string) {
+	if err := h.activity.Touch(r.Context(), uid, clock.Today()); err != nil {
+		slog.Warn("activity touch failed", "err", err)
+	}
+}
+
+// Ping is sent by the app when it comes to the foreground — the "user opened the app" signal.
+func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
+	h.touch(r, userIDFrom(r))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PassiveData accepts daily snapshot from Android.
@@ -101,6 +119,7 @@ func (h *Handler) Checkin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uid := userIDFrom(r)
+	h.touch(r, uid)
 
 	if err := h.checkin.Upsert(r.Context(), &repo.CheckIn{
 		UserID:   uid,
@@ -118,7 +137,7 @@ func (h *Handler) Checkin(w http.ResponseWriter, r *http.Request) {
 		UserID:      uid,
 		Timestamp:   time.Now(),
 		CallType:    analytics.CallTypeTool,
-		Component:   analytics.ComponentUsageStats,
+		Component:   analytics.ComponentCheckin,
 		Trigger:     analytics.TriggerUserAction,
 		UserVisible: true,
 		Result:      "ok",
@@ -127,19 +146,42 @@ func (h *Handler) Checkin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// MorningMessage returns today's pre-generated message. Returns 404 if not ready yet.
+// MorningMessage returns today's message: pre-generated at night, or generated now if the
+// night run missed this user. 404 when there's no data yet or the daily LLM cap is reached.
 func (h *Handler) MorningMessage(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFrom(r)
-	today := time.Now().Truncate(24 * time.Hour)
+	today := clock.Today()
+	h.touch(r, uid)
 
-	msg, err := h.morning.ForDate(r.Context(), uid, today)
-	if err != nil {
-		slog.Error("morning fetch", "err", err)
-		writeError(w, http.StatusInternalServerError, "db error")
+	start := time.Now()
+	msg, err := h.generator.Ensure(r.Context(), uid, today, analytics.TriggerUserAction)
+	notReady := errors.Is(err, forecast.ErrNoData) || errors.Is(err, forecast.ErrBudget) || (err == nil && msg == nil)
+
+	result := "ok"
+	switch {
+	case notReady:
+		result = "empty"
+	case err != nil:
+		result = "error"
+	}
+	h.callLog.Log(r.Context(), analytics.CallEvent{
+		UserID:      uid,
+		Timestamp:   start,
+		CallType:    analytics.CallTypeTool,
+		Component:   analytics.ComponentMorningAPI,
+		Trigger:     analytics.TriggerUserAction,
+		UserVisible: true,
+		Result:      result,
+		LatencyMs:   time.Since(start).Milliseconds(),
+	})
+
+	if notReady {
+		writeError(w, http.StatusNotFound, "not ready yet")
 		return
 	}
-	if msg == nil {
-		writeError(w, http.StatusNotFound, "not ready yet")
+	if err != nil {
+		slog.Error("morning ensure", "user", uid, "err", err)
+		writeError(w, http.StatusServiceUnavailable, "forecast unavailable")
 		return
 	}
 
