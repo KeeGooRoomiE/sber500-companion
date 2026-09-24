@@ -292,8 +292,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
       margin-bottom: 14px;
+      color: var(--primary);
+    }
+    .feature-icon svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
     }
 
     .feature-card h3 {
@@ -552,22 +557,54 @@
   <p class="section-sub reveal" style="--reveal-delay: 0.1s">Никаких дневников настроения — только то,<br>что уже есть в твоём телефоне.</p>
   <div class="features-grid">
     <div class="feature-card" style="--reveal-delay: 0s">
-      <div class="feature-icon">🌅</div>
+      <div class="feature-icon">
+        <!-- sun / morning forecast -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <line x1="12" y1="2"  x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="4.22" y1="4.22"   x2="6.34" y2="6.34"/>
+          <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+          <line x1="2"  y1="12" x2="5"  y2="12"/>
+          <line x1="19" y1="12" x2="22" y2="12"/>
+          <line x1="4.22" y1="19.78"  x2="6.34" y2="17.66"/>
+          <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
+        </svg>
+      </div>
       <h3>Утренний прогноз</h3>
       <p>Одна короткая фраза о том, чего ждать от сегодня на основе паттернов</p>
     </div>
     <div class="feature-card" style="--reveal-delay: 0.08s">
-      <div class="feature-icon">📈</div>
+      <div class="feature-icon">
+        <!-- activity line / passive data -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
       <h3>Пассивные данные</h3>
       <p>Сон, шаги, экранное время — без галочек и ручного трекинга</p>
     </div>
     <div class="feature-card" style="--reveal-delay: 0.16s">
-      <div class="feature-icon">💬</div>
+      <div class="feature-icon">
+        <!-- check circle / one-tap check-in -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </div>
       <h3>Чек-ин в одно касание</h3>
       <p>Вечером три кнопки прямо из уведомления. Открывать приложение не нужно</p>
     </div>
     <div class="feature-card" style="--reveal-delay: 0.24s">
-      <div class="feature-icon">🔗</div>
+      <div class="feature-icon">
+        <!-- repeat / closed loop -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+      </div>
       <h3>Замкнутая петля</h3>
       <p>Через неделю — что изменилось после рекомендации. Ни у кого такого нет</p>
     </div>
@@ -652,9 +689,9 @@
     waves:          8,
     baseSpeed:      0.002,
     speedStep:      0.0008,
-    baseAmplitude:  16,
-    amplitudeStep:  18,
-    yStart:         0.12,
+    baseAmplitude:  10,
+    amplitudeStep:  9,
+    yStart:         0.20,
     yStep:          0.108,  // ~10% tighter
     phaseOffset:    1.2,
     hueBase:        339,    // top waves start pink/crimson
@@ -671,8 +708,10 @@
     secondaryBlend: 0.45,
   };
 
-  // Per-wave independent phases replace a single shared tick
-  const phases = new Array(CFG.waves).fill(0);
+  // Per-wave phases seeded from current timestamp — no cold start at zero
+  const _t0 = Date.now() % 1000000;
+  const phases = Array.from({length: CFG.waves}, (_, i) =>
+    _t0 * (CFG.baseSpeed + i * CFG.speedStep));
   let W = 0, H = 0;
   let rafId = null;
 
