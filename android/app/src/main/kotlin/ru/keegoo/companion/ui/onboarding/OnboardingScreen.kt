@@ -4,8 +4,14 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,9 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,6 +35,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
+import ru.keegoo.companion.ui.theme.AppShapes
 import ru.keegoo.companion.ui.theme.Primary
 import ru.keegoo.companion.ui.theme.PrimaryFaint
 
@@ -94,9 +104,14 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             steps.indices.forEach { i ->
+                val dotWidth by animateDpAsState(
+                    targetValue = if (i == step) 20.dp else 8.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    label = "dot$i",
+                )
                 Box(
                     modifier = Modifier
-                        .size(if (i == step) 20.dp else 8.dp, 8.dp)
+                        .size(dotWidth, 8.dp)
                         .clip(RoundedCornerShape(50))
                         .background(
                             if (i == step) Primary else MaterialTheme.colorScheme.outline
@@ -142,36 +157,49 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             Spacer(Modifier.height(12.dp))
         }
 
-        Button(
-            onClick = {
-                when (step) {
-                    0 -> step++
-                    1 -> {
-                        if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
-                            hcUnavailable = false
-                            healthLauncher.launch(HEALTH_PERMISSIONS)
-                        } else {
-                            hcUnavailable = true
-                            step++
+        val btnInteraction = remember { MutableInteractionSource() }
+        val btnPressed by btnInteraction.collectIsPressedAsState()
+        val btnScale by animateFloatAsState(
+            targetValue = if (btnPressed) 0.97f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "btnScale",
+        )
+        val haptic = LocalHapticFeedback.current
+
+        Box(modifier = Modifier.fillMaxWidth().scale(btnScale)) {
+            Button(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    when (step) {
+                        0 -> step++
+                        1 -> {
+                            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+                                hcUnavailable = false
+                                healthLauncher.launch(HEALTH_PERMISSIONS)
+                            } else {
+                                hcUnavailable = true
+                                step++
+                            }
+                        }
+                        2 -> {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                onFinish()
+                            }
                         }
                     }
-                    2 -> {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            onFinish()
-                        }
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-        ) {
-            Text(
-                text = current.cta,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = AppShapes.button,
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                interactionSource = btnInteraction,
+            ) {
+                Text(
+                    text = current.cta,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
         }
 
         Spacer(Modifier.height(32.dp))
