@@ -26,7 +26,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +34,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -586,39 +586,59 @@ private fun StatsRow(
             val shown by animateFloatAsState(target, tween(900, easing = FastOutSlowInEasing), label = "statVal$index")
 
             Box(Modifier.weight(1f)) {
-                AnimatedVisibility(
+                StatSlot(
+                    sharedScope = sharedScope,
+                    entry = entry,
                     visible = openStat != entry.kind,
-                    enter = fadeIn(tween(200, delayMillis = 100)),
-                    exit = fadeOut(tween(120)),
-                ) {
-                    val source = remember { MutableInteractionSource() }
-                    val pressed by source.collectIsPressedAsState()
-                    val scale by animateFloatAsState(
-                        targetValue = if (pressed) 0.95f else 1f,
-                        animationSpec = spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioMediumBouncy),
-                        label = "cs$index",
-                    )
-                    StatTile(
-                        modifier = with(sharedScope) {
-                            Modifier.sharedBounds(
-                                rememberSharedContentState(SharedKeys.stat(entry.kind.name)),
-                                animatedVisibilityScope = this@AnimatedVisibility,
-                                boundsTransform = CardBoundsTransform,
-                                resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                                clipInOverlayDuringTransition = OverlayClip(AppShapes.card),
-                            )
-                        }
-                            .graphicsLayer { scaleX = scale; scaleY = scale }
-                            .clickable(interactionSource = source, indication = null) {
-                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                onOpen(entry.kind)
-                            },
-                        entry = entry,
-                        displayValue = shown.toInt(),
-                    )
-                }
+                    displayValue = shown.toInt(),
+                    onOpen = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        onOpen(entry.kind)
+                    },
+                )
             }
         }
+    }
+}
+
+// A separate function on purpose: inside Row the RowScope overload of AnimatedVisibility
+// would be picked. The tile hides while its sheet is open so the two can share bounds.
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun StatSlot(
+    sharedScope: SharedTransitionScope,
+    entry: StatEntry,
+    visible: Boolean,
+    displayValue: Int,
+    onOpen: () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(200, delayMillis = 100)),
+        exit = fadeOut(tween(120)),
+    ) {
+        val source = remember { MutableInteractionSource() }
+        val pressed by source.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.95f else 1f,
+            animationSpec = spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "tileScale",
+        )
+        StatTile(
+            modifier = with(sharedScope) {
+                Modifier.sharedBounds(
+                    rememberSharedContentState(SharedKeys.stat(entry.kind.name)),
+                    animatedVisibilityScope = this@AnimatedVisibility,
+                    boundsTransform = CardBoundsTransform,
+                    resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                    clipInOverlayDuringTransition = OverlayClip(AppShapes.card),
+                )
+            }
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .clickable(interactionSource = source, indication = null, onClick = onOpen),
+            entry = entry,
+            displayValue = displayValue,
+        )
     }
 }
 
