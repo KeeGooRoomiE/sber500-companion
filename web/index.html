@@ -655,12 +655,14 @@
     baseAmplitude:  16,
     amplitudeStep:  18,
     yStart:         0.12,
-    yStep:          0.12,
+    yStep:          0.108,  // ~10% tighter
     phaseOffset:    1.2,
     hueBase:        255,    // fixed purple hue
-    hueStep:        7,      // slight drift keeping in violet range
-    saturation:     68,
-    lightness:      64,
+    hueStep:        12,     // wider hue drift across layers
+    saturation:     62,
+    satStep:        2.5,    // deeper waves more saturated
+    lightness:      68,
+    lightStep:      -2,     // deeper waves progressively darker
     alphaLight:     0.062,
     bgSat:          32,
     bgLightTop:     98,
@@ -705,6 +707,8 @@
       const yBase = H * (CFG.yStart + i * CFG.yStep);
       const phase = phases[i] + i * CFG.phaseOffset;
       const wHue  = (CFG.hueBase + i * CFG.hueStep) % 360;
+      const wSat  = CFG.saturation + i * CFG.satStep;
+      const wLit  = CFG.lightness  + i * CFG.lightStep;
 
       ctx.beginPath();
       for (let x = 0; x <= W; x += CFG.drawStep) {
@@ -716,7 +720,7 @@
       ctx.lineTo(W, H);
       ctx.lineTo(0, H);
       ctx.closePath();
-      ctx.fillStyle = `hsla(${wHue},${CFG.saturation}%,${CFG.lightness}%,${CFG.alphaLight})`;
+      ctx.fillStyle = `hsla(${wHue},${wSat}%,${wLit}%,${CFG.alphaLight})`;
       ctx.fill();
     }
 
