@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7F6FF"/>
+      <stop offset="100%" stop-color="#EDE9FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative wave hint -->
+  <ellipse cx="1050" cy="580" rx="340" ry="200" fill="#6B5CE7" opacity="0.08"/>
+  <ellipse cx="1100" cy="620" rx="260" ry="160" fill="#9B8AFF" opacity="0.10"/>
+
+  <!-- Badge -->
+  <rect x="80" y="80" width="200" height="36" rx="18" fill="#EDE9FF"/>
+  <text x="180" y="103" font-family="Inter, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#6B5CE7" text-anchor="middle">Beta · Android</text>
+
+  <!-- Logo -->
+  <text x="80" y="220" font-family="Inter, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#6B5CE7" letter-spacing="-2">companion</text>
+
+  <!-- Headline -->
+  <text x="80" y="300" font-family="Inter, -apple-system, sans-serif" font-size="36" font-weight="700" fill="#18181B" letter-spacing="-0.5">Каждое утро — прогноз,</text>
+  <text x="80" y="348" font-family="Inter, -apple-system, sans-serif" font-size="36" font-weight="700" fill="#18181B" letter-spacing="-0.5">который ты не ждал</text>
+
+  <!-- Subtext -->
+  <text x="80" y="420" font-family="Inter, -apple-system, sans-serif" font-size="22" fill="#71717A">Пассивный трекинг · без галочек и дневников</text>
+
+  <!-- URL -->
+  <text x="80" y="560" font-family="Inter, -apple-system, sans-serif" font-size="16" fill="#9B8AFF">keegooroomie.github.io/sber500-companion</text>
+
+  <!-- Accent dot -->
+  <circle cx="1120" cy="100" r="60" fill="#6B5CE7" opacity="0.12"/>
+  <circle cx="1140" cy="80" r="36" fill="#6B5CE7" opacity="0.18"/>
+</svg>

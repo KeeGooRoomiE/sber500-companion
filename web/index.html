@@ -4,6 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Companion — утренний прогноз на основе твоих данных</title>
+
+  <!-- OG / Social -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://keegooroomie.github.io/sber500-companion/" />
+  <meta property="og:title"       content="Companion — утренний прогноз на основе твоих данных" />
+  <meta property="og:description" content="Пассивный трекинг сна, шагов и экранного времени. Каждое утро — одна фраза о том, чего ждать от дня." />
+  <meta property="og:image"       content="https://keegooroomie.github.io/sber500-companion/og.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+  <meta name="description"        content="Пассивный трекинг сна, шагов и экранного времени. Каждое утро — одна фраза о том, чего ждать от дня." />
+
+  <!-- Browser chrome -->
+  <meta name="theme-color" content="#6B5CE7" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -504,6 +517,15 @@
 
     footer a { color: var(--primary); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+
+    /* ── ACCESSIBILITY ── */
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .feature-card {
+        transition: opacity 0.2s ease !important;
+        transform: none !important;
+      }
+      #psw-canvas { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -693,8 +715,11 @@
 <footer>
   <p>
     <a href="https://github.com/KeeGooRoomiE/sber500-companion">GitHub</a> ·
-    Данные хранятся локально и обезличенно · 18+ ·
-    Участник <a href="https://sberbank-500.ru/sber500xdisrupt">Sber500 × DISRUPT</a>
+    <a href="metrics-mock.html">Метрики проекта</a> ·
+    Данные хранятся локально и обезличенно
+  </p>
+  <p style="margin-top:6px">
+    Участник <a href="https://sberbank-500.ru/sber500xdisrupt">Sber500 × DISRUPT</a> · Александр · ID&nbsp;29754
   </p>
 </footer>
 
