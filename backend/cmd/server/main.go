@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/api"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
 )
 
 func main() {
@@ -30,19 +34,31 @@ func main() {
 	}
 	defer db.Close()
 
-	devIDs := splitCSV(os.Getenv("DEV_USER_IDS"))
-	callLog := analytics.NewLogger(db, devIDs)
+	callLog := analytics.NewLogger(db, splitCSV(os.Getenv("DEV_USER_IDS")))
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	api.Mount(r, db, callLog)
+
+	// Background morning-message scheduler.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sched := scheduler.New(
+		repo.NewDailyRepo(db),
+		repo.NewCheckInRepo(db),
+		repo.NewMorningRepo(db),
+		llm.NewClient(),
+		callLog,
+	)
+	sched.Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -68,9 +84,10 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(ctx)
+	cancel()
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutCancel()
+	_ = srv.Shutdown(shutCtx)
 	slog.Info("server stopped")
 }
 
@@ -79,22 +96,10 @@ func splitCSV(s string) []string {
 		return nil
 	}
 	var out []string
-	for _, p := range splitString(s, ',') {
+	for _, p := range strings.Split(s, ",") {
 		if p != "" {
 			out = append(out, p)
 		}
 	}
 	return out
-}
-
-func splitString(s string, sep rune) []string {
-	var out []string
-	start := 0
-	for i, r := range s {
-		if r == sep {
-			out = append(out, s[start:i])
-			start = i + 1
-		}
-	}
-	return append(out, s[start:])
 }
