@@ -672,6 +672,15 @@
   let W = 0, H = 0;
   let rafId = null;
 
+  // Scroll-driven speed boost
+  let scrollBoost = 0;
+  let prevScrollY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const delta = Math.abs(window.scrollY - prevScrollY);
+    scrollBoost = Math.min(delta * 0.08, 6);
+    prevScrollY = window.scrollY;
+  }, { passive: true });
+
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
@@ -707,7 +716,8 @@
       ctx.fill();
     }
 
-    tick++;
+    tick += 1 + scrollBoost;
+    scrollBoost *= 0.88; // decay ~90ms half-life at 60fps
     rafId = requestAnimationFrame(draw);
   }
 
