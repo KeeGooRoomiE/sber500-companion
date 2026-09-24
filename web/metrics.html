@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Метрики · companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:       #6B5CE7;
+      --primary-light: #EDE9FF;
+      --primary-mid:   #9B8AFF;
+      --bg:            #F7F6FF;
+      --white:         #FFFFFF;
+      --text:          #18181B;
+      --muted:         #71717A;
+      --border:        #E4E4E7;
+      --radius:        16px;
+      --shadow:        0 2px 12px rgba(107,92,231,.08);
+      --shadow-lg:     0 8px 32px rgba(107,92,231,.12);
+      --warn:          #F59E0B;
+      --danger:        #EF4444;
+      --warn-bg:       #FFFBEB;
+      --danger-bg:     #FEF2F2;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 48px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 10px;
+      z-index: 100;
+      background: rgba(247,246,255,.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 14px 24px;
+      margin: 10px 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .nav-logo {
+      font-weight: 700;
+      font-size: 17px;
+      color: var(--primary);
+      letter-spacing: -0.3px;
+      text-decoration: none;
+    }
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 720px;
+      margin: 32px auto 0;
+      padding: 0 16px;
+    }
+
+    .page-header {
+      margin-bottom: 28px;
+    }
+    .page-header h1 {
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      margin-bottom: 6px;
+    }
+    .page-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-meta-text {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #updated-at {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .btn-refresh {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--primary-light);
+      border: none;
+      border-radius: 20px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-refresh:hover { opacity: .8; }
+    .btn-refresh svg { width: 13px; height: 13px; }
+
+    /* ── STAT GRID ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-tile {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-tile.warn  { background: var(--warn-bg);   border-color: #FDE68A; }
+    .stat-tile.danger{ background: var(--danger-bg); border-color: #FECACA; }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: var(--text);
+      line-height: 1;
+      margin: 6px 0 2px;
+    }
+    .stat-tile.warn   .stat-value { color: var(--warn); }
+    .stat-tile.danger .stat-value { color: var(--danger); }
+    .stat-unit {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* ── ERROR STATE ── */
+    .error-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .error-card .error-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+    .error-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .error-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── CHART ── */
+    .chart-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 14px;
+    }
+    #dau-chart {
+      width: 100%;
+      height: 72px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">companion</a>
+  <span class="nav-badge">Dev Metrics</span>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Метрики проекта</h1>
+    <div class="page-meta">
+      <span class="page-meta-text">Обновляется каждые 30 сек</span>
+      <span id="updated-at"></span>
+      <button class="btn-refresh" onclick="fetchMetrics()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Обновить
+      </button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</main>
+
+<script>
+  // ── Вшитый URL бэкенда — менять здесь когда появится домен ──────────────
+  const API_URL = 'https://api.companion.keegooroomie.ru/api/v1/metrics';
+
+  const TILES = [
+    { key: 'dau_today',            label: 'DAU сегодня',     unit: 'пользователей' },
+    { key: 'dau_7d_avg',           label: 'DAU 7д avg',      unit: 'пользователей' },
+    { key: 'users_total',          label: 'Всего юзеров',    unit: 'зарегистрировано' },
+    { key: 'calls_per_dau',        label: 'Calls / DAU',     unit: 'запросов на юзера',  decimals: 1 },
+    { key: 'llm_calls_total',      label: 'LLM calls total', unit: 'вызовов' },
+    { key: 'llm_cost_rub_per_dau', label: 'Cost / DAU',      unit: '₽ на активного юзера', decimals: 2 },
+    { key: 'p95_latency_ms',       label: 'P95 latency',     unit: 'мс', warnAbove: 1500, dangerAbove: 3000 },
+    { key: 'error_rate_pct',       label: 'Error rate',      unit: '%',  decimals: 2, warnAbove: 1, dangerAbove: 3 },
+  ];
+
+  function tileClass(tile, value) {
+    if (tile.dangerAbove !== undefined && value >= tile.dangerAbove) return 'danger';
+    if (tile.warnAbove   !== undefined && value >= tile.warnAbove)   return 'warn';
+    return '';
+  }
+
+  function fmt(value, decimals) {
+    if (value === null || value === undefined) return '—';
+    const d = decimals ?? 0;
+    return d > 0 ? value.toFixed(d) : Math.round(value).toLocaleString('ru');
+  }
+
+  function renderMetrics(data) {
+    let html = '<div class="stat-grid">';
+    TILES.forEach(t => {
+      const val   = data[t.key];
+      const cls   = tileClass(t, val);
+      const extra = cls ? ` ${cls}` : '';
+      html += `
+        <div class="stat-tile${extra}">
+          <span class="stat-label">${t.label}</span>
+          <span class="stat-value">${fmt(val, t.decimals)}</span>
+          <span class="stat-unit">${t.unit}</span>
+        </div>`;
+    });
+    html += '</div>';
+
+    if (Array.isArray(data.dau_history) && data.dau_history.length > 0) {
+      html += renderChart(data.dau_history);
+    }
+
+    document.getElementById('content').innerHTML = html;
+
+    const ts = data.updated_at ? new Date(data.updated_at) : new Date();
+    document.getElementById('updated-at').textContent =
+      'Данные на ' + ts.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderChart(history) {
+    const W = 640, H = 72, barGap = 3;
+    const count = history.length;
+    const barW  = Math.floor((W - barGap * (count - 1)) / count);
+    const maxV  = Math.max(...history.map(d => d.dau), 1);
+
+    const bars = history.map((d, i) => {
+      const x = i * (barW + barGap);
+      const h = Math.max(4, Math.round((d.dau / maxV) * H));
+      const y = H - h;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="#6B5CE7" opacity="${.45 + .55 * (d.dau / maxV)}"/>`;
+    }).join('');
+
+    const labels = history.map((d, i) => {
+      const x = i * (barW + barGap) + barW / 2;
+      const date = new Date(d.date);
+      const label = date.toLocaleDateString('ru', { day: 'numeric', month: 'numeric' });
+      return `<text x="${x}" y="${H + 14}" text-anchor="middle" font-size="9" fill="#71717A" font-family="Inter,sans-serif">${label}</text>`;
+    }).join('');
+
+    return `
+      <div class="chart-card">
+        <div class="chart-title">DAU за 7 дней</div>
+        <svg id="dau-chart" viewBox="0 0 ${W} ${H + 18}" preserveAspectRatio="none">
+          ${bars}${labels}
+        </svg>
+      </div>`;
+  }
+
+  function renderError() {
+    document.getElementById('content').innerHTML = `
+      <div class="error-card">
+        <div class="error-icon">🚧</div>
+        <h2>Бэкенд ещё не задеплоен</h2>
+        <p>Данные появятся как только сервер будет доступен.<br>Страница переобновляется автоматически каждые 30 секунд.</p>
+      </div>`;
+    document.getElementById('updated-at').textContent = '';
+  }
+
+  async function fetchMetrics() {
+    try {
+      const res = await fetch(API_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderMetrics(data);
+    } catch {
+      renderError();
+    }
+  }
+
+  fetchMetrics();
+  setInterval(fetchMetrics, 30000);
+</script>
+</body>
+</html>
