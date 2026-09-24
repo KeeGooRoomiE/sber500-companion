@@ -27,7 +27,7 @@
 - `graphicsLayer` вместо `scale()/alpha()` в композиции, лёгкие хаптики (`CLOCK_TICK` / `CONFIRM`)
 - Баги: нули вместо «нет данных» без usage access; `package_name` vs `package` в `top_apps`; `%02д` в промпте; WorkManager без `HiltWorkerFactory`
 
-## После v0.5.0 — реальные данные и правки Home
+## v0.5.1 — реальные данные и правки Home
 
 **Главный экран**
 - Убраны: «одно действие дня», плашка MOCK, подпись «Компаньон», все мок-данные
