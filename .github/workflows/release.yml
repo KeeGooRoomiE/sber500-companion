@@ -56,6 +56,13 @@ jobs:
               companion-latest.apk \
               companion-${VERSION}.apk \
               --clobber
+          elif [ -f ".github/release-notes/${VERSION}.md" ]; then
+            # Notes written ahead of time in the repo
+            gh release create "${VERSION}" \
+              companion-latest.apk \
+              companion-${VERSION}.apk \
+              --title "Companion ${VERSION}" \
+              --notes-file ".github/release-notes/${VERSION}.md"
           else
             gh release create "${VERSION}" \
               companion-latest.apk \
