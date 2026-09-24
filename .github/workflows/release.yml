@@ -51,23 +51,26 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if gh release view "${VERSION}" >/dev/null 2>&1; then
-            # Release already exists (created manually) — just attach APKs
+            # Release already exists (created manually) — attach APKs and publish
             gh release upload "${VERSION}" \
               companion-latest.apk \
               companion-${VERSION}.apk \
               --clobber
+            gh release edit "${VERSION}" --draft=false --latest
           elif [ -f ".github/release-notes/${VERSION}.md" ]; then
             # Notes written ahead of time in the repo
             gh release create "${VERSION}" \
               companion-latest.apk \
               companion-${VERSION}.apk \
               --title "Companion ${VERSION}" \
-              --notes-file ".github/release-notes/${VERSION}.md"
+              --notes-file ".github/release-notes/${VERSION}.md" \
+              --latest
           else
             gh release create "${VERSION}" \
               companion-latest.apk \
               companion-${VERSION}.apk \
               --title "Companion ${VERSION}" \
+              --latest \
               --notes "$(cat <<'EOF'
           ## Что нового
           <!-- заполнить перед релизом -->
