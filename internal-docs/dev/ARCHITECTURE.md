@@ -68,22 +68,32 @@ weekly_feedback (user_id, week_start UNIQUE, content TEXT)
 
 ```
 ru.keegoo.companion
-  ├── CompanionApp.kt          (Hilt application)
+  ├── CompanionApp.kt          (Hilt app, WorkManager + HiltWorkerFactory, schedules reminders)
   ├── ui/
   │    ├── MainActivity.kt
-  │    ├── NavHost.kt
+  │    ├── NavHost.kt          (backdrop + SharedTransitionLayout: onboarding → home → profile)
   │    ├── HomeScreen.kt
+  │    ├── home/               (HomeViewModel, HomeStats, HomeCheckIn)
   │    ├── onboarding/OnboardingScreen.kt
+  │    ├── profile/ProfileScreen.kt   («Расскажи о себе», by tapping the orb)
+  │    ├── motion/             (Backdrop waves, CompanionOrb, shared keys)
   │    └── theme/Theme.kt
-  ├── domain/model/
-  │    ├── DailySnapshot.kt    (UsageSnapshot, SleepSnapshot, BatterySnapshot)
-  │    └── CheckIn.kt          (DayFeel enum: OK/MEH/HARD)
-  ├── data/collector/
-  │    ├── UsageStatsCollector.kt
-  │    └── HealthConnectCollector.kt
+  ├── domain/
+  │    ├── model/              (DailySnapshot, CheckIn)
+  │    ├── forecast/LocalForecast.kt  (rule-based summary of today, no LLM)
+  │    └── profile/ProfileQuestions.kt
+  ├── data/
+  │    ├── collector/          (UsageStats, HealthConnect, app labels)
+  │    ├── local/TodayRepository.kt   (today + week on device for Home)
+  │    ├── prefs/AppPrefs.kt   (DataStore: onboarded, today's check-in, profile answers)
+  │    └── api/, repository/   (Retrofit → backend)
+  ├── notifications/           (copies, NotificationScheduler + ReminderWorker, CheckInReceiver)
   └── work/
        └── DailyCollectWorker.kt   (PeriodicWork 12h, CoroutineWorker+Hilt)
 ```
+
+Home reads data **on the device** (no backend needed to show the day); the backend still receives
+passive data and check-ins for the LLM forecast. Details: [HOME_UX.md](HOME_UX.md).
 
 ## Backend module structure
 

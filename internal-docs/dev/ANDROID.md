@@ -7,7 +7,8 @@
 | `POST_NOTIFICATIONS` | Onboarding Day 1 | Core UX |
 | `RECEIVE_BOOT_COMPLETED` | Auto (manifest) | WorkManager re-schedule on reboot |
 | `READ_CALENDAR` | Onboarding Day 1 | Optional context for forecast |
-| `PACKAGE_USAGE_STATS` | Day 3–4 (after value shown) | System-level, requires AppOps grant — show value first |
+| `PACKAGE_USAGE_STATS` | Onboarding step 2 | Without it there's no screen time/unlocks at all — the core of the forecast |
+| `ACCESS_NETWORK_STATE` | Auto (manifest) | Profile question «это домашний Wi‑Fi?» (only Wi‑Fi yes/no, no SSID) |
 | Health Connect | Day 3–4 | Requires separate Health Connect app, sensitive |
 
 `PACKAGE_USAGE_STATS` is `ProtectedPermissions` — user must grant via Settings → Special app access → Usage access. The app must check `hasPermission()` before every collection and prompt gracefully if missing.
@@ -49,34 +50,30 @@ File: `work/DailyCollectWorker.kt`
 
 ### HomeScreen + HomeViewModel
 
-- `HomeViewModel` (`ui/home/HomeViewModel.kt`) — `@HiltViewModel`, `StateFlow<HomeUiState>`
-- `init { if (BuildConfig.DEBUG) loadMock() else loadReal() }` — mock в debug без бэкенда
-- Mock данные: screenMin=214, sleepMin=382, unlocks=47, morning message заглушка
-- `collectAsStateWithLifecycle()` в composable — lifecycle-aware
-- `onCheckIn(feel)` — обновляет state + `repository.postCheckIn()` в coroutine
+Подробно — в [HOME_UX.md](HOME_UX.md). Коротко:
 
-**HomeUiState:**
-```kotlin
-data class HomeUiState(
-    val morningMessage: String? = null,
-    val screenMin: Int? = null,
-    val sleepMin: Int? = null,
-    val unlocks: Int? = null,
-    val checkedIn: DayFeel? = null,
-    val isLoading: Boolean = true,
-)
-```
+- `HomeViewModel` — `@HiltViewModel`, `StateFlow<HomeUiState>`, **моков нет**: `refresh()` на старте и на каждом `ON_RESUME` читает `TodayRepository.load()` (данные с устройства, без бэка)
+- Текст прогноза — `buildLocalForecast()` (правила, без LLM); факты для «Почему такой прогноз»
+- Чек-ин и ответы профиля — DataStore (`data/prefs/AppPrefs.kt`); бэк получает чек-ин дополнительно
+- Файлы: `ui/HomeScreen.kt` (экран, карточка прогноза, отладка), `ui/home/HomeStats.kt` (плитки, деталка), `ui/home/HomeCheckIn.kt` (чек-ин)
 
 ### OnboardingScreen
 
-- 3 шага: Знакомство → Health Connect → Уведомления
-- HC: если `SDK_AVAILABLE` — launcher, иначе `hcUnavailable=true`, `step++`
-- Warning Surface на шаге 2 если `hcUnavailable` — "HC недоступен, сон и шаги не соберутся"
-- Notifications: `Build.VERSION.SDK_INT >= TIRAMISU` check перед запросом
+- 4 шага: Знакомство → Доступ к данным (usage access, затем Health Connect) → Уведомления → «Смотрю твои данные»
+- Usage access: `Settings.ACTION_USAGE_ACCESS_SETTINGS`, проверка через AppOps (`Context.hasUsageAccess()`)
+- HC недоступен → мягкая подсказка, без «ошибки»
+- Показывается один раз (флаг `onboarded` в DataStore)
+
+### ProfileScreen
+
+- Открывается по нажатию на орб. Аккордеон вопросов (`domain/profile/ProfileQuestions.kt`), ответы в DataStore
+- Время уведомлений из ответов переставляет расписание
 
 ## Notifications
 
 File: `notifications/NotificationHelper.kt`
+
+**Расписание:** `notifications/NotificationScheduler.kt` — `PeriodicWorkRequest` 24 ч до 07:40 / 20:30 (или время из профиля). `ReminderWorker` показывает утреннее (12 вариантов `MorningCopies`) или вечернее (5 вариантов `EveningCopies`, пропускается, если чек-ин уже есть). Запускается в `CompanionApp.onCreate()` с `KEEP`.
 
 **Каналы:**
 - `ch_morning` (IMPORTANCE_DEFAULT) — утренний прогноз
@@ -90,7 +87,7 @@ File: `notifications/NotificationHelper.kt`
 **CheckInReceiver** (`notifications/CheckInReceiver.kt`):
 - `@EntryPoint @InstallIn(SingletonComponent::class)` + `EntryPointAccessors` — Hilt в BroadcastReceiver
 - Action buttons: `ru.keegoo.companion.ACTION_CHECKIN` + `EXTRA_FEEL` (OK/MEH/HARD)
-- При нажатии: cancel уведомления → toast → `repo.postCheckIn()` в coroutine
+- При нажатии: cancel уведомления → toast → `saveCheckIn()` локально → `repo.postCheckIn()` (через `goAsync()`)
 
 ## Data layer
 
@@ -114,14 +111,14 @@ File: `notifications/NotificationHelper.kt`
 
 1. **AppMetrica**: добавить ключ (ждём аккаунт) — `meta-data` в AndroidManifest + `AppMetrica.activate()` в CompanionApp
 2. **Glance widget** — виджет на рабочий стол (утренний прогноз)
-3. **PACKAGE_USAGE_STATS permission** — запрос на Day 3–4 онбординга (сейчас деферировано)
-4. **FCM** — push-уведомления с сервера (сейчас local WorkManager scheduler)
+3. **FCM** — push-уведомления с сервера (сейчас локальный `NotificationScheduler`)
+4. План по экранам — в [HOME_UX.md](HOME_UX.md#план)
 
 ## Hilt setup
 
 - `@HiltAndroidApp` on `CompanionApp`
 - `@AndroidEntryPoint` on `MainActivity`
-- Workers use `@HiltWorker` + `@AssistedInject` — requires `HiltWorkerFactory` registered via `WorkManager.initialize()` or `Configuration.Provider`
+- Workers use `@HiltWorker` + `@AssistedInject` — `CompanionApp` implements `Configuration.Provider` with `HiltWorkerFactory`; the default `WorkManagerInitializer` is removed in the manifest
 - `@ApplicationContext` injected into collectors — singleton scope
 
 ## minSdk = 29 rationale
