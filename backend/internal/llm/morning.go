@@ -37,16 +37,19 @@ type GenerateResult struct {
 	LatencyMs        int
 }
 
-const systemPrompt = `Ты персональный цифровой компаньон. Утром ты анализируешь данные за последние дни и даёшь честный, конкретный прогноз.
+const systemPrompt = `Ты персональный цифровой компаньон. Утром ты анализируешь данные и даёшь честный, конкретный прогноз.
 
 Правила:
 1. Сравнивай вчера с ЛИЧНЫМИ средними пользователя, не с «нормой здорового человека».
 2. Называй приложения по имени (Instagram, YouTube, Telegram), не «соцсети» или «приложение».
-3. Давай ОДНО конкретное действие, не список. «Выйди на 15 минут» лучше, чем «больше двигайся».
-4. Замечай ПОЛОЖИТЕЛЬНЫЕ отклонения и хвали их — это работает лучше, чем запреты.
-5. Если сон падает 3+ дня подряд — смягчи тон, не дави. Человек и так устал.
+3. Давай ОДНО конкретное действие. «Выйди на 15 минут» лучше, чем «больше двигайся».
+4. Замечай ПОЛОЖИТЕЛЬНЫЕ отклонения и хвали — это работает лучше, чем запреты.
+5. Если сон падает 3+ дня подряд — смягчи тон, не дави.
 
-Формат: 2–3 предложения. По-русски, без приветствий и подписей.`
+Формат: 2 предложения, СТРОГО до 200 символов.
+Первое предложение — ключевой факт или наблюдение (до 80 символов).
+Второе предложение — одно конкретное действие или поддержка.
+Без приветствий, подписей и вводных слов.`
 
 func (c *Client) GenerateMorning(ctx context.Context, days []*repo.DailyData, last *repo.CheckIn) (*GenerateResult, error) {
 	prompt := buildPrompt(days, last)
@@ -58,7 +61,7 @@ func (c *Client) GenerateMorning(ctx context.Context, days []*repo.DailyData, la
 			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		MaxTokens:   350,
+		MaxTokens:   100, // ~200 chars in Russian at ~2 chars/token
 		Temperature: 0.75,
 	})
 	latency := int(time.Since(start).Milliseconds())
@@ -67,7 +70,7 @@ func (c *Client) GenerateMorning(ctx context.Context, days []*repo.DailyData, la
 	}
 
 	return &GenerateResult{
-		Message:          strings.TrimSpace(resp.Choices[0].Message.Content),
+		Message:          capMessage(strings.TrimSpace(resp.Choices[0].Message.Content), 220),
 		PromptTokens:     resp.Usage.PromptTokens,
 		CompletionTokens: resp.Usage.CompletionTokens,
 		LatencyMs:        latency,
@@ -116,6 +119,22 @@ func resolveAppName(pkg string) string {
 		return parts[len(parts)-1]
 	}
 	return pkg
+}
+
+// capMessage trims the message to the last complete sentence within maxChars.
+func capMessage(s string, maxChars int) string {
+	runes := []rune(s)
+	if len(runes) <= maxChars {
+		return s
+	}
+	cut := string(runes[:maxChars])
+	// find last sentence-ending punctuation
+	for i := len(cut) - 1; i >= 0; i-- {
+		if cut[i] == '.' || cut[i] == '!' || cut[i] == '?' {
+			return strings.TrimSpace(cut[:i+1])
+		}
+	}
+	return strings.TrimSpace(cut)
 }
 
 func parseHHMM(s string) time.Time {

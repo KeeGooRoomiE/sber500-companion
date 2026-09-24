@@ -47,12 +47,14 @@ fun createNotificationChannels(context: Context) {
 }
 
 fun showMorningNotification(context: Context, text: String? = null) {
-    val tip = text ?: TIPS.random()
+    val full = text ?: TIPS.random()
+    // First sentence for collapsed preview (~50 chars visible); full text in expanded BigText.
+    val preview = full.substringBefore(". ").trimEnd('.').take(80)
     val notif = NotificationCompat.Builder(context, CHANNEL_MORNING)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle("Прогноз на сегодня")
-        .setContentText(tip)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(tip))
+        .setContentText(preview)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(full))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setAutoCancel(true)
         .build()
