@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Метрики · mock — companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:       #6B5CE7;
+      --primary-light: #EDE9FF;
+      --primary-mid:   #9B8AFF;
+      --bg:            #F7F6FF;
+      --white:         #FFFFFF;
+      --text:          #18181B;
+      --muted:         #71717A;
+      --border:        #E4E4E7;
+      --radius:        16px;
+      --shadow:        0 2px 12px rgba(107,92,231,.08);
+      --ok:            #10B981;
+      --ok-bg:         #ECFDF5;
+      --warn:          #F59E0B;
+      --warn-bg:       #FFFBEB;
+      --danger:        #EF4444;
+      --danger-bg:     #FEF2F2;
+      --mock-color:    #D97706;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 64px; }
+
+    nav {
+      position: sticky; top: 10px; z-index: 100;
+      background: rgba(247,246,255,.92); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); border-radius: 28px;
+      padding: 14px 24px; margin: 10px 16px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .nav-logo { font-weight: 700; font-size: 17px; color: var(--primary); text-decoration: none; }
+    .nav-badges { display: flex; gap: 8px; align-items: center; }
+    .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+    .badge-primary { color: var(--primary); background: var(--primary-light); }
+    .badge-mock    { color: var(--mock-color); background: #FEF3C7; }
+
+    main { max-width: 760px; margin: 32px auto 0; padding: 0 16px; }
+
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: clamp(22px, 5vw, 30px); font-weight: 800; letter-spacing: -0.6px; margin-bottom: 6px; }
+    .page-header p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── SECTION ── */
+    .section { margin-bottom: 28px; }
+    .section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: var(--muted); margin-bottom: 12px;
+    }
+
+    /* ── KPI PROGRESS ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .kpi-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 16px;
+      box-shadow: var(--shadow);
+    }
+    .kpi-card.ok-card     { border-color: #6EE7B7; background: var(--ok-bg); }
+    .kpi-card.warn-card   { border-color: #FDE68A; background: var(--warn-bg); }
+    .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .kpi-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .kpi-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+    .status-ok   { background: #D1FAE5; color: #065F46; }
+    .status-warn { background: #FEF3C7; color: #92400E; }
+    .kpi-value { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+    .kpi-card.ok-card .kpi-value   { color: var(--ok); }
+    .kpi-card.warn-card .kpi-value { color: var(--warn); }
+    .kpi-target { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+    .progress-bar { height: 6px; background: #E4E4E7; border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 99px; transition: width .6s; }
+
+    /* ── STAT GRID ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .stat-tile {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 16px 14px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .stat-value { font-size: 30px; font-weight: 800; letter-spacing: -1px; color: var(--text); line-height: 1; margin: 6px 0 2px; }
+    .stat-unit  { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .stat-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
+    .delta-up   { color: var(--ok); }
+    .delta-down { color: var(--danger); }
+
+    /* ── CHART ── */
+    .chart-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 18px;
+      box-shadow: var(--shadow);
+    }
+    .chart-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+    .chart-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .chart-note  { font-size: 11px; color: var(--muted); }
+    svg.bar-chart { width: 100%; display: block; overflow: visible; }
+
+    /* ── FUNNEL ── */
+    .funnel { display: flex; flex-direction: column; gap: 10px; }
+    .funnel-row { display: flex; align-items: center; gap: 12px; }
+    .funnel-label { font-size: 12px; font-weight: 600; color: var(--text); min-width: 160px; }
+    .funnel-bar-wrap { flex: 1; height: 28px; background: #F4F4F5; border-radius: 8px; overflow: hidden; position: relative; }
+    .funnel-bar { height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; transition: width .6s; }
+    .funnel-bar-text { font-size: 11px; font-weight: 700; color: white; }
+    .funnel-pct { font-size: 12px; font-weight: 600; min-width: 44px; text-align: right; color: var(--muted); }
+
+    /* ── RETENTION TABLE ── */
+    .ret-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .ret-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    .ret-table td { padding: 8px 10px; border-bottom: 1px solid #F4F4F5; }
+    .ret-cell { display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+    .ret-high { background: #D1FAE5; color: #065F46; }
+    .ret-mid  { background: #FEF3C7; color: #92400E; }
+    .ret-low  { background: #FEE2E2; color: #991B1B; }
+
+    /* ── CHECKIN CHART ── */
+    .ci-bars { display: flex; gap: 3px; align-items: flex-end; height: 56px; }
+    .ci-bar { flex: 1; border-radius: 4px 4px 0 0; min-width: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">companion</a>
+  <div class="nav-badges">
+    <span class="badge badge-mock">MOCK · 22 дня</span>
+    <span class="badge badge-primary">Sber500 metrics</span>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Метрики проекта</h1>
+    <p>Смоделированные данные за 22 дня · <strong>53 DAU</strong> · <strong>281 пользователь</strong> · старт 2 сентября 2026 г.</p>
+  </div>
+
+  <!-- KPI для судей -->
+  <div class="section">
+    <div class="section-title">Прогресс к KPI конкурса</div>
+    <div class="kpi-row" id="kpi-row"></div>
+  </div>
+
+  <!-- Основные тайлы -->
+  <div class="section">
+    <div class="section-title">Общая статистика</div>
+    <div class="stat-grid" id="stat-grid"></div>
+  </div>
+
+  <!-- DAU 22 дня -->
+  <div class="section">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">DAU за 22 дня</span>
+        <span class="chart-note">avg 7д: 52 · рост +6% нед/нед</span>
+      </div>
+      <svg class="bar-chart" id="dau-svg" viewBox="0 0 700 100" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <!-- Воронка -->
+  <div class="section">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Воронка пользователей</span>
+        <span class="chart-note">от установки до 7-дневной активности</span>
+      </div>
+      <div class="funnel" id="funnel"></div>
+    </div>
+  </div>
+
+  <!-- Ретеншн по когортам + чекин рядом -->
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:28px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Ретеншн по когортам</span>
+      </div>
+      <table class="ret-table" id="ret-table"></table>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Check-in rate</span>
+        <span class="chart-note">за 22 дня</span>
+      </div>
+      <div class="ci-bars" id="ci-bars"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">avg completion rate: <strong style="color:var(--text)">68%</strong></div>
+    </div>
+  </div>
+
+  <!-- LLM статистика -->
+  <div class="section">
+    <div class="section-title">LLM usage · GigaChat-3-Pro</div>
+    <div class="stat-grid" id="llm-grid"></div>
+  </div>
+
+</main>
+
+<script>
+// ─── Mock data ───────────────────────────────────────────────────────────────
+
+// 22 дня: Sept 2–23, 2026. Рост с шумом.
+const DAYS = Array.from({length: 22}, (_, i) => {
+  const d = new Date('2026-09-02');
+  d.setDate(d.getDate() + i);
+  return d.toISOString().slice(0, 10);
+});
+
+// Новые пользователи по дням (сумма = 281)
+const newUsers = [25, 18, 22, 16, 14, 18, 12, 15, 14, 11, 16, 12, 10, 12, 10, 9, 12, 8, 11, 9, 8, 9];
+
+// DAU по дням — реалистичный рост с шумом
+const dau = [25, 35, 47, 46, 48, 53, 50, 52, 53, 51, 55, 54, 52, 55, 52, 54, 53, 55, 56, 52, 54, 53];
+
+// Звонки (passive data sends + checkins + morning fetches) per day ≈ DAU × 13
+const callsPerDay = dau.map(d => Math.round(d * (12.5 + Math.random() * 1.5)));
+
+// Check-in завершения (%% от DAU)
+const checkinRate = [72,65,70,68,71,69,65,73,67,64,70,68,66,72,69,65,71,68,67,70,64,69];
+
+// LLM вызовов в день = DAU (1 утреннее уведомление)
+const llmPerDay = dau.map(d => d);
+
+// ─── Totals ──────────────────────────────────────────────────────────────────
+const totalUsers   = newUsers.reduce((a, b) => a + b, 0);  // 281
+const dauToday     = dau[21];                               // 53
+const dau7dAvg     = Math.round(dau.slice(-7).reduce((a,b)=>a+b,0) / 7);
+const totalCalls   = callsPerDay.reduce((a,b)=>a+b,0);
+const callsPerDau  = (totalCalls / dau.reduce((a,b)=>a+b,0)).toFixed(1);
+const totalLlm     = llmPerDay.reduce((a,b)=>a+b,0);
+const costPerNotif = 0.065;
+const totalCostRub = (totalLlm * costPerNotif).toFixed(2);
+const costPerDauToday = (llmPerDay[21] * costPerNotif / dauToday).toFixed(3);
+
+// D1 / D7 retention (approximated from cohorts)
+const d1Ret  = 80;
+const d7Ret  = 55;
+const d14Ret = 40;
+
+// Воронка
+const installs = 342; // больше чем зарегистрировалось (не дошли до конца онбординга)
+const onboarded = totalUsers;       // 281
+const d1Active  = Math.round(totalUsers * 0.80);  // 225
+const d7Active  = Math.round(totalUsers * 0.55);  // 154
+
+// ─── KPI tiles ───────────────────────────────────────────────────────────────
+const kpis = [
+  {
+    label: 'DAU сегодня',
+    value: dauToday,
+    unit: 'польз.',
+    target: 1000,
+    targetLabel: 'цель ≥ 1 000',
+    pct: Math.min(100, Math.round(dauToday / 1000 * 100)),
+    ok: dauToday >= 1000,
+    fillColor: '#6B5CE7',
+  },
+  {
+    label: 'Calls / DAU',
+    value: callsPerDau,
+    unit: 'запросов',
+    target: 10,
+    targetLabel: 'цель ≥ 10',
+    pct: Math.min(100, Math.round(callsPerDau / 10 * 100)),
+    ok: callsPerDau >= 10,
+    fillColor: '#10B981',
+  },
+  {
+    label: 'LLM calls total',
+    value: totalLlm.toLocaleString('ru'),
+    unit: 'вызовов',
+    target: null,
+    targetLabel: '1 вызов/DAU/день ✓',
+    pct: 100,
+    ok: true,
+    fillColor: '#10B981',
+  },
+];
+
+document.getElementById('kpi-row').innerHTML = kpis.map(k => `
+  <div class="kpi-card ${k.ok ? 'ok-card' : 'warn-card'}">
+    <div class="kpi-header">
+      <span class="kpi-label">${k.label}</span>
+      <span class="kpi-status ${k.ok ? 'status-ok' : 'status-warn'}">${k.ok ? '✓ OK' : '↗ В пути'}</span>
+    </div>
+    <div class="kpi-value">${k.value}</div>
+    <div class="kpi-target">${k.targetLabel}</div>
+    ${k.target !== null ? `
+    <div class="progress-bar">
+      <div class="progress-fill" style="width:${k.pct}%;background:${k.fillColor}"></div>
+    </div>` : `<div class="progress-bar"><div class="progress-fill" style="width:100%;background:${k.fillColor}"></div></div>`}
+  </div>`).join('');
+
+// ─── Stat tiles ──────────────────────────────────────────────────────────────
+const stats = [
+  { label: 'Всего пользователей', value: totalUsers,         unit: 'зарег.',          delta: '+9', up: true },
+  { label: 'DAU 7д avg',          value: dau7dAvg,           unit: 'польз.',           delta: '+6%', up: true },
+  { label: 'D1 Retention',        value: d1Ret + '%',        unit: 'вернулись на д.1', delta: '', up: null },
+  { label: 'D7 Retention',        value: d7Ret + '%',        unit: 'активны через 7д', delta: '', up: null },
+  { label: 'Notifs sent',         value: totalLlm,           unit: 'утренних прогнозов', delta: '', up: null },
+  { label: 'Check-in avg',        value: '68%',              unit: 'завершают чекин',  delta: '', up: null },
+  { label: 'Cost / DAU',          value: '0.065₽',           unit: 'на пользователя',  delta: '', up: null },
+  { label: 'Потраченный бюджет',  value: totalCostRub + '₽', unit: `из 50 000₽`,       delta: '', up: null },
+];
+
+document.getElementById('stat-grid').innerHTML = stats.map(s => `
+  <div class="stat-tile">
+    <span class="stat-label">${s.label}</span>
+    <span class="stat-value">${typeof s.value === 'number' ? s.value.toLocaleString('ru') : s.value}</span>
+    <span class="stat-unit">${s.unit}</span>
+    ${s.delta ? `<span class="stat-delta ${s.up ? 'delta-up' : 'delta-down'}">${s.delta} сегодня</span>` : ''}
+  </div>`).join('');
+
+// ─── DAU SVG chart ───────────────────────────────────────────────────────────
+(function() {
+  const W = 700, H = 80, barGap = 3;
+  const count = dau.length;
+  const barW  = Math.floor((W - barGap * (count - 1)) / count);
+  const maxV  = Math.max(...dau, 1);
+  const avgLine = dau7dAvg;
+
+  let bars = '', labels = '';
+  dau.forEach((d, i) => {
+    const x = i * (barW + barGap);
+    const h = Math.max(4, Math.round((d / maxV) * H));
+    const y = H - h;
+    const isLast = i === count - 1;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${isLast ? '#6B5CE7' : '#9B8AFF'}" opacity="${isLast ? 1 : .55 + .45 * (d / maxV)}"/>`;
+    if (i === 0 || i === 6 || i === 13 || i === 21) {
+      const date = new Date(DAYS[i]);
+      const lbl  = `${date.getDate()}.${String(date.getMonth()+1).padStart(2,'0')}`;
+      labels += `<text x="${x + barW/2}" y="${H + 14}" text-anchor="middle" font-size="9" fill="#71717A" font-family="Inter,sans-serif">${lbl}</text>`;
+    }
+  });
+
+  // avg line
+  const avgY = H - Math.round((avgLine / maxV) * H);
+  const lineX2 = (count - 1) * (barW + barGap) + barW;
+  const avgLineEl = `<line x1="0" y1="${avgY}" x2="${lineX2}" y2="${avgY}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4 3" opacity=".7"/>
+    <text x="${lineX2 + 4}" y="${avgY + 4}" font-size="9" fill="#10B981" font-family="Inter,sans-serif">avg</text>`;
+
+  document.getElementById('dau-svg').innerHTML = bars + labels + avgLineEl;
+})();
+
+// ─── Funnel ──────────────────────────────────────────────────────────────────
+const funnelData = [
+  { label: 'Установили приложение', n: installs,  pct: 100,                                    color: '#6B5CE7' },
+  { label: 'Прошли онбординг',      n: onboarded, pct: Math.round(onboarded/installs*100),     color: '#8B7CF8' },
+  { label: 'Активны на D1',         n: d1Active,  pct: Math.round(d1Active/installs*100),      color: '#10B981' },
+  { label: 'Активны на D7',         n: d7Active,  pct: Math.round(d7Active/installs*100),      color: '#34D399' },
+  { label: 'Активны сегодня (D22)', n: dauToday,  pct: Math.round(dauToday/installs*100),      color: '#6EE7B7' },
+];
+
+document.getElementById('funnel').innerHTML = funnelData.map(f => `
+  <div class="funnel-row">
+    <span class="funnel-label">${f.label}</span>
+    <div class="funnel-bar-wrap">
+      <div class="funnel-bar" style="width:${f.pct}%;background:${f.color}">
+        <span class="funnel-bar-text">${f.n}</span>
+      </div>
+    </div>
+    <span class="funnel-pct">${f.pct}%</span>
+  </div>`).join('');
+
+// ─── Retention table ─────────────────────────────────────────────────────────
+const cohorts = [
+  { week: 'Нед. 1 (2–8 сент)', size: 25+18+22+16+14+18+12, d1: 81, d7: 56, d14: 41 },
+  { week: 'Нед. 2 (9–15 сент)', size: 15+14+11+16+12+10+12, d1: 80, d7: 54, d14: 39 },
+  { week: 'Нед. 3 (16–22 сент)', size: 10+9+12+8+11+9+8,    d1: 78, d7: 52, d14: null },
+  { week: 'Нед. 4 (23 сент)',    size: 9,                    d1: 77, d7: null, d14: null },
+];
+
+function retClass(v) {
+  if (v === null) return '<span style="color:var(--muted)">—</span>';
+  if (v >= 70) return `<span class="ret-cell ret-high">${v}%</span>`;
+  if (v >= 45) return `<span class="ret-cell ret-mid">${v}%</span>`;
+  return `<span class="ret-cell ret-low">${v}%</span>`;
+}
+
+document.getElementById('ret-table').innerHTML = `
+  <thead><tr>
+    <th>Когорта</th><th>Польз.</th><th>D1</th><th>D7</th><th>D14</th>
+  </tr></thead>
+  <tbody>
+    ${cohorts.map(c => `<tr>
+      <td style="font-size:11px;color:var(--muted)">${c.week}</td>
+      <td style="font-weight:600">${c.size}</td>
+      <td>${retClass(c.d1)}</td>
+      <td>${retClass(c.d7)}</td>
+      <td>${retClass(c.d14)}</td>
+    </tr>`).join('')}
+  </tbody>`;
+
+// ─── Check-in bars ───────────────────────────────────────────────────────────
+(function() {
+  const maxPct = Math.max(...checkinRate);
+  document.getElementById('ci-bars').innerHTML = checkinRate.map((r, i) => {
+    const h = Math.round((r / maxPct) * 56);
+    const isLast = i === checkinRate.length - 1;
+    return `<div class="ci-bar" style="height:${h}px;background:${isLast ? '#6B5CE7' : '#C4B5FD'};flex:1"></div>`;
+  }).join('');
+})();
+
+// ─── LLM tiles ───────────────────────────────────────────────────────────────
+const llmStats = [
+  { label: 'LLM calls total',    value: totalLlm,           unit: 'утренних прогнозов' },
+  { label: 'Сегодня',            value: llmPerDay[21],      unit: 'вызовов' },
+  { label: 'Потрачено бюджета',  value: totalCostRub + ' ₽', unit: 'из 50 000 ₽' },
+  { label: 'Остаток бюджета',    value: (50000 - +totalCostRub).toLocaleString('ru') + ' ₽', unit: 'осталось' },
+  { label: 'Cost / 1M input',    value: '73 ₽',             unit: 'GigaChat-3-Pro' },
+  { label: 'При 1 000 DAU',      value: '1 950 ₽',          unit: 'в месяц' },
+];
+
+document.getElementById('llm-grid').innerHTML = llmStats.map(s => `
+  <div class="stat-tile">
+    <span class="stat-label">${s.label}</span>
+    <span class="stat-value" style="font-size:24px">${typeof s.value === 'number' ? s.value.toLocaleString('ru') : s.value}</span>
+    <span class="stat-unit">${s.unit}</span>
+  </div>`).join('');
+</script>
+</body>
+</html>
