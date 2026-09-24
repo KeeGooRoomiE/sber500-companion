@@ -41,9 +41,11 @@ func (h *Handler) PassiveData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	apps := make([]repo.AppUsage, len(req.TopApps))
-	for i, a := range req.TopApps {
-		apps[i] = repo.AppUsage{Package: a.Package, Minutes: a.Minutes}
+	apps := make([]repo.AppUsage, 0, len(req.TopApps))
+	for _, a := range req.TopApps {
+		if pkg := a.PackageID(); pkg != "" {
+			apps = append(apps, repo.AppUsage{Package: pkg, Minutes: a.Minutes})
+		}
 	}
 
 	if err := h.daily.Upsert(r.Context(), &repo.DailyData{

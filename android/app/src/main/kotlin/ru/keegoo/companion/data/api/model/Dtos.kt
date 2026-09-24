@@ -1,5 +1,7 @@
 package ru.keegoo.companion.data.api.model
 
+import com.google.gson.annotations.SerializedName
+
 data class PassiveDataRequest(
     val date: String,             // "2006-01-02"
     val screen_min: Int?,
@@ -15,7 +17,10 @@ data class PassiveDataRequest(
     val fcm_token: String? = null,
 )
 
-data class AppUsageDto(val package_name: String, val minutes: Int)
+data class AppUsageDto(
+    @SerializedName("package") val packageName: String,  // backend + top_apps JSONB use "package"
+    val minutes: Int,
+)
 
 data class CheckInRequest(
     val date: String,             // "2006-01-02"

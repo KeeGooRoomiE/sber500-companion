@@ -211,14 +211,14 @@ func buildPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
 		if d.ScreenMin != nil {
 			h, m := *d.ScreenMin/60, *d.ScreenMin%60
 			if h > 0 {
-				parts = append(parts, fmt.Sprintf("экран %dч%02дм", h, m))
+				parts = append(parts, fmt.Sprintf("экран %dч%02dм", h, m))
 			} else {
 				parts = append(parts, fmt.Sprintf("экран %dм", m))
 			}
 		}
 		if d.SleepMin != nil {
 			h, m := *d.SleepMin/60, *d.SleepMin%60
-			parts = append(parts, fmt.Sprintf("сон %dч%02дм", h, m))
+			parts = append(parts, fmt.Sprintf("сон %dч%02dм", h, m))
 		}
 		if d.Unlocks != nil {
 			parts = append(parts, fmt.Sprintf("%d разблокировок", *d.Unlocks))
@@ -245,12 +245,18 @@ func buildPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
 			}
 		}
 
-		if len(d.TopApps) > 0 {
-			top := d.TopApps[0]
+		apps := make([]repo.AppUsage, 0, len(d.TopApps))
+		for _, a := range d.TopApps {
+			if a.Package != "" { // rows saved before the key fix have empty packages
+				apps = append(apps, a)
+			}
+		}
+		if len(apps) > 0 {
+			top := apps[0]
 			name := resolveAppName(top.Package)
 			parts = append(parts, fmt.Sprintf("топ: %s %dм", name, top.Minutes))
-			if len(d.TopApps) > 1 {
-				top2 := d.TopApps[1]
+			if len(apps) > 1 {
+				top2 := apps[1]
 				name2 := resolveAppName(top2.Package)
 				parts = append(parts, fmt.Sprintf("%s %dм", name2, top2.Minutes))
 			}
