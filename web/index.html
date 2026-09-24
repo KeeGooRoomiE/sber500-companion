@@ -69,16 +69,35 @@
     /* ── NAV ── */
     nav {
       position: sticky;
-      top: 0;
+      top: 10px;
       z-index: 100;
-      background: rgba(247, 246, 255, 0.85);
+      background: rgba(247, 246, 255, 0.92);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px 18px;
+      margin: 10px 16px 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      box-shadow: 0 2px 14px rgba(107, 92, 231, 0.07);
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-dl {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--white);
+      background: var(--primary);
+      padding: 5px 13px;
+      border-radius: 20px;
+      text-decoration: none;
+      letter-spacing: 0.1px;
+      white-space: nowrap;
     }
 
     .nav-logo {
@@ -494,7 +513,10 @@
 
 <nav>
   <span class="nav-logo">companion</span>
-  <span class="nav-badge">Beta · Android</span>
+  <div class="nav-right">
+    <span class="nav-badge">Beta · Android</span>
+    <a href="#download" class="nav-dl">Скачать</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -652,7 +674,7 @@
 </section>
 
 <!-- CTA BOTTOM -->
-<section class="cta-bottom">
+<section id="download" class="cta-bottom">
   <div class="cta-card reveal">
     <h2>Попробуй первым</h2>
     <p>Ранний доступ для Android. RuStore — в ближайшее время.</p>
@@ -782,16 +804,19 @@
   motionQuery.matches ? stop() : start();
 })();
 
-// ── Scroll reveal (bidirectional) — hysteresis: enter at 65%, exit at 80% ──
-// Two observers prevent boundary thrashing: element must travel 7.5% more
-// before going hidden, so it can't oscillate at a single threshold line.
+// ── Scroll reveal (bidirectional) — hysteresis with mobile breakpoint ───────
+// Mobile (≤640px): wider zones so elements don't vanish too early on small screens
+const _mobile = window.innerWidth <= 640;
+const _enterMargin = _mobile ? '-10% 0px -10% 0px' : '-20% 0px -20% 0px';
+const _exitMargin  = _mobile ? '-5% 0px -5% 0px'   : '-14% 0px -14% 0px';
+
 const enterObserver = new IntersectionObserver((entries) => {
   entries.forEach(({ target, isIntersecting }) => {
     if (!isIntersecting) return;
     target.classList.add('visible');
     target.classList.remove('exit-top');
   });
-}, { threshold: 0.18, rootMargin: '-20% 0px -20% 0px' });
+}, { threshold: 0.12, rootMargin: _enterMargin });
 
 const exitObserver = new IntersectionObserver((entries) => {
   entries.forEach(({ target, isIntersecting, boundingClientRect }) => {
@@ -799,7 +824,7 @@ const exitObserver = new IntersectionObserver((entries) => {
     target.classList.remove('visible');
     target.classList.toggle('exit-top', boundingClientRect.top < 0);
   });
-}, { threshold: 0, rootMargin: '-14% 0px -14% 0px' });
+}, { threshold: 0, rootMargin: _exitMargin });
 
 document.querySelectorAll('.reveal, .feature-card').forEach(el => {
   enterObserver.observe(el);
