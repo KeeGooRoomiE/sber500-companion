@@ -39,9 +39,14 @@ class DailyCollectWorker @AssistedInject constructor(
             to = dayEnd,
         )
 
+        val steps = healthConnect.collectSteps(from = dayStart, to = dayEnd)
+
         val battery = applicationContext.batteryLevel()
 
-        val snapshot = DailySnapshot(date = today, usage = usage, sleep = sleep, battery = battery)
+        val snapshot = DailySnapshot(
+            date = today, usage = usage, sleep = sleep,
+            battery = battery, steps = steps.takeIf { it > 0 },
+        )
 
         return when (repository.postDailySnapshot(snapshot).isSuccess) {
             true  -> Result.success()

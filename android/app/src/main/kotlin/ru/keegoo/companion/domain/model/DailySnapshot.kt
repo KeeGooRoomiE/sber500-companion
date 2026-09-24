@@ -8,6 +8,7 @@ data class DailySnapshot(
     val usage: UsageSnapshot,
     val sleep: SleepSnapshot?,
     val battery: BatterySnapshot,
+    val steps: Int? = null,
 )
 
 data class UsageSnapshot(

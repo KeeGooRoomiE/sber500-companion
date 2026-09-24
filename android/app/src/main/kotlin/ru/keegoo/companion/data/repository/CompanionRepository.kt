@@ -31,7 +31,7 @@ class CompanionRepository @Inject constructor(
                 sleep_min      = snapshot.sleep?.durationMinutes,
                 bedtime        = snapshot.sleep?.bedtime?.format(TIME_FMT),
                 wakeup         = snapshot.sleep?.wakeup?.format(TIME_FMT),
-                steps          = null,
+                steps          = snapshot.steps,
                 battery_morning = snapshot.battery.levelPercent,
             )
         )
