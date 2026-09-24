@@ -677,7 +677,7 @@
   let prevScrollY = window.scrollY;
   window.addEventListener('scroll', () => {
     const delta = Math.abs(window.scrollY - prevScrollY);
-    scrollBoost = Math.min(delta * 0.08, 6);
+    scrollBoost = Math.min(delta * 0.32, 24);
     prevScrollY = window.scrollY;
   }, { passive: true });
 
