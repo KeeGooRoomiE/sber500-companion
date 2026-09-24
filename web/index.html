@@ -325,14 +325,15 @@
       position: relative;
     }
 
-    .steps::before {
+    .step:not(:last-child)::after {
       content: '';
       position: absolute;
       left: 19px;
-      top: 20px;
-      bottom: 20px;
+      top: 36px;     /* center of this step's circle (16px padding + 20px) */
+      bottom: -36px; /* extends exactly to center of next step's circle */
       width: 2px;
-      background: linear-gradient(to bottom, var(--primary-light), var(--primary-light));
+      background: var(--primary-light);
+      z-index: 0;
     }
 
     .step {
