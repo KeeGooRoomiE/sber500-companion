@@ -25,7 +25,7 @@ func NewClient() *Client {
 	}
 	model := os.Getenv("LLM_MODEL")
 	if model == "" {
-		model = "GigaChat-Pro"
+		model = "GigaChat-3-Pro"
 	}
 	return &Client{ai: openai.NewClientWithConfig(cfg), model: model}
 }
