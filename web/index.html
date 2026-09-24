@@ -734,7 +734,7 @@ const enterObserver = new IntersectionObserver((entries) => {
     target.classList.add('visible');
     target.classList.remove('exit-top');
   });
-}, { threshold: 0.18, rootMargin: '-17.5% 0px -17.5% 0px' });
+}, { threshold: 0.18, rootMargin: '-20% 0px -20% 0px' });
 
 const exitObserver = new IntersectionObserver((entries) => {
   entries.forEach(({ target, isIntersecting, boundingClientRect }) => {
@@ -742,7 +742,7 @@ const exitObserver = new IntersectionObserver((entries) => {
     target.classList.remove('visible');
     target.classList.toggle('exit-top', boundingClientRect.top < 0);
   });
-}, { threshold: 0, rootMargin: '-10% 0px -10% 0px' });
+}, { threshold: 0, rootMargin: '-14% 0px -14% 0px' });
 
 document.querySelectorAll('.reveal, .feature-card').forEach(el => {
   enterObserver.observe(el);
