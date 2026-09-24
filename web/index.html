@@ -725,26 +725,29 @@
   motionQuery.matches ? stop() : start();
 })();
 
-// ── Scroll reveal (bidirectional — slides in/out like pages) ───────────────
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const el = entry.target;
-    if (entry.isIntersecting) {
-      el.classList.add('visible');
-      el.classList.remove('exit-top');
-    } else {
-      el.classList.remove('visible');
-      // Element exited top → slide it up; exited bottom → reset to slide-from-below
-      if (entry.boundingClientRect.top < 0) {
-        el.classList.add('exit-top');
-      } else {
-        el.classList.remove('exit-top');
-      }
-    }
+// ── Scroll reveal (bidirectional) — hysteresis: enter at 65%, exit at 80% ──
+// Two observers prevent boundary thrashing: element must travel 7.5% more
+// before going hidden, so it can't oscillate at a single threshold line.
+const enterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(({ target, isIntersecting }) => {
+    if (!isIntersecting) return;
+    target.classList.add('visible');
+    target.classList.remove('exit-top');
   });
 }, { threshold: 0.18, rootMargin: '-17.5% 0px -17.5% 0px' });
 
-document.querySelectorAll('.reveal, .feature-card').forEach(el => observer.observe(el));
+const exitObserver = new IntersectionObserver((entries) => {
+  entries.forEach(({ target, isIntersecting, boundingClientRect }) => {
+    if (isIntersecting || !target.classList.contains('visible')) return;
+    target.classList.remove('visible');
+    target.classList.toggle('exit-top', boundingClientRect.top < 0);
+  });
+}, { threshold: 0, rootMargin: '-10% 0px -10% 0px' });
+
+document.querySelectorAll('.reveal, .feature-card').forEach(el => {
+  enterObserver.observe(el);
+  exitObserver.observe(el);
+});
 </script>
 </body>
 </html>
