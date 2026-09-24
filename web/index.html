@@ -12,6 +12,7 @@
       --bg: #F7F6FF;
       --white: #FFFFFF;
       --primary: #6B5CE7;
+      --primary-rgb: 107, 92, 231;
       --primary-light: #EDE9FF;
       --primary-mid: #9B8AFF;
       --text: #18181B;
@@ -35,6 +36,33 @@
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
+
+    /* ── CANVAS BACKGROUND ── */
+    #psw-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+    }
+
+    /* ── SCROLL REVEAL ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(36px);
+      transition: opacity 0.55s cubic-bezier(0.2, 0.8, 0.2, 1),
+                  transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition-delay: var(--reveal-delay, 0s);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* nav is instant, no reveal */
 
     /* ── NAV ── */
     nav {
@@ -73,6 +101,8 @@
       text-align: center;
       max-width: 600px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .hero-tag {
@@ -172,6 +202,8 @@
       justify-content: center;
       margin-bottom: 72px;
       perspective: 800px;
+      position: relative;
+      z-index: 1;
     }
 
     .phone {
@@ -180,7 +212,7 @@
       transform: rotateX(4deg);
     }
 
-    /* ── SECTION LABEL ── */
+    /* ── SECTION SHARED ── */
     .section-label {
       font-size: 11px;
       font-weight: 700;
@@ -212,6 +244,8 @@
       padding: 0 16px 72px;
       max-width: 560px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .features-grid {
@@ -226,10 +260,19 @@
       padding: 22px 20px;
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border);
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s,
+                  opacity 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s),
+                  transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s);
+      opacity: 0;
+      transform: translateY(28px);
     }
 
-    .feature-card:hover {
+    .feature-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .feature-card.visible:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
     }
@@ -264,6 +307,8 @@
       padding: 0 16px 72px;
       max-width: 560px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .steps {
@@ -328,6 +373,8 @@
       padding: 0 16px 72px;
       max-width: 560px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     .quote-card {
@@ -373,6 +420,8 @@
       max-width: 560px;
       margin: 0 auto;
       text-align: center;
+      position: relative;
+      z-index: 1;
     }
 
     .cta-card {
@@ -411,6 +460,8 @@
       border-top: 1px solid var(--border);
       max-width: 560px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     footer p {
@@ -425,13 +476,16 @@
 </head>
 <body>
 
+<!-- ANIMATED BACKGROUND: PlayStation XMB-style waves -->
+<canvas id="psw-canvas" aria-hidden="true"></canvas>
+
 <nav>
   <span class="nav-logo">companion</span>
   <span class="nav-badge">Beta · Android</span>
 </nav>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero reveal">
   <div class="hero-tag">Ранний доступ открыт</div>
   <h1>Каждое утро —<br><em>прогноз</em>, который<br>ты не ждал</h1>
   <p class="hero-sub">
@@ -451,39 +505,26 @@
 </section>
 
 <!-- PHONE MOCKUP -->
-<div class="phone-wrap">
+<div class="phone-wrap reveal" style="--reveal-delay: 0.1s">
   <svg class="phone" viewBox="0 0 240 480" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Phone shell -->
     <rect x="2" y="2" width="236" height="476" rx="36" fill="white" stroke="#E4E4E7" stroke-width="2"/>
-    <!-- Status bar notch -->
     <rect x="80" y="8" width="80" height="20" rx="10" fill="#F4F4F5"/>
-    <!-- Screen content area -->
     <rect x="12" y="40" width="216" height="392" rx="24" fill="#F7F6FF"/>
-    <!-- Morning message card -->
     <rect x="24" y="60" width="192" height="160" rx="16" fill="white"/>
-    <!-- Date -->
     <rect x="40" y="76" width="60" height="8" rx="4" fill="#E4E4E7"/>
-    <!-- Message lines -->
     <rect x="40" y="96" width="160" height="8" rx="4" fill="#18181B"/>
     <rect x="40" y="110" width="140" height="8" rx="4" fill="#18181B"/>
     <rect x="40" y="124" width="100" height="8" rx="4" fill="#6B5CE7" opacity="0.7"/>
-    <!-- Separator -->
     <rect x="40" y="146" width="160" height="1" rx="0.5" fill="#F4F4F5"/>
-    <!-- Tag chips -->
     <rect x="40" y="158" width="50" height="18" rx="9" fill="#EDE9FF"/>
     <rect x="96" y="158" width="56" height="18" rx="9" fill="#EDE9FF"/>
     <rect x="40" y="182" width="176" height="8" rx="4" fill="#A1A1AA"/>
-
-    <!-- Checkin card -->
     <rect x="24" y="236" width="192" height="80" rx="16" fill="white"/>
     <rect x="40" y="252" width="80" height="8" rx="4" fill="#18181B"/>
     <rect x="40" y="268" width="120" height="8" rx="4" fill="#A1A1AA"/>
-    <!-- Three buttons -->
     <rect x="40" y="288" width="48" height="18" rx="9" fill="#6B5CE7"/>
     <rect x="96" y="288" width="48" height="18" rx="9" fill="#F4F4F5"/>
     <rect x="152" y="288" width="48" height="18" rx="9" fill="#F4F4F5"/>
-
-    <!-- Stats row -->
     <rect x="24" y="332" width="88" height="88" rx="16" fill="white"/>
     <rect x="124" y="332" width="88" height="88" rx="16" fill="white"/>
     <rect x="40" y="350" width="28" height="28" rx="8" fill="#EDE9FF"/>
@@ -492,34 +533,32 @@
     <rect x="140" y="350" width="28" height="28" rx="8" fill="#EDE9FF"/>
     <rect x="140" y="384" width="56" height="7" rx="3.5" fill="#18181B"/>
     <rect x="140" y="397" width="36" height="7" rx="3.5" fill="#A1A1AA"/>
-
-    <!-- Home bar -->
     <rect x="88" y="448" width="64" height="4" rx="2" fill="#D4D4D8"/>
   </svg>
 </div>
 
 <!-- FEATURES -->
 <section class="features">
-  <p class="section-label">Что внутри</p>
-  <h2 class="section-title">Работает, пока ты спишь</h2>
-  <p class="section-sub">Никаких дневников настроения — только то,<br>что уже есть в твоём телефоне.</p>
+  <p class="section-label reveal">Что внутри</p>
+  <h2 class="section-title reveal" style="--reveal-delay: 0.05s">Работает, пока ты спишь</h2>
+  <p class="section-sub reveal" style="--reveal-delay: 0.1s">Никаких дневников настроения — только то,<br>что уже есть в твоём телефоне.</p>
   <div class="features-grid">
-    <div class="feature-card">
+    <div class="feature-card" style="--reveal-delay: 0s">
       <div class="feature-icon">🌅</div>
       <h3>Утренний прогноз</h3>
       <p>Одна короткая фраза о том, чего ждать от сегодня на основе паттернов</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card" style="--reveal-delay: 0.08s">
       <div class="feature-icon">📈</div>
       <h3>Пассивные данные</h3>
       <p>Сон, шаги, экранное время — без галочек и ручного трекинга</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card" style="--reveal-delay: 0.16s">
       <div class="feature-icon">💬</div>
       <h3>Чек-ин в одно касание</h3>
       <p>Вечером три кнопки прямо из уведомления. Открывать приложение не нужно</p>
     </div>
-    <div class="feature-card">
+    <div class="feature-card" style="--reveal-delay: 0.24s">
       <div class="feature-icon">🔗</div>
       <h3>Замкнутая петля</h3>
       <p>Через неделю — что изменилось после рекомендации. Ни у кого такого нет</p>
@@ -529,25 +568,25 @@
 
 <!-- HOW IT WORKS -->
 <section class="how">
-  <p class="section-label">Как это работает</p>
-  <h2 class="section-title">Три действия в сутки</h2>
-  <p class="section-sub">Из которых два делаешь не ты</p>
+  <p class="section-label reveal">Как это работает</p>
+  <h2 class="section-title reveal" style="--reveal-delay: 0.05s">Три действия в сутки</h2>
+  <p class="section-sub reveal" style="--reveal-delay: 0.1s">Из которых два делаешь не ты</p>
   <div class="steps">
-    <div class="step">
+    <div class="step reveal" style="--reveal-delay: 0s">
       <div class="step-num">1</div>
       <div class="step-body">
         <h3>Ночью — сбор и анализ</h3>
         <p>WorkManager тихо собирает данные за день. Модель строит прогноз пока ты спишь.</p>
       </div>
     </div>
-    <div class="step">
+    <div class="step reveal" style="--reveal-delay: 0.1s">
       <div class="step-num">2</div>
       <div class="step-body">
         <h3>Утром — прогноз в пуш</h3>
         <p>Одна фраза о сегодняшнем дне. Конкретно, не «высыпайся и отдыхай».</p>
       </div>
     </div>
-    <div class="step">
+    <div class="step reveal" style="--reveal-delay: 0.2s">
       <div class="step-num">3</div>
       <div class="step-body">
         <h3>Вечером — одно касание</h3>
@@ -559,7 +598,7 @@
 
 <!-- QUOTE -->
 <section class="quote-section">
-  <div class="quote-card">
+  <div class="quote-card reveal">
     <p class="quote-text">
       «Твои плохие дни приходятся на дни после 3+ встреч — не на понедельники»
     </p>
@@ -569,7 +608,7 @@
 
 <!-- CTA BOTTOM -->
 <section class="cta-bottom">
-  <div class="cta-card">
+  <div class="cta-card reveal">
     <h2>Попробуй первым</h2>
     <p>Ранний доступ для Android. RuStore — в ближайшее время.</p>
     <div class="cta-btns">
@@ -592,5 +631,105 @@
   </p>
 </footer>
 
+<script>
+// ── PlayStation XMB waves ──────────────────────────────────────────────────
+// Adapted from PlayStationWaves.astro (cv_hub) by Alexander Gusarov.
+// Fixed hue ~255 (purple), light theme, waves build toward accent #6B5CE7.
+(function () {
+  const canvas = document.getElementById('psw-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const CFG = {
+    waves:          8,
+    baseSpeed:      0.002,
+    speedStep:      0.0008,
+    baseAmplitude:  16,
+    amplitudeStep:  18,
+    yStart:         0.12,
+    yStep:          0.12,
+    phaseOffset:    1.2,
+    hueBase:        255,    // fixed purple hue
+    hueStep:        7,      // slight drift keeping in violet range
+    saturation:     68,
+    lightness:      64,
+    alphaLight:     0.062,
+    bgSat:          32,
+    bgLightTop:     98,
+    bgLightBot:     94,
+    drawStep:       4,
+    secondaryBlend: 0.45,
+  };
+
+  let tick = Date.now() % 50000;
+  let W = 0, H = 0;
+  let rafId = null;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function draw() {
+    // Background: light purple-white gradient, top → bottom
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, `hsl(${CFG.hueBase},${CFG.bgSat}%,${CFG.bgLightTop}%)`);
+    grad.addColorStop(1, `hsl(${CFG.hueBase},${CFG.bgSat}%,${CFG.bgLightBot}%)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Waves
+    for (let i = 0; i < CFG.waves; i++) {
+      const speed = CFG.baseSpeed + i * CFG.speedStep;
+      const amp   = CFG.baseAmplitude + i * CFG.amplitudeStep;
+      const yBase = H * (CFG.yStart + i * CFG.yStep);
+      const phase = tick * speed + i * CFG.phaseOffset;
+      const wHue  = (CFG.hueBase + i * CFG.hueStep) % 360;
+
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += CFG.drawStep) {
+        const y = yBase
+          + Math.sin(x * 0.008 + phase) * amp
+          + Math.sin(x * 0.004 + phase * 0.6) * amp * CFG.secondaryBlend;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fillStyle = `hsla(${wHue},${CFG.saturation}%,${CFG.lightness}%,${CFG.alphaLight})`;
+      ctx.fill();
+    }
+
+    tick++;
+    rafId = requestAnimationFrame(draw);
+  }
+
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function start() { if (!rafId) rafId = requestAnimationFrame(draw); }
+  function stop()  {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    draw(); cancelAnimationFrame(rafId); rafId = null;
+  }
+
+  motionQuery.addEventListener('change', () => motionQuery.matches ? stop() : start());
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+  motionQuery.matches ? stop() : start();
+})();
+
+// ── Scroll reveal ──────────────────────────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+document.querySelectorAll('.feature-card').forEach(el => observer.observe(el));
+</script>
 </body>
 </html>
