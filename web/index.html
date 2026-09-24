@@ -48,15 +48,17 @@
       display: block;
     }
 
-    /* ── SCROLL REVEAL ── */
+    /* ── SCROLL REVEAL (bidirectional) ── */
     .reveal {
       opacity: 0;
-      transform: translateY(36px);
-      transition: opacity 0.55s cubic-bezier(0.2, 0.8, 0.2, 1),
-                  transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
-      transition-delay: var(--reveal-delay, 0s);
+      transform: translateY(36px);   /* default: waiting below */
+      transition: opacity 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s),
+                  transform 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s);
     }
-
+    .reveal.exit-top {
+      opacity: 0;
+      transform: translateY(-28px);  /* exiting upward */
+    }
     .reveal.visible {
       opacity: 1;
       transform: translateY(0);
@@ -260,11 +262,16 @@
       padding: 22px 20px;
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border);
-      transition: transform 0.2s, box-shadow 0.2s,
-                  opacity 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s),
-                  transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s);
       opacity: 0;
       transform: translateY(28px);
+      transition: opacity 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s),
+                  transform 0.52s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0s),
+                  box-shadow 0.2s;
+    }
+
+    .feature-card.exit-top {
+      opacity: 0;
+      transform: translateY(-20px);
     }
 
     .feature-card.visible {
@@ -718,18 +725,26 @@
   motionQuery.matches ? stop() : start();
 })();
 
-// ── Scroll reveal ──────────────────────────────────────────────────────────
+// ── Scroll reveal (bidirectional — slides in/out like pages) ───────────────
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
+    const el = entry.target;
     if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      observer.unobserve(entry.target);
+      el.classList.add('visible');
+      el.classList.remove('exit-top');
+    } else {
+      el.classList.remove('visible');
+      // Element exited top → slide it up; exited bottom → reset to slide-from-below
+      if (entry.boundingClientRect.top < 0) {
+        el.classList.add('exit-top');
+      } else {
+        el.classList.remove('exit-top');
+      }
     }
   });
-}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+}, { threshold: 0.14, rootMargin: '0px 0px -32px 0px' });
 
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-document.querySelectorAll('.feature-card').forEach(el => observer.observe(el));
+document.querySelectorAll('.reveal, .feature-card').forEach(el => observer.observe(el));
 </script>
 </body>
 </html>
