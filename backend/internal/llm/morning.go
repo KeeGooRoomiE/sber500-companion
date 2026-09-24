@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"strings"
@@ -37,31 +38,29 @@ type GenerateResult struct {
 	LatencyMs        int
 }
 
-const systemPrompt = `Ты персональный цифровой компаньон. Утром ты анализируешь данные и даёшь честный, конкретный прогноз.
-
-Правила:
-1. Сравнивай вчера с ЛИЧНЫМИ средними пользователя, не с «нормой здорового человека».
-2. Называй приложения по имени (Instagram, YouTube, Telegram), не «соцсети» или «приложение».
-3. Давай ОДНО конкретное действие. «Выйди на 15 минут» лучше, чем «больше двигайся».
-4. Замечай ПОЛОЖИТЕЛЬНЫЕ отклонения и хвали — это работает лучше, чем запреты.
-5. Если сон падает 3+ дня подряд — смягчи тон, не дави.
-
-Формат: 2 предложения, СТРОГО до 200 символов.
-Первое предложение — ключевой факт или наблюдение (до 80 символов).
-Второе предложение — одно конкретное действие или поддержка.
-Без приветствий, подписей и вводных слов.`
+// DefaultMorningSystem is the built-in system prompt (prompts/morning_system.md).
+// The active version normally comes from the prompts table; this is the fallback.
+//
+//go:embed prompts/morning_system.md
+var DefaultMorningSystem string
 
 // Model is the configured model name (stored with each message for cost accounting).
 func (c *Client) Model() string { return c.model }
 
-func (c *Client) GenerateMorning(ctx context.Context, days []*repo.DailyData, last *repo.CheckIn) (*GenerateResult, error) {
+// BuildMorningPrompt renders the user message for the given days and last check-in.
+func BuildMorningPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
+	return buildPrompt(days, last)
+}
+
+// GenerateMorning calls the model with the given system prompt and the user's data.
+func (c *Client) GenerateMorning(ctx context.Context, system string, days []*repo.DailyData, last *repo.CheckIn) (*GenerateResult, error) {
 	prompt := buildPrompt(days, last)
 
 	start := time.Now()
 	resp, err := c.ai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: c.model,
 		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleSystem, Content: system},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		MaxTokens:   100, // ~200 chars in Russian at ~2 chars/token

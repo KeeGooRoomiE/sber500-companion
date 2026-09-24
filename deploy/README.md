@@ -35,6 +35,23 @@ Re-deploy = step 4 again.
 | `companion.service` | systemd unit (installed by `deploy.sh`) |
 | `Caddyfile` | Reference config; `setup.sh` writes the same one for your domain |
 
+## Prompts
+
+The morning system prompt is versioned in the DB and edited through a **local-only** admin port
+(127.0.0.1:9090, never proxied). `deploy/prompt.sh` runs curl on the server over ssh:
+
+```bash
+bash deploy/prompt.sh SERVER list                                  # versions + which is active
+bash deploy/prompt.sh SERVER preview USER_ID draft.md              # see the rendered prompt (free)
+bash deploy/prompt.sh SERVER preview USER_ID draft.md --llm        # + one real model answer
+bash deploy/prompt.sh SERVER push! draft.md "мягче тон по утрам"   # new version, active in ≤30 s
+bash deploy/prompt.sh SERVER activate 7                            # roll back / switch by id
+bash deploy/prompt.sh SERVER reset                                 # back to the built-in prompt
+```
+
+Start from `backend/internal/llm/prompts/morning_system.md`. Each change is announced in Telegram
+if `TG_BOT_TOKEN` / `TG_CHAT_ID` are set in `.env`. Answers with links or phone numbers are never shown.
+
 ## Environment variables
 
 See `backend/.env.example`. The real file lives only on the server at `/opt/companion/.env` (mode 600).

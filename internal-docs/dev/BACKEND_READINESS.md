@@ -16,7 +16,16 @@
 - **6** — `GET /api/v1/metrics`: все ключи `metrics.html` + `dau_history`, кэш 60 с, CORS; DAU/retention по новой таблице `user_activity` (приложение шлёт `POST /api/v1/ping` при открытии; чек-ин и `/morning` тоже считаются), uptime по минутным `heartbeats`, стоимость по токенам и ценам из env
 - Плюс: `LLM_DAILY_CAP` (по `morning_messages`, синхронно), таймаут LLM 25 с, лимит тела 64 КБ, `/health` проверяет БД, `component=checkin` / `morning_api` в `call_log`
 
-Осталось: **7** (регистрация с токеном, rate limit), промпты в БД, CI для Go, `weekly_feedback`.
+**7 и промпты — закрыты** (проверено тем же способом):
+
+- `POST /api/v1/register` → случайный `user_id` + токен; в БД только SHA-256 токена. Остальное — `Authorization: Bearer`. `X-User-ID` больше не принимается. Приложение регистрируется само и при 401 перерегистрируется один раз; `user_id` виден в панели отладки (для `DEV_USER_IDS`)
+- Лимиты (`httprate`): регистрация 10/час с IP, 60/мин на пользователя, 600/мин с IP на всё API
+- API слушает `127.0.0.1:8080` (`LISTEN_ADDR`) — снаружи только через Caddy
+- Промпты: таблица `prompts` (версии, одна активная), `morning_messages.prompt_version`, встроенный промпт `internal/llm/prompts/morning_system.md` как версия 0. Кэш активной версии 30 с
+- Админ-API на `127.0.0.1:9090` + `ADMIN_TOKEN` (генерируется `setup.sh`), уведомления в Telegram при каждом изменении (`TG_BOT_TOKEN`/`TG_CHAT_ID` в `.env`, опционально). Управление: `deploy/prompt.sh` (см. `deploy/README.md`)
+- Ответ модели со ссылкой, `@каналом`, доменом или телефоном не показывается пользователю (`unsafe_output` в `call_log`) — защита на случай подменённого промпта
+
+Осталось: CI для Go, `weekly_feedback`, `session_id` в `call_log`.
 
 ## Блокеры (без них не работает или опасно)
 

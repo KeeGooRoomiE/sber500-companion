@@ -18,6 +18,7 @@ type MorningMessage struct {
 	CompletionTokens int
 	LatencyMs        int
 	Model            string
+	PromptVersion    int
 }
 
 type MorningRepo struct{ db *pgxpool.Pool }
@@ -27,10 +28,10 @@ func NewMorningRepo(db *pgxpool.Pool) *MorningRepo { return &MorningRepo{db: db}
 func (r *MorningRepo) Insert(ctx context.Context, m *MorningMessage) error {
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO morning_messages
-		  (user_id, date, message, prompt_tokens, completion_tokens, latency_ms, model)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		  (user_id, date, message, prompt_tokens, completion_tokens, latency_ms, model, prompt_version)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id, date) DO NOTHING
-	`, m.UserID, m.Date, m.Message, m.PromptTokens, m.CompletionTokens, m.LatencyMs, m.Model)
+	`, m.UserID, m.Date, m.Message, m.PromptTokens, m.CompletionTokens, m.LatencyMs, m.Model, m.PromptVersion)
 	return err
 }
 
