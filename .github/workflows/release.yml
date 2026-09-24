@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Setup Android SDK
+        working-directory: android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" 2>&1 | tail -5
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --quiet
+
+      - name: Rename APK
+        run: |
+          VERSION="${{ github.ref_name }}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             companion-${VERSION}.apk
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          gh release create "${VERSION}" \
+            companion-${VERSION}.apk \
+            --title "Companion ${VERSION}" \
+            --notes "$(cat <<'EOF'
+          ## Что нового
+          <!-- заполнить перед релизом -->
+
+          ## Установка
+          1. Скачай `companion-${VERSION}.apk`
+          2. Разреши установку из неизвестных источников
+          3. Установи файл
+
+          ## Минимальная версия Android
+          Android 10 (API 29)
+          EOF
+          )"
+
+      - name: Notify Telegram
+        if: always()
+        env:
+          TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT:  ${{ secrets.TG_CHAT_ID }}
+        run: |
+          STATUS="${{ job.status }}"
+          [ "$STATUS" = "success" ] && ICON="🚀" || ICON="❌"
+          TAG="${{ github.ref_name }}"
+          REL_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          MSG="${ICON} Release ${TAG} — ${STATUS} | ${REL_URL}"
+          curl -sSf -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            -d disable_web_page_preview="true" \
+            --data-urlencode "text=${MSG}"
