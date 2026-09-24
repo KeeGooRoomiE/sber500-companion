@@ -171,34 +171,35 @@
   const LLM_BUDGET_RUB = 50000; // бюджет cloud.ru Foundation Models
 
   // ── Мок-данные (используются при ?demo=1 или когда бэкенд недоступен) ────
+  // Данные синхронизированы с metrics-mock.html (22-дневная симуляция, старт 2 сент 2026)
   const MOCK_DATA = {
     // Рост
-    users_total:              156,
+    users_total:              281,
     new_users_today:            9,
-    dau_today:                 42,
-    dau_7d_avg:                38,
-    retention_d7_pct:          34.2,
+    dau_today:                 53,
+    dau_7d_avg:                54,
+    retention_d7_pct:          55.0,
     // Вовлечённость
-    checkin_rate_pct:          71.4,
-    morning_delivered_today:   39,
-    calls_per_dau:              3.2,
+    checkin_rate_pct:          68.0,
+    morning_delivered_today:   53,
+    calls_per_dau:             13.0,  // passive data + checkins + morning = ~13, KPI ≥10 ✓
     // LLM и инфра
-    llm_calls_total:         1240,
-    llm_cost_rub_per_dau:       1.4,
-    llm_cost_rub_total:      1847,
-    p50_latency_ms:           310,
-    p95_latency_ms:           820,
-    error_rate_pct:             0.3,
-    uptime_24h_pct:            99.8,
-    // Chart
+    llm_calls_total:          1105,   // сумма DAU за 22 дня (1 LLM-вызов/юзер/день)
+    llm_cost_rub_per_dau:      0.065, // GigaChat-3-Pro: ~0.065₽ на утренний прогноз
+    llm_cost_rub_total:          71.8,
+    p50_latency_ms:            310,
+    p95_latency_ms:            820,
+    error_rate_pct:              0.3,
+    uptime_24h_pct:             99.8,
+    // Последние 7 дней из 22-дневного ряда (17–23 сент)
     dau_history: [
-      { date: '2026-09-18', dau: 28 },
-      { date: '2026-09-19', dau: 33 },
-      { date: '2026-09-20', dau: 31 },
-      { date: '2026-09-21', dau: 37 },
-      { date: '2026-09-22', dau: 40 },
-      { date: '2026-09-23', dau: 38 },
-      { date: '2026-09-24', dau: 42 },
+      { date: '2026-09-17', dau: 54 },
+      { date: '2026-09-18', dau: 53 },
+      { date: '2026-09-19', dau: 55 },
+      { date: '2026-09-20', dau: 56 },
+      { date: '2026-09-21', dau: 52 },
+      { date: '2026-09-22', dau: 54 },
+      { date: '2026-09-23', dau: 53 },
     ],
     updated_at: new Date().toISOString(),
   };
