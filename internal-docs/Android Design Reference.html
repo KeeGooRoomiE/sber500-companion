@@ -1,0 +1,1566 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Android Design Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --bg: #F0F4F1;
+  --bg-2: #E4EDE7;
+  --bg-3: #DAE6DF;
+  --surface: #FFFFFF;
+  --surface-2: #F5F8F6;
+  --border: #CBD8D1;
+  --text: #1B2B22;
+  --text-2: #3E5549;
+  --text-3: #5E7A6C;
+  --accent: #2B6B45;
+  --accent-2: #1E5035;
+  --accent-pale: #D4EBE0;
+  --amber: #C05C0C;
+  --amber-pale: #FAE8D6;
+  --red: #AA2E2E;
+  --red-pale: #FAE0E0;
+  --tag-bg: #E4EDE7;
+  --tag-text: #2B6B45;
+  --code-bg: #E8F0EC;
+  --code-text: #1B2B22;
+  --nav-width: 220px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1510;
+    --bg-2: #111B16;
+    --bg-3: #172012;
+    --surface: #1A2520;
+    --surface-2: #1F2D27;
+    --border: #2A3D33;
+    --text: #DCE9E1;
+    --text-2: #9DBDAE;
+    --text-3: #6A9A84;
+    --accent: #4CB87A;
+    --accent-2: #6DD495;
+    --accent-pale: #1A3B28;
+    --amber: #E07830;
+    --amber-pale: #2E1C0A;
+    --red: #E05555;
+    --red-pale: #2E1212;
+    --tag-bg: #1A3B28;
+    --tag-text: #4CB87A;
+    --code-bg: #141F19;
+    --code-text: #B8D4C4;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0C1510;
+  --bg-2: #111B16;
+  --bg-3: #172012;
+  --surface: #1A2520;
+  --surface-2: #1F2D27;
+  --border: #2A3D33;
+  --text: #DCE9E1;
+  --text-2: #9DBDAE;
+  --text-3: #6A9A84;
+  --accent: #4CB87A;
+  --accent-2: #6DD495;
+  --accent-pale: #1A3B28;
+  --amber: #E07830;
+  --amber-pale: #2E1C0A;
+  --red: #E05555;
+  --red-pale: #2E1212;
+  --tag-bg: #1A3B28;
+  --tag-text: #4CB87A;
+  --code-bg: #141F19;
+  --code-text: #B8D4C4;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* ── Layout ── */
+.layout {
+  display: flex;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 16px;
+  gap: 0;
+  align-items: flex-start;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--nav-width);
+  flex-shrink: 0;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 32px 16px 32px 0;
+  border-right: 1px solid var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-logo {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 20px 0 6px;
+  padding-left: 10px;
+}
+
+.sidebar nav a {
+  display: block;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-decoration: none;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar nav a:hover {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+.sidebar nav a.active {
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 32px 0 80px 40px;
+}
+
+/* ── Page header ── */
+.page-header {
+  margin-bottom: 48px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.page-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: var(--text-2);
+  max-width: 620px;
+  margin: 0;
+}
+
+.meta-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 56px;
+  scroll-margin-top: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(20px, 2.5vw, 26px);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.subsection {
+  margin: 32px 0;
+}
+
+.subsection-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 14px;
+  font-style: italic;
+}
+
+/* ── Tables ── */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+thead th {
+  background: var(--bg-2);
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:last-child {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--surface-2);
+}
+
+tbody td {
+  padding: 11px 14px;
+  vertical-align: top;
+  color: var(--text);
+}
+
+tbody td:first-child {
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+tbody td.year {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ── App cards grid ── */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.15s;
+}
+
+.app-card:hover {
+  border-color: var(--accent);
+}
+
+.app-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.app-card-category {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.app-card-note {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.award-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--amber-pale);
+  color: var(--amber);
+  margin-bottom: 8px;
+}
+
+/* ── Highlight blocks ── */
+.callout {
+  padding: 14px 18px;
+  border-radius: 10px;
+  border-left: 3px solid;
+  margin: 16px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.callout.green {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.callout.amber {
+  background: var(--amber-pale);
+  border-color: var(--amber);
+  color: var(--text);
+}
+
+.callout.neutral {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.callout strong {
+  color: var(--accent);
+}
+
+.callout.amber strong {
+  color: var(--amber);
+}
+
+/* ── Code ── */
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: var(--code-text);
+  line-height: 1.7;
+  overflow-x: auto;
+  margin: 14px 0;
+  white-space: pre;
+}
+
+.code-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+
+/* ── Pattern list ── */
+.pattern-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pattern-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.pattern-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.pattern-dot.amber {
+  background: var(--amber);
+}
+
+.pattern-content strong {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.pattern-content span {
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ── Color swatches ── */
+.swatch-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.swatch-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Type scale ── */
+.type-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+}
+
+.type-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.type-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
+.type-sample {
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Priority checklist ── */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.check-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+  background: var(--surface);
+}
+
+.check-item.priority-1 {
+  border-left: 3px solid var(--accent);
+}
+
+.check-item.priority-2 {
+  border-left: 3px solid var(--amber);
+}
+
+.check-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  min-width: 24px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.check-content strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.check-content p {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 680px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .sidebar nav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .sidebar nav a {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sidebar-label { display: none; }
+  .sidebar-logo { margin-bottom: 8px; }
+  .main {
+    padding: 24px 0 60px;
+  }
+}
+</style>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">Android Design<br>Reference</div>
+    <div class="sidebar-label">Sections</div>
+    <nav id="sidenav">
+      <a href="#top-apps">Top-Ranked Apps</a>
+      <a href="#categories">Category Deep-Dives</a>
+      <a href="#m3">Material Design 3</a>
+      <a href="#m3-expressive">M3 Expressive</a>
+      <a href="#play-criteria">Play Store Criteria</a>
+      <a href="#premium-patterns">Premium Patterns</a>
+      <a href="#typography-color">Typography & Color</a>
+      <a href="#recommendations">Our Recommendations</a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Page header -->
+    <header class="page-header" id="top">
+      <div class="page-eyebrow">Sber500 × DISRUPT — UX Nomination</div>
+      <h1 class="page-title">Beautiful Android App Design</h1>
+      <p class="page-subtitle">Research reference for sber500-companion — wellness meets productivity, minimal friction, personalized morning insights. Compiled from Google Play awards, design agencies, and Material Design documentation.</p>
+      <div class="meta-chips">
+        <span class="chip">Kotlin / Compose</span>
+        <span class="chip">Material Design 3</span>
+        <span class="chip">Health &amp; Wellness</span>
+        <span class="chip">2024–2025 Awards</span>
+      </div>
+    </header>
+
+    <!-- Section 1: Top Apps -->
+    <section class="section" id="top-apps">
+      <div class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title">Top-Ranked Beautiful Android Apps</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Google Play Best of 2024 — Official Winners</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>App</th>
+                <th>Award</th>
+                <th>What makes it notable</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Partiful</td>
+                <td class="year">Best App</td>
+                <td>Event planning. "Party Genie" AI invite builder. Zero-friction RSVP via link. Celebrates simplicity + joy. Google's theme was explicitly <em>"beauty of simplicity."</em></td>
+              </tr>
+              <tr>
+                <td>MacroFactor</td>
+                <td class="year">Best Essential</td>
+                <td>Nutrition tracker. Adaptive algorithm adjusts to user's metabolism. Data-first UI with no noise. Precision without complexity.</td>
+              </tr>
+              <tr>
+                <td>Timeleft</td>
+                <td class="year">Best Hidden Gem</td>
+                <td>Matches strangers for dinners. Distinctive visual identity + strong onboarding hook. Novel social format.</td>
+              </tr>
+              <tr>
+                <td>UpStudy</td>
+                <td class="year">Best Personal Growth</td>
+                <td>Camera math solver. Minimal UI that gets out of the way — AI handles the work, interface stays invisible.</td>
+              </tr>
+              <tr>
+                <td>Bloom — Puzzle Adventure</td>
+                <td class="year">Best Indie</td>
+                <td>Beautiful art direction, color-forward visual identity, emotional narrative pacing.</td>
+              </tr>
+              <tr>
+                <td>AFK Journey</td>
+                <td class="year">Best Game</td>
+                <td>Expansive explorable world, stunning art. "Beautiful art style helps it stand apart from peers."</td>
+              </tr>
+              <tr>
+                <td>Max (HBO)</td>
+                <td class="year">Best Multi-Device</td>
+                <td>Seamless cross-device UX. Same content experience on phone, tablet, TV.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Google Play Best of 2025 — Official Winners</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>App</th>
+                <th>Award</th>
+                <th>What makes it notable</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Focus Friend</td>
+                <td class="year">Best App</td>
+                <td>Animated mascot "Bean" reacts to focus sessions. Single-purpose done with personality. Gamified rewards for completing sessions. <strong>Proves: one feature + character = winner.</strong></td>
+              </tr>
+              <tr>
+                <td>Luminar</td>
+                <td class="year">Best Multi-Device</td>
+                <td>AI photo editing. "Seamless workflow, intuitive interface that adapts flawlessly to any screen size." AI handles complexity, interface stays simple.</td>
+              </tr>
+              <tr>
+                <td>Disney Speedstorm</td>
+                <td class="year">Best Multi-Device Game</td>
+                <td>"Beautiful visuals, responsive controls, everything optimized for perfect play across PC, tablet, or mobile."</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout green">
+          <strong>2025 signal:</strong> Google explicitly rewarded "digital well-being and utility over pure flash." A cute mascot with one job beat feature-rich utility apps. Emotional design drives the award.
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Other Highly Cited Beautiful Android Apps</h3>
+        <div class="app-grid">
+          <div class="app-card">
+            <div class="app-card-category">Health Ring</div>
+            <div class="app-card-name">Oura</div>
+            <div class="app-card-note">3-level progressive disclosure. Semantic color that changes with biometrics — palette IS the data status.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Meditation</div>
+            <div class="app-card-name">Calm</div>
+            <div class="app-card-note">Immersive landscape backgrounds. UI chrome disappears — content fills the screen. One primary action per screen.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Meditation</div>
+            <div class="app-card-name">Headspace</div>
+            <div class="app-card-note">Consistent illustration system. Vibrant but harmonious palette. Progress made visible and satisfying (streaks).</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Meditation</div>
+            <div class="app-card-name">Oak</div>
+            <div class="app-card-note">"Incredibly well-designed and intuitive, honestly just beautiful." Clean, colorful, adorable micro-animations. Free.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Mood Log</div>
+            <div class="app-card-name">Daylio</div>
+            <div class="app-card-note">Icon-only logging — no text needed. 5-second check-in. Bullet journal feel. Zero-friction is the whole design.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">AI Journal</div>
+            <div class="app-card-name">Reflectly</div>
+            <div class="app-card-note">Conversational AI diary. "Best friend" emotional tone. Warm soft palette. Reduces blank-page anxiety.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Health Log</div>
+            <div class="app-card-name">Bearable</div>
+            <div class="app-card-note">Symptom, mood, sleep, medication in one. Strong data visualization. Handles depth without overwhelming.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Self Analytics</div>
+            <div class="app-card-name">Gyroscope</div>
+            <div class="app-card-note">Premium quantified-self dashboard. Stat tiles, sparklines, heatmaps. Aggregates + interprets, doesn't just display.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">AI Companion</div>
+            <div class="app-card-name">Replika</div>
+            <div class="app-card-note">Avatar-based emotional interface. Success entirely from emotional design. People return for apps that feel alive.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">AI Companion</div>
+            <div class="app-card-name">Wysa</div>
+            <div class="app-card-note">Penguin mascot reduces mental health stigma. "Incredibly responsive and calm." FDA Breakthrough Device.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Focus</div>
+            <div class="app-card-name">Focus Friend</div>
+            <div class="app-card-note">2025 Play winner. "Bean" mascot reacts to session state. Proves: single purpose + personality = trophy.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Habits</div>
+            <div class="app-card-name">Loop Habit Tracker</div>
+            <div class="app-card-note">Android-native Material Design. Contribution-graph streaks (like GitHub). Zero ads. Clean and pure.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Music AI</div>
+            <div class="app-card-name">Moises</div>
+            <div class="app-card-note">AI stem separation. Complex tech, beginner-friendly UI. Proves: AI handles complexity, interface stays simple.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Nutrition</div>
+            <div class="app-card-name">MacroFactor</div>
+            <div class="app-card-note">Data-first, adaptive algorithm. No noise. Precision metrics for power users without intimidating casuals.</div>
+          </div>
+          <div class="app-card">
+            <div class="app-card-category">Gamified Habits</div>
+            <div class="app-card-name">Habitica</div>
+            <div class="app-card-note">Habits as RPG quests. Pixel art + vibrant colors. Social: party with friends to fight monsters.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Categories -->
+    <section class="section" id="categories">
+      <div class="section-header">
+        <span class="section-number">02</span>
+        <h2 class="section-title">Category Deep-Dives</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Oura — Design Case Study</h3>
+        <div class="callout neutral">
+          Design agency: <strong>Instrument</strong>. Redesigned 2024–2025 to connect daily tracking to long-term health narrative.
+        </div>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Progressive disclosure</strong><span>5 tabs condensed to 3 (Today, Vitals, My Health). Users see what they need at their level.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>3-level visualization depth</strong><span>Abstract at-a-glance rings → mid-level metric cards → exploratory long-term charts. Same data, 3 depths.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Semantic color = data</strong><span>App zones change color based on biometrics. Green readiness, amber moderate, red recovery. Color communicates state instantly without reading.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Short-term to long-term narrative</strong><span>Core insight: connect today's sleep score to 90-day trend. Not just "how did you sleep" but "here's what's changing."</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Best Practices — Health App Design Patterns</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>App</th>
+                <th>Core Design Principle</th>
+                <th>Specific Pattern</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Calm</td>
+                <td>Content IS the UI</td>
+                <td>Full-screen immersive backgrounds, minimal chrome, one action per screen, reduces decision fatigue</td>
+              </tr>
+              <tr>
+                <td>Headspace</td>
+                <td>Consistent character system</td>
+                <td>Custom illustration library (same characters, environments), progress feels measurable and repeatable</td>
+              </tr>
+              <tr>
+                <td>Daylio</td>
+                <td>Extreme low friction</td>
+                <td>Icon-only logging, no text required, 5-second check-in — busy people actually maintain the habit</td>
+              </tr>
+              <tr>
+                <td>Reflectly</td>
+                <td>Conversational AI UX</td>
+                <td>Prompts that reduce blank-page anxiety, "best friend" emotional tone, warm gradient palette</td>
+              </tr>
+              <tr>
+                <td>Gyroscope</td>
+                <td>Data aggregation story</td>
+                <td>Aggregates health + activity + time in one view, sparklines + heatmaps, trends over raw numbers</td>
+              </tr>
+              <tr>
+                <td>Focus Friend</td>
+                <td>Character-driven UX</td>
+                <td>Mascot reacts to user state, transforms utility app into companion, emotional design = daily return</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">AI Companion Design Lessons</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot amber"></div>
+            <div class="pattern-content"><strong>Replika lesson</strong><span>Emotional design drives retention more than features. People return to apps that understand, adapt, feel alive. But avatar realism risks uncanny valley.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot amber"></div>
+            <div class="pattern-content"><strong>Wysa lesson</strong><span>Non-human mascot (penguin) reduces stigma around health. Mascot creates emotional safety + distance simultaneously.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot amber"></div>
+            <div class="pattern-content"><strong>Woebot lesson</strong><span>Clinical efficacy ≠ retention. Woebot had Stanford RCT data but shut down 2026 — overly clinical feel without emotional warmth.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Focus Friend lesson</strong><span>Won 2025 Play Award. Single animated character reacting to user behavior = more engagement than feature lists.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 3: Material Design 3 -->
+    <section class="section" id="m3">
+      <div class="section-header">
+        <span class="section-number">03</span>
+        <h2 class="section-title">Material Design 3 (Material You)</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Dynamic Color System</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>HCT color space</strong><span>Hue–Chroma–Tone. Perceptually uniform, better than HSL. Algorithm extracts palette from wallpaper and generates accessible scheme.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Color roles</strong><span>Primary, Secondary, Tertiary, Error — each with Container + On-Container pairs. 12 surface tones total. Dark theme uses tonal elevation, not shadow.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Tonal elevation in dark theme</strong><span>Surface, Surface+1...+5 — each level adds tonal color overlay. Replaces invisible dark-on-dark shadows. Critical for premium dark feel.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Auto light/dark generation</strong><span>Brand seed color generates both light + dark themes automatically. Accessible contrast ratios built in.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Typography Scale</h3>
+        <div class="type-scale">
+          <div class="type-row">
+            <span class="type-label">Display Large · 57sp</span>
+            <span class="type-sample" style="font-size: 28px; font-weight: 300; opacity: 0.9">Доброе утро</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Display Medium · 45sp</span>
+            <span class="type-sample" style="font-size: 22px; font-weight: 400">Readiness 87</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Headline Large · 32sp</span>
+            <span class="type-sample" style="font-size: 18px; font-weight: 500">Your morning forecast</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Title Large · 22sp</span>
+            <span class="type-sample" style="font-size: 15px; font-weight: 600">Sleep Quality</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Body Large · 16sp</span>
+            <span class="type-sample" style="font-size: 14px; font-weight: 400">You averaged 7.2h sleep this week. Energy peaks at 10am.</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Label Medium · 12sp</span>
+            <span class="type-sample" style="font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3)">Yesterday · Steps</span>
+          </div>
+        </div>
+        <div class="callout amber">
+          <strong>2025 trend:</strong> Large display type as a design element, not just information. "Big, expressive text with large headlines" — morning greeting in Display Large is a moment, not a label.
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Shape Tokens</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Token</th><th>Radius</th><th>Use</th></tr></thead>
+            <tbody>
+              <tr><td>ExtraSmall</td><td class="year">4dp</td><td>Small chips, indicators</td></tr>
+              <tr><td>Small</td><td class="year">8dp</td><td>Buttons, small cards</td></tr>
+              <tr><td>Medium</td><td class="year">12dp</td><td>Cards, text fields</td></tr>
+              <tr><td>Large</td><td class="year">16dp</td><td>Bottom sheets, dialogs</td></tr>
+              <tr><td>ExtraLarge</td><td class="year">28dp</td><td>FABs, featured cards</td></tr>
+              <tr><td>Full</td><td class="year">circular</td><td>Avatar, icon buttons</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Motion System — Spring Physics</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Spring attributes</strong><span>stiffness (how fast), damping (how much bounce fades), initial velocity. Three speed tokens: default / fast (small elements) / slow (large elements).</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>21 components use spring by default</strong><span>In Jetpack Compose, M3 components already use spring physics. You get physics for free with material components.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Container Transform</strong><span>Shared element: element grows from its source position into a new screen. Best pattern for card → detail transitions.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Timing targets</strong><span>300ms: content changes. 150ms: micro-interactions (tap, toggle). 500ms+: page transitions. Don't make users wait for UI.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 4: M3 Expressive -->
+    <section class="section" id="m3-expressive">
+      <div class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Material 3 Expressive (May 2025)</h2>
+      </div>
+
+      <div class="callout green">
+        <strong>Not "Material 4"</strong> — extension of Material You, released alongside Android 16. Research base: 46 studies, 18,000+ participants across the globe.
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">What Changed</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Change</th><th>Details</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>15 new/refreshed components</td>
+                <td>Button groups, split buttons, toolbars, loading indicators, FAB variants. More shape/color configuration per component.</td>
+              </tr>
+              <tr>
+                <td>Spring physics everywhere</td>
+                <td>Motion now mimics spring physics throughout — elastic in/out rather than cubic bezier. Feels alive, not mechanical.</td>
+              </tr>
+              <tr>
+                <td>Containment patterns</td>
+                <td>Contrasted shades within rounded containers signal "this group belongs together." Visual hierarchy through containment, not just size.</td>
+              </tr>
+              <tr>
+                <td>Adaptive components</td>
+                <td>Components reflow for phone/tablet/foldable/watch automatically. One component definition, many form factors.</td>
+              </tr>
+              <tr>
+                <td>Expressive typography</td>
+                <td>More weight/width variation within a single typeface. Bold display moments now explicit in guidelines.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Play Store Criteria -->
+    <section class="section" id="play-criteria">
+      <div class="section-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title">Google Play Editor's Choice Criteria</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">What Gets Apps Featured</h3>
+        <div class="checklist">
+          <div class="check-item priority-1">
+            <span class="check-num">P1</span>
+            <div class="check-content">
+              <strong>Current Material Design compliance</strong>
+              <p>Google explicitly rewards apps using current Material guidelines. "Apps using current Material guidelines get a small bonus." M3 / M3 Expressive is current.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">P1</span>
+            <div class="check-content">
+              <strong>Distinctive visual identity</strong>
+              <p>"Both stores feature design-led apps disproportionately." Partiful, Focus Friend, Calm — all immediately recognizable from a single screenshot.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">P1</span>
+            <div class="check-content">
+              <strong>Topical alignment with editorial calendar</strong>
+              <p>"Aligning with a published editorial theme is the single biggest lift." Health + wellbeing is a permanent Google Play editorial pillar.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">P2</span>
+            <div class="check-content">
+              <strong>Zero critical bugs / crashes</strong>
+              <p>"No matter how useful the app, users will quickly become tired of the problems." Stability is table stakes for featuring.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">P2</span>
+            <div class="check-content">
+              <strong>Wide accessibility</strong>
+              <p>Apps need to be accessible to as wide a range of users as possible. Content descriptions, touch targets ≥48dp, support for system font scaling.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">P2</span>
+            <div class="check-content">
+              <strong>Quality, not just ratings</strong>
+              <p>Based on design quality, functionality, overall UX, and appeal. User ratings inform but editors override for quality.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">UX Award Pattern — 2024–2025 Signal</h3>
+        <div class="callout amber">
+          <strong>2024 explicit theme:</strong> "Beauty of simplicity… effortless connectivity, meaningful gatherings, approachable self-improvement — packaged in experiences that spark joy."<br><br>
+          <strong>2025 signal:</strong> Single-purpose app with personality (Focus Friend) beat feature-rich apps. Digital well-being + utility + emotional resonance = winning formula.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: Premium Patterns -->
+    <section class="section" id="premium-patterns">
+      <div class="section-header">
+        <span class="section-number">06</span>
+        <h2 class="section-title">Design Patterns That Make Apps Feel Premium</h2>
+      </div>
+
+      <div class="callout neutral">
+        <strong>Core insight:</strong> "Premium is almost never a redesign — it's a thin layer of polish sitting on top of an ordinary layout."
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Loading States</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Skeleton screens over spinners</strong><span>Show layout shape while loading. Facebook pioneered this; now table stakes for premium. Shimmer animation across whole screen (synchronized, not per-card).</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Tasks &gt;10s: percent progress</strong><span>Never leave user without feedback on long operations. Show real progress bar with % or step count.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Lottie for branded loading</strong><span>Vector animations, tiny files, crisp at every density. Far better than GIFs or static illustrations. Use for brand moments in onboarding and empty states.</span></div>
+          </li>
+        </ul>
+        <div class="code-label">Compose shimmer — JetBrains Mono for code</div>
+        <div class="code-block">// Shimmer effect on any composable
+Modifier.shimmerEffect()  // from compose-shimmer-skeleton lib
+// Auto-synchronized across screen, customizable color/speed
+
+// Lottie in Compose
+val composition by rememberLottieComposition(
+    LottieCompositionSpec.RawRes(R.raw.morning_loading)
+)
+LottieAnimation(
+    composition = composition,
+    iterations = LottieConstants.IterateForever
+)</div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Onboarding</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Value prop before permission dialog</strong><span>Explain WHY you need location/notifications with a custom screen BEFORE the system dialog. Acceptance rate 2–3× higher.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Progressive revelation</strong><span>Don't show all features at once. Unlock features as user completes steps. Reduces overwhelm, increases activation.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>First session = one satisfying moment</strong><span>Deliver ONE thing that makes the user say "oh, this is useful" before asking for anything. Design for the first-session aha.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Empty States</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Never just a message</strong><span>"Apps that show clear paths in empty states see feature adoption jump by 80%." Always provide a next action.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Lottie animation + clear action</strong><span>Small branded animation + 1 button. Turns a dead end into a guided moment.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Example: sber500-companion first run</strong><span>"Данных пока нет. Носи телефон с собой сегодня, и завтра утром появится первый прогноз." + animated icon of sleeping phone.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Micro-Interactions</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Button press</strong><span>Scale 0.95x + color shift, 150ms spring. Makes every tap feel physical and responsive.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Checkmark / completion</strong><span>Animated draw-on (not instant appear). Satisfying mechanical feel. Daylio and Loop do this perfectly.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Metric counter animation</strong><span>Score/number updates with animated counter (countup animation), not instant swap. "87" counting up from previous value feels earned.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Haptic feedback</strong><span>On meaningful actions (check-in completed, goal reached) — not every tap. Medium impact on completion, light on selection.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Card swipe / physics drag</strong><span>Follow finger with spring return. Makes UI feel like physical objects.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Jetpack Compose Animation Patterns</h3>
+        <div class="code-block">// Content appear/disappear — spring physics
+AnimatedVisibility(
+    visible = showInsight,
+    enter = fadeIn() + slideInVertically(
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 200f)
+    )
+)
+
+// Smooth metric value changes
+val animatedScore by animateFloatAsState(
+    targetValue = readinessScore,
+    animationSpec = tween(800, easing = FastOutSlowInEasing)
+)
+
+// Hero transition: card → detail screen
+SharedTransitionLayout {
+    // Source
+    Modifier.sharedElement(rememberSharedContentState("morning-card"), this)
+    // Destination
+    Modifier.sharedElement(rememberSharedContentState("morning-card"), this)
+}
+
+// Button press feel
+val scale by animateFloatAsState(
+    targetValue = if (pressed) 0.95f else 1f,
+    animationSpec = spring(stiffness = Spring.StiffnessHigh)
+)
+Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+
+// Staggered list entry
+LazyColumn {
+    itemsIndexed(insights) { index, item ->
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(tween(300, delayMillis = index * 60))
+                  + slideInVertically(tween(300, delayMillis = index * 60))
+        ) { InsightCard(item) }
+    }
+}</div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Navigation & Information Architecture</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>3 taps maximum</strong><span>Any critical function reachable in ≤3 taps. For a companion app: 1 tap to see forecast, 2 to see history, 3 to change settings.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Bottom nav: 3 destinations</strong><span>Today / History / Settings. No more than 3 for a focused companion app. More tabs = feature bloat signal to judges.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Contextual FAB</strong><span>FAB changes per screen — Today: "Log mood", History: "Export", Settings: hidden. Signals thoughtful UX.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Personalization Signals</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Name in key moments</strong><span>"Доброе утро, Александр" in Display Large. This is a moment, not a label. Users notice and remember this.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Personal averages, not population norms</strong><span>"Your usual step count" vs "10,000 steps recommended." Personal baseline makes insight feel earned.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Contextual reminders</strong><span>Triggered by behavior deviation (fell below own goal), not fixed schedule. "Strongest engagement pattern" per 2025 health app research.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 7: Typography & Color -->
+    <section class="section" id="typography-color">
+      <div class="section-header">
+        <span class="section-number">07</span>
+        <h2 class="section-title">Typography &amp; Color in Award-Winning Apps</h2>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Font Choices by Category</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Font</th><th>Apps Using It</th><th>Why It Works</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Roboto / Roboto Flex</td>
+                <td>Android system, most Material apps</td>
+                <td>51% of all Google Font views. Clean at all sizes, familiar = trustworthy</td>
+              </tr>
+              <tr>
+                <td>DM Sans + DM Serif</td>
+                <td>Wellness, companion apps</td>
+                <td>Geometric sans pairs with serif for hierarchy. Warm but precise</td>
+              </tr>
+              <tr>
+                <td>Plus Jakarta Sans</td>
+                <td>Health, lifestyle apps</td>
+                <td>Humanist, approachable. Not corporate-cold, not playful-cheap</td>
+              </tr>
+              <tr>
+                <td>Outfit</td>
+                <td>Modern productivity</td>
+                <td>Clean geometric, strong weight range, excellent at large display sizes</td>
+              </tr>
+              <tr>
+                <td>Variable fonts (any)</td>
+                <td>Premium 2025 trend</td>
+                <td>Smooth weight transitions in animations — one file, animatable weight axis</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout amber">
+          <strong>Avoid:</strong> Inter (saturated AI-generated default), Space Grotesk (AI design cliché), pure Roboto with no display pair — safe but forgettable.
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Color Palettes — Real App Examples</h3>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">Oura — Semantic dark</div>
+          <div class="swatch-row">
+            <div class="swatch"><div class="swatch-circle" style="background: #0D0D12; border-color: var(--border)"></div><div class="swatch-name">#0D0D12<br>BG</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #1B1B24"></div><div class="swatch-name">#1B1B24<br>Surface</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #3BE8B0"></div><div class="swatch-name">#3BE8B0<br>Ready</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #F5A623"></div><div class="swatch-name">#F5A623<br>Moderate</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #E84855"></div><div class="swatch-name">#E84855<br>Recovery</div></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">Headspace — Warm approachable</div>
+          <div class="swatch-row">
+            <div class="swatch"><div class="swatch-circle" style="background: #FFF8F0"></div><div class="swatch-name">#FFF8F0<br>BG</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #E85D4A"></div><div class="swatch-name">#E85D4A<br>Primary</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #F5B800"></div><div class="swatch-name">#F5B800<br>Energy</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #3BB5B0"></div><div class="swatch-name">#3BB5B0<br>Calm</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #2C3E50"></div><div class="swatch-name">#2C3E50<br>Text</div></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">Calm — Immersive dark</div>
+          <div class="swatch-row">
+            <div class="swatch"><div class="swatch-circle" style="background: #0A1628; border-color: var(--border)"></div><div class="swatch-name">#0A1628<br>BG</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #1E3A5F"></div><div class="swatch-name">#1E3A5F<br>Mid</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #5BA3C9"></div><div class="swatch-name">#5BA3C9<br>Sky</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #E8D5A3"></div><div class="swatch-name">#E8D5A3<br>Warmth</div></div>
+            <div class="swatch"><div class="swatch-circle" style="background: #FFFFFF; border-color: var(--border)"></div><div class="swatch-name">#FFFFFF<br>Text</div></div>
+          </div>
+        </div>
+
+        <div class="callout neutral">
+          <strong>2025 color trends:</strong> Calm neutrals as base (not stark white/black). Jewel tones as accent. Soft-tech pastels for wellness. Semantic coloring (color = state, not brand). Moving away from flat minimalism toward richer, expressive palettes.
+        </div>
+
+        <div class="callout amber">
+          <strong>For morning/evening use specifically:</strong> Dark theme is expected and preferred. Avoid clinical white/blue (hospital feel) and oversaturated neon (gym app). Target: warm dark base + one expressive accent + 3 semantic state colors.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Recommendations -->
+    <section class="section" id="recommendations">
+      <div class="section-header">
+        <span class="section-number">08</span>
+        <h2 class="section-title">Recommendations for sber500-companion</h2>
+      </div>
+
+      <div class="callout green">
+        Specific to: Kotlin/Compose, morning forecast + evening check-in, passive health/usage data, UX nomination.
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Must-Have for UX Nomination</h3>
+        <div class="checklist">
+          <div class="check-item priority-1">
+            <span class="check-num">1</span>
+            <div class="check-content">
+              <strong>Spring physics on all interactive transitions</strong>
+              <p>Not tween/linear. <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">spring(dampingRatio = 0.7f, stiffness = 200f)</code> everywhere interactive. 21 M3 components do this for free.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">2</span>
+            <div class="check-content">
+              <strong>Semantic color system for health state</strong>
+              <p>Like Oura: green = great day ahead, amber = moderate, red = rest day. Color communicates readiness without reading. Instant comprehension.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">3</span>
+            <div class="check-content">
+              <strong>Progressive disclosure on morning card</strong>
+              <p>1 insight visible → tap to expand → tap again for full data. Like Oura's 3-level visualization. Don't dump all data on screen.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">4</span>
+            <div class="check-content">
+              <strong>Named greeting in Display Large</strong>
+              <p>"Доброе утро, Александр" — 57sp, font-weight 300. This is a moment, not a label. Users remember this. No app in the competition will have this level of warmth.</p>
+            </div>
+          </div>
+          <div class="check-item priority-1">
+            <span class="check-num">5</span>
+            <div class="check-content">
+              <strong>Animated insight delivery</strong>
+              <p>Score ring draws in on load, number counts up with <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">animateFloatAsState</code>. Never instant-appear. The animation IS the delight.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">6</span>
+            <div class="check-content">
+              <strong>Skeleton shimmer on morning card</strong>
+              <p>Show content shape while LLM generates insight. Never blank screen. Synchronized shimmer across whole card, not spinning indicator.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">7</span>
+            <div class="check-content">
+              <strong>First-run empty state with personality</strong>
+              <p>"Данных пока нет. Носи телефон с собой сегодня, и завтра утром появится первый прогноз." + Lottie animation. Guides + delights, doesn't abandon.</p>
+            </div>
+          </div>
+          <div class="check-item priority-2">
+            <span class="check-num">8</span>
+            <div class="check-content">
+              <strong>Bottom nav: 3 tabs maximum</strong>
+              <p>Today / История / Настройки. Fewer tabs = more focused = more UX Award signals. Today opens to morning forecast. Evening: Today shows check-in prompt.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">The Character Opportunity (High Impact)</h3>
+        <div class="callout green">
+          Focus Friend won Play 2025 <em>specifically</em> because of an animated bean character. Wysa won users <em>specifically</em> because a penguin mascot reduced stigma. Consider: a small illustrated/animated element that reacts to the day's data state.<br><br>
+          <strong>Implementation:</strong> Not a humanoid (uncanny valley risk). An abstract animated shape — ring, orb, cloud — that breathes differently based on readiness score. "Calm day" = slow pulse. "Active day" = energized bounce. Uses Lottie + state-driven playback speed.
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3 class="subsection-title">Suggested App Typography Pair</h3>
+        <ul class="pattern-list">
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Display/Headline: Fraunces (optical serif)</strong><span>For greeting, score, key moments. Expressive at large sizes, readable at small. Not the default Android look — distinctive.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Body/UI: DM Sans or Outfit</strong><span>Clean, warm, slightly geometric. Good weight range for hierarchy. Pair well with Fraunces without competing.</span></div>
+          </li>
+          <li class="pattern-item">
+            <div class="pattern-dot"></div>
+            <div class="pattern-content"><strong>Data/metrics: JetBrains Mono or Roboto Mono</strong><span>Numbers in tabular layout for step counts, sleep hours, screen time. Mono ensures digit alignment.</span></div>
+          </li>
+        </ul>
+      </div>
+
+    </section>
+
+    <!-- Footer -->
+    <footer style="padding-top: 32px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); line-height: 1.8;">
+      Sources: Google Play Best of 2024/2025 · Instrument (Oura redesign) · material.io · androidauthority.com · appfollow.io · merge.rocks · medium.com/androiddevelopers · supercharge.design · bricxlabs.com
+    </footer>
+
+  </main>
+</div>
+
+<script>
+// Active sidebar link on scroll
+const sections = document.querySelectorAll('.section');
+const navLinks = document.querySelectorAll('#sidenav a');
+
+function updateActive() {
+  let current = '';
+  sections.forEach(s => {
+    if (s.getBoundingClientRect().top <= 80) {
+      current = s.id;
+    }
+  });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}
+
+window.addEventListener('scroll', updateActive, { passive: true });
+updateActive();
+
+// Smooth scroll
+navLinks.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+
+</body></html>

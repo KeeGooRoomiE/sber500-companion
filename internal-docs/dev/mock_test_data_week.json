@@ -1,0 +1,160 @@
+{
+  "user_id": "mock_user_001",
+  "week_start": "2026-09-15",
+  "days": [
+    {
+      "date": "2026-09-15",
+      "weekday": "Понедельник",
+      "screen_min": 195,
+      "unlocks": 52,
+      "first_unlock": "07:04",
+      "last_unlock": "22:48",
+      "top_apps": [
+        { "package_name": "org.telegram.messenger", "minutes": 38 },
+        { "package_name": "com.google.android.youtube", "minutes": 29 },
+        { "package_name": "com.instagram.android", "minutes": 21 },
+        { "package_name": "ru.sberbankmobile", "minutes": 8 }
+      ],
+      "sleep_min": 432,
+      "bedtime": "23:18",
+      "wakeup": "06:30",
+      "steps": 7240,
+      "battery_morning": 91,
+      "feel": "ok",
+      "note": "Стандартный рабочий день, хороший сон"
+    },
+    {
+      "date": "2026-09-16",
+      "weekday": "Вторник",
+      "screen_min": 287,
+      "unlocks": 74,
+      "first_unlock": "06:22",
+      "last_unlock": "00:11",
+      "top_apps": [
+        { "package_name": "org.telegram.messenger", "minutes": 61 },
+        { "package_name": "com.google.android.chrome", "minutes": 54 },
+        { "package_name": "com.google.android.youtube", "minutes": 33 },
+        { "package_name": "com.instagram.android", "minutes": 28 }
+      ],
+      "sleep_min": 360,
+      "bedtime": "00:15",
+      "wakeup": "06:15",
+      "steps": 3100,
+      "battery_morning": 88,
+      "feel": "meh",
+      "note": "Дедлайн, засиделся за ноутбуком, телефон брал параллельно"
+    },
+    {
+      "date": "2026-09-17",
+      "weekday": "Среда",
+      "screen_min": 341,
+      "unlocks": 91,
+      "first_unlock": "05:47",
+      "last_unlock": "01:09",
+      "top_apps": [
+        { "package_name": "com.instagram.android", "minutes": 68 },
+        { "package_name": "com.google.android.youtube", "minutes": 57 },
+        { "package_name": "org.telegram.messenger", "minutes": 44 },
+        { "package_name": "com.vk.vkcompose", "minutes": 31 }
+      ],
+      "sleep_min": 298,
+      "bedtime": "01:23",
+      "wakeup": "06:21",
+      "steps": 1820,
+      "battery_morning": 61,
+      "feel": "hard",
+      "note": "Тяжелейший день: недосып, не выходил, соцсети вместо работы"
+    },
+    {
+      "date": "2026-09-18",
+      "weekday": "Четверг",
+      "screen_min": 168,
+      "unlocks": 41,
+      "first_unlock": "07:18",
+      "last_unlock": "22:31",
+      "top_apps": [
+        { "package_name": "org.telegram.messenger", "minutes": 29 },
+        { "package_name": "com.google.android.youtube", "minutes": 24 },
+        { "package_name": "ru.yandex.yandexmaps", "minutes": 14 },
+        { "package_name": "com.google.android.gm", "minutes": 11 }
+      ],
+      "sleep_min": 471,
+      "bedtime": "22:43",
+      "wakeup": "06:34",
+      "steps": 8540,
+      "battery_morning": 95,
+      "feel": "ok",
+      "note": "Восстановление: лёг рано, вышел на улицу, мало соцсетей"
+    },
+    {
+      "date": "2026-09-19",
+      "weekday": "Пятница",
+      "screen_min": 229,
+      "unlocks": 59,
+      "first_unlock": "07:02",
+      "last_unlock": "23:44",
+      "top_apps": [
+        { "package_name": "com.instagram.android", "minutes": 42 },
+        { "package_name": "org.telegram.messenger", "minutes": 37 },
+        { "package_name": "com.google.android.youtube", "minutes": 31 },
+        { "package_name": "com.spotify.music", "minutes": 18 }
+      ],
+      "sleep_min": 402,
+      "bedtime": "23:51",
+      "wakeup": "06:33",
+      "steps": 5320,
+      "battery_morning": 84,
+      "feel": "ok",
+      "note": "Нормальная пятница, чуть позже лёг"
+    },
+    {
+      "date": "2026-09-20",
+      "weekday": "Суббота",
+      "screen_min": 318,
+      "unlocks": 68,
+      "first_unlock": "09:41",
+      "last_unlock": "00:38",
+      "top_apps": [
+        { "package_name": "com.google.android.youtube", "minutes": 81 },
+        { "package_name": "com.instagram.android", "minutes": 56 },
+        { "package_name": "org.telegram.messenger", "minutes": 34 },
+        { "package_name": "com.netflix.mediaclient", "minutes": 29 }
+      ],
+      "sleep_min": 537,
+      "bedtime": "00:42",
+      "wakeup": "09:39",
+      "steps": 4120,
+      "battery_morning": 78,
+      "feel": "meh",
+      "note": "Выходной: отоспался, но залип в ютуб, мало двигался"
+    },
+    {
+      "date": "2026-09-21",
+      "weekday": "Воскресенье",
+      "screen_min": 254,
+      "unlocks": 63,
+      "first_unlock": "06:51",
+      "last_unlock": "23:19",
+      "top_apps": [
+        { "package_name": "org.telegram.messenger", "minutes": 44 },
+        { "package_name": "com.instagram.android", "minutes": 39 },
+        { "package_name": "com.google.android.chrome", "minutes": 27 },
+        { "package_name": "com.google.android.youtube", "minutes": 22 }
+      ],
+      "sleep_min": 381,
+      "bedtime": "23:22",
+      "wakeup": "05:43",
+      "steps": 6890,
+      "battery_morning": 90,
+      "feel": "meh",
+      "note": "Воскресная тревожность: проснулся рано, но не встал — лежал с телефоном"
+    }
+  ],
+  "weekly_averages": {
+    "screen_min_avg": 256,
+    "unlocks_avg": 64,
+    "sleep_min_avg": 411,
+    "steps_avg": 5290,
+    "feel_distribution": { "ok": 3, "meh": 3, "hard": 1 }
+  }
+}

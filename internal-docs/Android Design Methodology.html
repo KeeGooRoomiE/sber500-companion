@@ -1,0 +1,1623 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Android Design Methodology</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ── Tokens ── */
+:root {
+  --bg:          #F7F5EF;
+  --bg2:         #EEECE5;
+  --bg3:         #E3E1D8;
+  --surface:     #FDFCF9;
+  --surface2:    #F2F0E8;
+  --border:      #D8D5CC;
+  --border2:     #C8C5BB;
+  --text:        #1A1814;
+  --text2:       #3D3A33;
+  --text3:       #7A766B;
+  --text4:       #A8A49A;
+  --accent:      #5B4FCF;
+  --accent-l:    #EAE8FF;
+  --accent-d:    #4038B0;
+  --green:       #1F7A50;
+  --green-l:     #D8F0E5;
+  --amber:       #B35B00;
+  --amber-l:     #FFF0DC;
+  --red:         #B22020;
+  --red-l:       #FDEAEA;
+  --stat-a:      #5B4FCF;
+  --stat-b:      #0F7E5C;
+  --stat-c:      #B35B00;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #111009;
+    --bg2:       #181610;
+    --bg3:       #201E17;
+    --surface:   #1C1A13;
+    --surface2:  #22201A;
+    --border:    #2E2C24;
+    --border2:   #3A3830;
+    --text:      #E8E5DC;
+    --text2:     #BFBCB0;
+    --text3:     #7A7870;
+    --text4:     #514F48;
+    --accent:    #8070FF;
+    --accent-l:  #1E1A3A;
+    --accent-d:  #A094FF;
+    --green:     #3DB87A;
+    --green-l:   #0E2A1C;
+    --amber:     #E07820;
+    --amber-l:   #271800;
+    --red:       #E05050;
+    --red-l:     #250808;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:        #111009;
+  --bg2:       #181610;
+  --bg3:       #201E17;
+  --surface:   #1C1A13;
+  --surface2:  #22201A;
+  --border:    #2E2C24;
+  --border2:   #3A3830;
+  --text:      #E8E5DC;
+  --text2:     #BFBCB0;
+  --text3:     #7A7870;
+  --text4:     #514F48;
+  --accent:    #8070FF;
+  --accent-l:  #1E1A3A;
+  --accent-d:  #A094FF;
+  --green:     #3DB87A;
+  --green-l:   #0E2A1C;
+  --amber:     #E07820;
+  --amber-l:   #271800;
+  --red:       #E05050;
+  --red-l:     #250808;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+
+body {
+  margin: 0;
+  padding-inline: 0;
+  padding-block: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ── Layout ── */
+.page-wrap {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-inline: 16px;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 32px 20px 32px 0;
+  border-right: 1px solid var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.sidebar-brand {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.nav-group { margin-bottom: 4px; }
+.nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text4);
+  padding: 12px 8px 4px;
+  display: block;
+}
+.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: none;
+  line-height: 1.4;
+  transition: background .12s, color .12s;
+}
+.sidebar a:hover { background: var(--bg2); color: var(--text); }
+.sidebar a.active { background: var(--accent-l); color: var(--accent); font-weight: 500; }
+.sidebar a .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.sidebar a.active .dot, .sidebar a:hover .dot { background: var(--accent); }
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0 100px 48px;
+}
+
+/* ── Hero ── */
+.hero {
+  padding: 56px 0 48px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.hero-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.hero-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(32px, 4.5vw, 52px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+  margin: 0 0 18px;
+  text-wrap: balance;
+  max-width: 680px;
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+.hero-sub {
+  font-size: 16px;
+  color: var(--text2);
+  max-width: 560px;
+  margin: 0 0 28px;
+  line-height: 1.7;
+}
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 680px;
+}
+.hstat {
+  flex: 1 1 160px;
+  padding: 20px 24px;
+  border-right: 1px solid var(--border);
+}
+.hstat:last-child { border-right: none; }
+.hstat-n {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 4px;
+  font-feature-settings: "tnum";
+}
+.hstat-n.green { color: var(--green); }
+.hstat-n.amber { color: var(--amber); }
+.hstat-l {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.4;
+}
+.hstat-src {
+  font-size: 10px;
+  color: var(--text4);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* ── Sections ── */
+.section {
+  padding: 56px 0 0;
+  scroll-margin-top: 20px;
+}
+.sec-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text4);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.sec-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(22px, 2.8vw, 30px);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+}
+.sec-sub {
+  font-size: 15px;
+  color: var(--text2);
+  max-width: 640px;
+  margin: -20px 0 28px;
+  line-height: 1.7;
+}
+
+/* ── Sub-section ── */
+.sub { margin: 36px 0; }
+.sub-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+
+/* ── Stat row ── */
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.stat-tile.accent { background: var(--accent-l); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.stat-tile.green { background: var(--green-l); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
+.stat-tile.amber { background: var(--amber-l); border-color: color-mix(in srgb, var(--amber) 30%, var(--border)); }
+.stat-n {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 4px;
+  font-feature-settings: "tnum";
+}
+.stat-tile.green .stat-n { color: var(--green); }
+.stat-tile.amber .stat-n { color: var(--amber); }
+.stat-l { font-size: 13px; color: var(--text2); line-height: 1.4; }
+.stat-src { font-size: 10px; color: var(--text4); margin-top: 6px; font-style: italic; }
+
+/* ── Rule list ── */
+.rules {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rule {
+  display: flex;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  align-items: flex-start;
+}
+.rule-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rule-mark.do { background: var(--green-l); color: var(--green); }
+.rule-mark.dont { background: var(--red-l); color: var(--red); }
+.rule-mark.num { background: var(--accent-l); color: var(--accent); }
+.rule strong { color: var(--text); }
+.rule span { color: var(--text2); }
+
+/* ── Callout ── */
+.callout {
+  padding: 14px 18px;
+  border-radius: 10px;
+  border-left: 3px solid;
+  margin: 16px 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.callout.green { background: var(--green-l); border-color: var(--green); }
+.callout.accent { background: var(--accent-l); border-color: var(--accent); }
+.callout.amber { background: var(--amber-l); border-color: var(--amber); }
+.callout strong { color: var(--accent); }
+.callout.green strong { color: var(--green); }
+.callout.amber strong { color: var(--amber); }
+
+/* ── Table ── */
+.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  background: var(--bg2);
+  color: var(--text3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 10px 14px; color: var(--text); vertical-align: top; }
+tbody td:first-child { font-weight: 600; color: var(--text2); }
+td.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text3); }
+
+/* ── Code ── */
+.code-wrap { margin: 14px 0; }
+.code-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+.code {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: var(--text2);
+  line-height: 1.75;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Color demos ── */
+.color-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.color-chip {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+.color-swatch {
+  height: 56px;
+  width: 100%;
+}
+.color-info {
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.color-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.color-hex {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text3);
+}
+.color-role { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── Type scale demo ── */
+.type-scale { margin: 16px 0; display: flex; flex-direction: column; gap: 2px; }
+.type-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.type-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text3);
+  min-width: 160px;
+  flex-shrink: 0;
+}
+.type-sample { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ── Spacing viz ── */
+.spacing-demo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+/* ── Touch zone illustration ── */
+.thumb-zone {
+  position: relative;
+  width: min(280px, 100%);
+  height: 480px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 40px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+.zone-block {
+  position: absolute;
+  left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.zone-natural { top: 0; height: 55%; background: rgba(31, 122, 80, 0.12); color: var(--green); }
+.zone-stretch { top: 55%; height: 25%; background: rgba(179, 91, 0, 0.1); color: var(--amber); }
+.zone-hard    { top: 80%; height: 20%; background: rgba(178, 32, 32, 0.1); color: var(--red); }
+
+/* ── Animation timing strip ── */
+.timing-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.timing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.timing-label { font-size: 12px; font-weight: 600; color: var(--text2); min-width: 130px; flex-shrink: 0; }
+.timing-bar-wrap { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.timing-bar { height: 100%; border-radius: 3px; background: var(--accent); }
+.timing-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text3); min-width: 56px; text-align: right; }
+
+/* ── Checklist ── */
+.checklist { display: flex; flex-direction: column; gap: 6px; margin: 16px 0; }
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.check.p1 { border-left: 3px solid var(--green); }
+.check.p2 { border-left: 3px solid var(--amber); }
+.check.p3 { border-left: 3px solid var(--text4); }
+.check-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text4);
+  min-width: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.check strong { color: var(--text); font-weight: 600; }
+.check p { margin: 2px 0 0; color: var(--text2); line-height: 1.5; font-size: 13px; }
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .page-wrap { flex-direction: column; padding-inline: 0; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 16px;
+    overflow-x: auto;
+  }
+  .sidebar .nav-group { display: inline-flex; gap: 4px; }
+  .nav-label { display: none; }
+  .sidebar { display: flex; align-items: center; gap: 4px; }
+  .sidebar-brand { margin: 0; padding: 0; border: none; white-space: nowrap; }
+  .sidebar nav { display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; }
+  .sidebar a { white-space: nowrap; }
+  .main { padding: 0 16px 80px; }
+  .hero { padding: 32px 0 32px; }
+  .hero-stats { flex-direction: column; }
+  .hstat { border-right: none; border-bottom: 1px solid var(--border); }
+  .hstat:last-child { border-bottom: none; }
+}
+</style>
+
+<div class="page-wrap">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">Design Guide</div>
+    <nav>
+      <span class="nav-label">Восприятие</span>
+      <div class="nav-group">
+        <a href="#perception"><span class="dot"></span>Первое впечатление</a>
+        <a href="#color"><span class="dot"></span>Цвет</a>
+        <a href="#typography"><span class="dot"></span>Типографика</a>
+        <a href="#space"><span class="dot"></span>Пространство</a>
+      </div>
+      <span class="nav-label">Взаимодействие</span>
+      <div class="nav-group">
+        <a href="#motion"><span class="dot"></span>Анимация</a>
+        <a href="#touch"><span class="dot"></span>Эргономика</a>
+        <a href="#loading"><span class="dot"></span>Загрузка</a>
+        <a href="#onboarding"><span class="dot"></span>Онбординг</a>
+      </div>
+      <span class="nav-label">Система</span>
+      <div class="nav-group">
+        <a href="#dark"><span class="dot"></span>Dark mode</a>
+        <a href="#consistency"><span class="dot"></span>Консистентность</a>
+        <a href="#health"><span class="dot"></span>Health-паттерны</a>
+        <a href="#checklist"><span class="dot"></span>Чеклист</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Hero -->
+    <header class="hero" id="top">
+      <div class="hero-eyebrow">sber500-companion · UX Nomination</div>
+      <h1 class="hero-title">Методичка по дизайну <em>красивого</em> Android-приложения</h1>
+      <p class="hero-sub">Research-backed гайдлайн: что, зачем и с какими числами. Каждый принцип — со статистикой и конкретной реализацией на Jetpack Compose.</p>
+      <div class="hero-stats">
+        <div class="hstat">
+          <div class="hstat-n">50ms</div>
+          <div class="hstat-l">до формирования первого зрительного впечатления</div>
+          <div class="hstat-src">Lindgaard et al., Carleton Univ., 2006</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-n green">94%</div>
+          <div class="hstat-l">негативных отзывов связаны с дизайном, не контентом</div>
+          <div class="hstat-src">Stanford Web Credibility Research</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-n amber">3 сек</div>
+          <div class="hstat-l">максимальное ожидание загрузки до ухода (53% пользователей)</div>
+          <div class="hstat-src">Google/SOASTA, 2017</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─────────────── 1. PERCEPTION ─────────────── -->
+    <section class="section" id="perception">
+      <div class="sec-header">
+        <span class="sec-tag">01</span>
+        <h2 class="sec-title">Первое впечатление: наука о визуальном восприятии</h2>
+      </div>
+      <p class="sec-sub">Мозг обрабатывает визуальный образ быстрее, чем успевает прочитать ни одного слова. Это не метафора — это измеримая нейробиология.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">50 мс</div>
+          <div class="stat-l">время формирования первого визуального суждения об интерфейсе</div>
+          <div class="stat-src">Lindgaard et al., 2006 — первое peer-reviewed измерение "first impression" в digital</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">17 мс</div>
+          <div class="stat-l">обновление зрительного восприятия (1 кадр @ 60fps) — минимальный порог для "живого" UI</div>
+          <div class="stat-src">Human Vision Research, MIT Media Lab</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">38%</div>
+          <div class="stat-l">пользователей уходят, если макет некрасив или неудобен</div>
+          <div class="stat-src">Adobe State of Content Report, 2018</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Что формирует первое впечатление</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">1</div>
+            <div><strong>Цветовая гармония и общий тон</strong><br><span>Первое, что видит мозг — не текст и не иконки, а цветовой "настрой". Тёплые нейтральные с акцентом ≠ холодный серый. Выбор палитры — это первая секунда.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark num">2</div>
+            <div><strong>Визуальная иерархия и "вес"</strong><br><span>Что самое тяжёлое на экране? Если ответ не очевиден за 1–2 секунды — иерархия не работает. Один доминирующий элемент на экран.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark num">3</div>
+            <div><strong>Баланс и плотность</strong><br><span>Слишком плотно — тревожно. Слишком пусто — дёшево. "Дорогие" приложения используют больше белого пространства, чем кажется необходимым.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark num">4</div>
+            <div><strong>Консистентность форм</strong><br><span>Скруглённые углы одного радиуса читаются как "система". Разные радиусы — как несобранность. Один shape-токен на все карточки.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="callout accent">
+        <strong>Ключевое:</strong> На первое впечатление у дизайна есть 50ms. За это время мозг не успевает прочитать ни слова, не успевает понять структуру — он оценивает исключительно <strong>визуальную привлекательность</strong>: цвет, пропорции, "плотность" и общий тон. Пишите эти параметры сознательно.
+      </div>
+    </section>
+
+    <!-- ─────────────── 2. COLOR ─────────────── -->
+    <section class="section" id="color">
+      <div class="sec-header">
+        <span class="sec-tag">02</span>
+        <h2 class="sec-title">Цвет: психология и система</h2>
+      </div>
+      <p class="sec-sub">Цвет — единственный дизайн-инструмент, который работает быстрее, чем сознание. Это и его сила, и его ответственность.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">80%</div>
+          <div class="stat-l">рост узнаваемости бренда при последовательном использовании фирменного цвета</div>
+          <div class="stat-src">University of Loyola, Maryland</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">85%</div>
+          <div class="stat-l">покупателей называют цвет главным мотивом при выборе продукта</div>
+          <div class="stat-src">Kissmetrics Color Psychology Report</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-n">+40%</div>
+          <div class="stat-l">улучшение понимания контента при добавлении релевантного цветового кодирования</div>
+          <div class="stat-src">Xerox Corporation / Loyola Study, 2017</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Психология основных цветовых групп</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Цвет</th><th>Ассоциации</th><th>Когда использовать</th><th>Риски</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Синий / Индиго</td>
+                <td>Доверие, стабильность, профессионализм, технологии</td>
+                <td>Финансы, медицина, продуктивность — когда нужно доверие</td>
+                <td>Холодность, дистанция. Все делают синим — нет дифференциации</td>
+              </tr>
+              <tr>
+                <td>Зелёный</td>
+                <td>Здоровье, рост, природа, положительное</td>
+                <td>Health apps, success states, подтверждение действий</td>
+                <td>Банальность в health-пространстве. Все health-apps зелёные</td>
+              </tr>
+              <tr>
+                <td>Фиолетовый (наш)</td>
+                <td>Интуиция, связь, духовность, премиальность, "умный"</td>
+                <td>Wellness + AI companion. Нетривиален для health — дифференциатор</td>
+                <td>Может выглядеть женственно при насыщенных оттенках. Используем холодный purple</td>
+              </tr>
+              <tr>
+                <td>Тёплый нейтральный (bg)</td>
+                <td>Тепло, уют, органичность. Менее стерильно, чем чистый белый</td>
+                <td>Фон приложения-компаньона — создаёт "домашнюю" атмосферу</td>
+                <td>Может выглядеть dirty если нет контроля</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Material 3 Color System: как работает</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">HCT</div>
+            <div><strong>HCT color space</strong><br><span>Hue–Chroma–Tone. Более равномерный перцептивно, чем HSL. Один seed (#6B5CE7) → полная light+dark система с гарантированным контрастом. Используй Material Theme Builder.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Семантический цвет = состояние</strong><br><span>Зелёный = хорошо, жёлтый = умеренно, красный = требует внимания. Oura-паттерн: цвет говорит о состоянии до того, как пользователь прочитал цифру. Моментальное считывание.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Максимум 3 акцентных цвета в UI</strong><br><span>Primary accent (действия, CTA), Semantic positive (green), Semantic warning (amber). Всё остальное — нейтральные. Больше 3 акцентов = хаос иерархии.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не ставь насыщенный цвет на большие поверхности</strong><br><span>Насыщенный #6B5CE7 работает на кнопке. На фоне карточки — утомительно. Используй tonal variants (10–15% opacity от primary) для контейнеров.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Tonal elevation в dark theme</h3>
+        <div class="callout green">
+          <strong>Критично для премиального dark mode:</strong> В Material 3 тени в тёмной теме заменяются тональным цветом. Surface → Surface+1 → Surface+2... каждый уровень добавляет ~5–10% первичного цвета в overlay. Это то, что отличает "дорогой" dark mode от просто тёмного фона. Без этого все карточки сливаются.
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">Surface elevation tokens — Kotlin/Compose</div>
+          <div class="code">// В MaterialTheme dark = true, elevation создаёт tonal overlay автоматически
+// Surface+1 ≈ 5% primary, Surface+2 ≈ 8%, Surface+3 ≈ 11%
+
+Card(
+    modifier = Modifier.fillMaxWidth(),
+    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // → Surface+2 в dark
+) { ... }
+
+// Для явного контроля:
+Surface(
+    color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
+) { ... }</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────── 3. TYPOGRAPHY ─────────────── -->
+    <section class="section" id="typography">
+      <div class="sec-header">
+        <span class="sec-tag">03</span>
+        <h2 class="sec-title">Типографика: читаемость и характер</h2>
+      </div>
+      <p class="sec-sub">Типографика — самый недооценённый инструмент дизайна мобильных приложений. 95% информации передаётся через текст, но большинство разработчиков не меняют системный шрифт вообще.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">45–75</div>
+          <div class="stat-l">символов — оптимальная ширина строки для комфортного чтения</div>
+          <div class="stat-src">Bringhurst, "The Elements of Typographic Style", 1992 (переизд.)</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">16sp+</div>
+          <div class="stat-l">минимальный размер body text на мобильных устройствах для комфортного чтения</div>
+          <div class="stat-src">Apple HIG + Google Material Design guidelines</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">4.5:1</div>
+          <div class="stat-l">минимальный контраст текст/фон по WCAG AA — всё ниже буквально мешает читать</div>
+          <div class="stat-src">W3C WCAG 2.2, 2023</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Material Design 3 Type Scale</h3>
+        <div class="type-scale">
+          <div class="type-row">
+            <span class="type-label">Display Large · 57sp</span>
+            <span class="type-sample" style="font-family:'Fraunces',Georgia,serif;font-size:32px;font-weight:300;color:var(--text)">Доброе утро</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Display Medium · 45sp</span>
+            <span class="type-sample" style="font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:400;color:var(--text)">Readiness 87</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Headline Large · 32sp</span>
+            <span class="type-sample" style="font-size:20px;font-weight:600;color:var(--text)">Прогноз на сегодня</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Title Large · 22sp</span>
+            <span class="type-sample" style="font-size:16px;font-weight:600;color:var(--text)">Время экрана · 3 ч 14 мин</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Body Large · 16sp</span>
+            <span class="type-sample" style="font-size:14px;font-weight:400;color:var(--text2)">Вчера ты потратил на Instagram на 40 мин меньше, чем обычно. Экран отложил раньше — хороший сигнал.</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">Label Medium · 12sp</span>
+            <span class="type-sample" style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3)">Вчера · Шаги · Сон</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Выбор шрифта: правила</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Display + Body = Серьёзный контраст</strong><br><span>Serif display + sans-serif body. Или variable sans с экстремальной разницей в weight (300 vs 700). Слабый контраст — шрифты "борются". Сильный контраст — система читается.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Display: один момент на экран</strong><br><span>Display Large — это дизайнерский элемент, не просто крупный текст. Утреннее приветствие, ключевая метрика, score. Используется редко, но создаёт "момент". Oura, Calm, Focus Friend — все делают так.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Tabular numbers для метрик</strong><br><span>font-variant-numeric: tabular-nums — цифры одинаковой ширины. Без этого "214" при обновлении прыгает по ширине. Обязательно для любых счётчиков, таймеров, прогресс-значений.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не более 2–3 начертаний на экран</strong><br><span>Display + Body + Label. Больше — хаос. Label для uppercase микротекста (категории, временные метки), body для всего читаемого, display для "моментов".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не используй system font по умолчанию для brand moments</strong><br><span>Roboto/Inter системный — хорош для тела. Для приветствия, для score, для ключевых цифр — кастомный serif или variable font создаёт характер и "дорого".</span></div>
+          </li>
+        </ul>
+
+        <div class="tbl-wrap" style="margin-top:20px">
+          <table>
+            <thead><tr><th>Роль</th><th>Рекомендованный шрифт</th><th>Характеристика</th></tr></thead>
+            <tbody>
+              <tr><td>Display (моменты)</td><td>Fraunces, DM Serif Display, Playfair Display</td><td>Оптический серсиф с характером, не банальный</td></tr>
+              <tr><td>Body (текст)</td><td>Inter, DM Sans, Nunito Sans</td><td>Высокая читаемость, работает малым кеглем</td></tr>
+              <tr><td>Data (числа)</td><td>Inter (tabular), JetBrains Mono</td><td>Tabular numbers, моноширинные для выравнивания</td></tr>
+              <tr><td>System fallback</td><td>Roboto (Android default)</td><td>Всегда в стеке как последний вариант</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────── 4. SPACE ─────────────── -->
+    <section class="section" id="space">
+      <div class="sec-header">
+        <span class="sec-tag">04</span>
+        <h2 class="sec-title">Пространство: воздух как инструмент</h2>
+      </div>
+      <p class="sec-sub">Белое пространство — не "пустое место". Это дизайнерский элемент с измеримым эффектом на восприятие качества и читаемость.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile green">
+          <div class="stat-n">+20%</div>
+          <div class="stat-l">рост понимания контента при правильном использовании white space</div>
+          <div class="stat-src">Lin, D., Journal of Information Science, 2004</div>
+        </div>
+        <div class="stat-tile accent">
+          <div class="stat-n">8dp</div>
+          <div class="stat-l">базовая единица сетки Material Design. Всё кратно 4dp, ключевые элементы — 8dp</div>
+          <div class="stat-src">Material Design Spec, Google 2023</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">16dp</div>
+          <div class="stat-l">минимальный боковой отступ экрана. Меньше — контент выглядит зажатым</div>
+          <div class="stat-src">Material Design Spacing System</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Правила пространства</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">8×</div>
+            <div><strong>8dp grid</strong><br><span>Все отступы кратны 4dp, "эмоциональные" отступы (между секциями, после заголовков) кратны 8dp. Это создаёт ритм, который воспринимается как порядок даже если пользователь не формулирует почему.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>"Дорогие" приложения используют больше пространства, чем кажется нужным</strong><br><span>Calm, Oura, Apple Health — все используют щедрые отступы. Плотность = дёшево. Воздух = premium. Если экран кажется "недозаполненным" — скорее всего, он правильный.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Внутренний отступ карточки: 16–20dp</strong><br><span>padding: 16dp минимум на телефоне. Меньше — контент внутри карточки выглядит зажатым. Для featured карточек (hero) — 20–24dp.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Разные gap между разными уровнями иерархии</strong><br><span>gap между элементами одной карточки: 8dp. Между карточками: 12dp. Между секциями: 24–32dp. Градация gap = визуальная иерархия разделов.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не заполняй пустоту декоративными элементами</strong><br><span>Рефлекс заполнить "пустое место" разделителями, иконками, фоновыми паттернами — вреден. Пустота работает. Декоративный шум снижает качество восприятия.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Spacing в Compose: правильный подход</h3>
+        <div class="code-wrap">
+          <div class="code-label">Spacing токены + применение</div>
+          <div class="code">// Определяй как объект, не как магические числа
+object Spacing {
+    val xs  = 4.dp
+    val sm  = 8.dp
+    val md  = 12.dp
+    val lg  = 16.dp   // стандартный внутренний отступ
+    val xl  = 24.dp   // между секциями
+    val xxl = 32.dp   // крупные разрывы
+    val screen = 20.dp // боковой отступ экрана
+}
+
+// Применение
+Column(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = Spacing.screen),
+    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+) {
+    Spacer(Modifier.height(Spacing.xl))
+    SectionTitle(...)
+    Spacer(Modifier.height(Spacing.md))
+    CardRow(gap = Spacing.sm)
+    Spacer(Modifier.height(Spacing.xl))
+}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────── 5. MOTION ─────────────── -->
+    <section class="section" id="motion">
+      <div class="sec-header">
+        <span class="sec-tag">05</span>
+        <h2 class="sec-title">Анимация: физика и намерение</h2>
+      </div>
+      <p class="sec-sub">Анимация — не украшение. Это коммуникация: она объясняет, что произошло, что произойдёт, и помогает пользователю удерживать контекст.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">21</div>
+          <div class="stat-l">M3-компонент в Jetpack Compose использует spring physics по умолчанию — бесплатно</div>
+          <div class="stat-src">Material Design 3 Expressive Release Notes, May 2025</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">46</div>
+          <div class="stat-l">исследований и 18 000+ участников — база M3 Expressive spring motion research</div>
+          <div class="stat-src">Google Material Design Team, 2025</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">−10–15%</div>
+          <div class="stat-l">воспринимаемое время ожидания при skeleton screen vs spinner</div>
+          <div class="stat-src">Bill Chung, Medium Engineering Blog, 2017</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Timing — сколько длится</h3>
+        <div class="timing-strip">
+          <div class="timing-row">
+            <span class="timing-label">Micro-interaction</span>
+            <div class="timing-bar-wrap"><div class="timing-bar" style="width:12%"></div></div>
+            <span class="timing-val">100–150ms</span>
+          </div>
+          <div class="timing-row">
+            <span class="timing-label">Элемент появляется</span>
+            <div class="timing-bar-wrap"><div class="timing-bar" style="width:25%"></div></div>
+            <span class="timing-val">200–300ms</span>
+          </div>
+          <div class="timing-row">
+            <span class="timing-label">Переход экрана</span>
+            <div class="timing-bar-wrap"><div class="timing-bar" style="width:40%"></div></div>
+            <span class="timing-val">350–500ms</span>
+          </div>
+          <div class="timing-row">
+            <span class="timing-label">Hero transition</span>
+            <div class="timing-bar-wrap"><div class="timing-bar" style="width:55%"></div></div>
+            <span class="timing-val">400–600ms</span>
+          </div>
+          <div class="timing-row" style="opacity:0.5">
+            <span class="timing-label">Порог раздражения</span>
+            <div class="timing-bar-wrap"><div class="timing-bar" style="width:100%;background:var(--red)"></div></div>
+            <span class="timing-val">700ms+</span>
+          </div>
+        </div>
+
+        <div class="callout accent">
+          <strong>Правило:</strong> Анимации UI должны завершаться <em>до того</em>, как пользователь захочет сделать следующее действие. Если анимация заставляет <em>ждать</em> — она слишком долгая. Если её не заметно — слишком короткая. 200–300ms — золотая середина.
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Spring Physics vs Linear — почему пружина лучше</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">→</div>
+            <div><strong>Linear/Cubic bezier</strong><br><span>Механическое, предсказуемое. Ощущается как машина. Нет "веса" у объектов — они перемещаются одинаково независимо от размера.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Spring animation</strong><br><span>Имитирует физику реальных объектов. Элемент "знает" свою массу. Большой элемент двигается медленнее (higher stiffness required). Создаёт ощущение материального мира. Именно это делает iOS и M3 ощущением "живыми".</span></div>
+          </li>
+        </ul>
+
+        <div class="code-wrap">
+          <div class="code-label">Spring параметры — Jetpack Compose</div>
+          <div class="code">// Основные пресеты для разных случаев
+
+// Кнопка / tap feedback — быстро, упруго
+val snappy = spring<Float>(
+    dampingRatio = Spring.DampingRatioMediumBouncy, // 0.5
+    stiffness = Spring.StiffnessHigh                // 10_000
+)
+
+// Карточка появляется — плавно
+val smooth = spring<Float>(
+    dampingRatio = Spring.DampingRatioNoBouncy,     // 1.0 — без отскока
+    stiffness = Spring.StiffnessMediumLow           // 200
+)
+
+// Hero transition / большой элемент — медленнее, с характером
+val hero = spring<Float>(
+    dampingRatio = 0.8f,
+    stiffness = 120f
+)
+
+// Счётчик метрики
+val animatedValue by animateFloatAsState(
+    targetValue = steps.toFloat(),
+    animationSpec = tween(800, easing = FastOutSlowInEasing)
+)
+Text("${animatedValue.roundToInt()}", fontFeatureSettings = "tnum")</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Ключевые анимационные паттерны</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Staggered list entry</strong><br><span>Элементы списка появляются один за другим с delay index×50–70ms. Визуально читается как "загрузка по порядку" — не всё разом. Создаёт ощущение живости и намерения.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>SharedTransition (card → detail)</strong><br><span>Карточка буквально "превращается" в детальный экран — shared element transition. Пользователь не теряет контекст откуда он пришёл. Jetpack Compose: SharedTransitionLayout + sharedElement modifier.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Haptic feedback на значимых действиях</strong><br><span>Medium impact на завершение (чек-ин, задача выполнена). Light impact на selection. Никогда — на каждый tap. Вибрация на каждый tap раздражает; на значимый момент — усиливает удовлетворение.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не анимируй то, что не несёт смысла</strong><br><span>Анимации ради анимаций (spinning loaders вместо прогресса, bounce на статичном тексте) — noise. Каждая анимация должна отвечать на вопрос: "что она объясняет пользователю?"</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 6. TOUCH ─────────────── -->
+    <section class="section" id="touch">
+      <div class="sec-header">
+        <span class="sec-tag">06</span>
+        <h2 class="sec-title">Touch-эргономика: большой палец правит</h2>
+      </div>
+      <p class="sec-sub">Телефон держат одной рукой в 49% случаев. Дизайн, который игнорирует большой палец — дизайн, который заставляет неудобно держать телефон.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">49%</div>
+          <div class="stat-l">пользователей держат телефон одной рукой постоянно</div>
+          <div class="stat-src">Steven Hoober, "How Do Users Really Hold Mobile Devices?", 2013</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">48dp</div>
+          <div class="stat-l">минимальный touch target по Material Design — меньше промахиваются пальцы</div>
+          <div class="stat-src">Material Design Human Interface Guidelines, Google</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">75%</div>
+          <div class="stat-l">взаимодействий с телефоном — большой палец, не указательный</div>
+          <div class="stat-src">Steven Hoober Mobile UX Research, UXmatters 2013</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Зоны доступности большого пальца</h3>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+          <div class="thumb-zone">
+            <div class="zone-natural">Легко доступно</div>
+            <div class="zone-stretch">Растяжка</div>
+            <div class="zone-hard">Трудно</div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <ul class="rules" style="margin-top:0">
+              <li class="rule">
+                <div class="rule-mark do">✓</div>
+                <div><strong>CTA и навигация — в нижней зоне</strong><br><span>Кнопка "Начать день", check-in buttons, bottom navigation — всё ниже центра экрана. Большой палец туда достаёт без усилий.</span></div>
+              </li>
+              <li class="rule">
+                <div class="rule-mark do">✓</div>
+                <div><strong>Контент — в верхней половине</strong><br><span>Читаемый текст, карточки с данными — пользователь смотрит, не нажимает. Можно размещать выше.</span></div>
+              </li>
+              <li class="rule">
+                <div class="rule-mark dont">✗</div>
+                <div><strong>Деструктивные действия — не в зоне случайного касания</strong><br><span>Удаление, отмена, "Нет" — не прямо под большим пальцем в рабочем состоянии. Нужен step-away от привычного места тапа.</span></div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Bottom Navigation: данные</h3>
+        <div class="callout green">
+          <strong>Bottom nav увеличивает:</strong> Task completion rate, time-on-task (меньше ошибок навигации), thumb comfort score. Google рекомендует 3–5 destinations. Для нашего приложения — 3: Today / История / Профиль. Меньше = фокус. Больше = confusion.
+        </div>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">3</div>
+            <div><strong>Максимум 3–5 вкладок</strong><br><span>3 — оптимум для companion app. Today (дом) + История + Профиль/Настройки. Каждая вкладка — отдельный "режим", не просто разный контент.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Active indicator M3</strong><br><span>M3 bottom nav использует pill-shaped active indicator на текущей вкладке. Это стандарт — не изобретай свой. Пользователи узнают его мгновенно.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 7. LOADING ─────────────── -->
+    <section class="section" id="loading">
+      <div class="sec-header">
+        <span class="sec-tag">07</span>
+        <h2 class="sec-title">Загрузка: управление временем</h2>
+      </div>
+      <p class="sec-sub">Пользователь не ждёт — пользователь интерпретирует. Одни и те же 2 секунды ощущаются по-разному в зависимости от того, что происходит на экране.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">53%</div>
+          <div class="stat-l">мобильных пользователей уходят, если загрузка дольше 3 секунд</div>
+          <div class="stat-src">Google/SOASTA "The State of Online Retail Performance", 2017</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">−15%</div>
+          <div class="stat-l">снижение воспринимаемого времени ожидания при skeleton screen вместо spinner</div>
+          <div class="stat-src">Medium Engineering Research, 2017</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">0.4 сек</div>
+          <div class="stat-l">ниже этого порога пользователи не требуют индикатора загрузки — дай немедленный ответ</div>
+          <div class="stat-src">Nielsen Norman Group, Response Time Limits, 1993/переизд.</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Порядок выбора индикатора</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark num">&lt;400</div>
+            <div><strong>&lt;400ms — никакого индикатора</strong><br><span>Данные появляются мгновенно. Indeterminate spinner на &lt;400ms — UX-mistake: он "обнажает" задержку там, где её никто не заметил бы.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark num">1–3s</div>
+            <div><strong>1–3 секунды — skeleton screen</strong><br><span>Показывает layout-форму будущего контента. Пользователь видит структуру заранее. Shimmer-эффект: синхронизированный на весь экран (не покарточно). Создаёт ощущение, что загрузка вот-вот завершится.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark num">3s+</div>
+            <div><strong>&gt;3 секунд — percentage progress</strong><br><span>Если операция долгая (первый запуск, большой файл) — реальный progress bar с %. Неопределённый spinner на 10 секунд невыносим. Человек хочет знать "сколько ещё".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Branded Lottie для первого запуска</strong><br><span>Вместо белого экрана при первом открытии — маленькая анимация 1–2 секунды. Устанавливает personality и создаёт первое впечатление о качестве. 10–50кб Lottie JSON против 500кб GIF.</span></div>
+          </li>
+        </ul>
+
+        <div class="code-wrap">
+          <div class="code-label">Skeleton Screen в Compose</div>
+          <div class="code">// Зависимость: implementation("com.valentinilk.shimmer:compose-shimmer:1.3.0")
+
+@Composable
+fun HomeScreenSkeleton() {
+    val shimmer = rememberShimmer(shimmerBounds = ShimmerBounds.Window)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Hero card skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .shimmer(shimmer)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+        // Stats row skeleton
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .shimmer(shimmer)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                )
+            }
+        }
+    }
+}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────── 8. ONBOARDING ─────────────── -->
+    <section class="section" id="onboarding">
+      <div class="sec-header">
+        <span class="sec-tag">08</span>
+        <h2 class="sec-title">Онбординг: от установки до ценности</h2>
+      </div>
+      <p class="sec-sub">77% пользователей удаляют приложение в первые 3 дня. Онбординг — единственный шанс показать ценность до того, как пользователь уйдёт.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">77%</div>
+          <div class="stat-l">пользователей перестают использовать приложение через 3 дня после установки</div>
+          <div class="stat-src">Localytics Benchmark Report, 2018</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">2–3×</div>
+          <div class="stat-l">рост accept rate системного permission dialog при кастомном pre-permission экране</div>
+          <div class="stat-src">Various iOS/Android UX studies, summarized by AppFollow 2022</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">Aha</div>
+          <div class="stat-l">одно значимое событие в первый сеанс — ключевой predictor долгосрочного retention</div>
+          <div class="stat-src">Reforge Growth Series / Casey Winters, 2019</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Принципы onboarding</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Value-first, permission-second</strong><br><span>Сначала объясни ценность разрешения — "Чтобы прогноз был точным, нам нужен доступ к Health Connect" — потом системный диалог. Никогда не бросай системный диалог "вслепую".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Одна задача за один шаг</strong><br><span>Не кидай 5 запросов разрешений подряд. Один шаг — одно разрешение. Наш онбординг: 3 шага, по одной задаче. Правильно.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Graceful degradation — не блокируй при отказе</strong><br><span>Пользователь отказал в Health Connect? Хорошо — работаем без сна и шагов. Не показывай error screen, не блокируй онбординг. Скажи что именно не будет работать — и продолжай.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Aha moment в первый сеанс</strong><br><span>До того как попросить ещё что-то — дай один insight. Для нашего приложения: показать время экрана за вчера + короткий прогноз. "Вот что мы можем" → хочется дальше.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не делай пропускаемый туториал</strong><br><span>"Skip tutorial" в правом верхнем углу — признание что туториал скучный. Если продукт требует обучения — сделай его частью первого опыта, не отдельным блоком.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 9. DARK MODE ─────────────── -->
+    <section class="section" id="dark">
+      <div class="sec-header">
+        <span class="sec-tag">09</span>
+        <h2 class="sec-title">Dark Mode: OLED и ночная аудитория</h2>
+      </div>
+      <p class="sec-sub">Dark mode — не тренд. Это часть Android OS, которой пользуется большинство активных пользователей. И это физика: тёмные пиксели на OLED потребляют меньше энергии.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">91%</div>
+          <div class="stat-l">Android-разработчиков имплементировали dark mode (сравн. 77% iOS)</div>
+          <div class="stat-src">Android Developer Survey, Google I/O 2023</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">−63%</div>
+          <div class="stat-l">потребление батареи OLED-дисплея при полностью чёрном экране vs белом при яркости 100%</div>
+          <div class="stat-src">Google Android Team Energy Study, 2018</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">58%</div>
+          <div class="stat-l">пользователей используют dark mode на телефоне (опрос 2024)</div>
+          <div class="stat-src">Android Authority User Poll, 2024</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Dark Mode: правила реализации</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Tonal elevation вместо теней</strong><br><span>В тёмной теме тень на тёмном фоне невидима. M3 решает это через tonal overlay: чем выше elevation, тем светлее поверхность. Card(elevation=2.dp) автоматически светлее поверхности фона в dark mode.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Не инвертируй — переопределяй</strong><br><span>Наивная инверсия (#FFFFFF → #000000) ломает контраст и иерархию. Нужна отдельная семантическая система токенов для dark: background не #000, а #0F0F11 (чуть теплее = комфортнее).</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Акцент: проверь на dark bg</strong><br><span>Primary #6B5CE7 на тёмном фоне может быть слишком тёмным. В dark mode акцент часто нужно осветлить (PrimaryLight: #9B8AFF или #8070FF). Проверяй контраст в обеих темах.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не используй чистый #000000</strong><br><span>Абсолютный чёрный (#000000) на OLED выглядит "дырой" рядом с тёмно-серыми элементами. Используй #0F0F11 или #111009 — слегка тёплый, менее резкий.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 10. CONSISTENCY ─────────────── -->
+    <section class="section" id="consistency">
+      <div class="sec-header">
+        <span class="sec-tag">10</span>
+        <h2 class="sec-title">Консистентность: доверие через повторение</h2>
+      </div>
+      <p class="sec-sub">Консистентный интерфейс снижает когнитивную нагрузку. Пользователь тратит меньше усилий на "разгадывание" UI и больше — на задачу.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile green">
+          <div class="stat-n">−42%</div>
+          <div class="stat-l">снижение ошибок пользователей при консистентном UI (одинаковые паттерны для похожих действий)</div>
+          <div class="stat-src">Nielsen Norman Group, Consistency in UX, 2020</div>
+        </div>
+        <div class="stat-tile accent">
+          <div class="stat-n">3</div>
+          <div class="stat-l">радиуса скругления максимум на весь дизайн. Больше — "несобранность". М3 рекомендует shape-токены</div>
+          <div class="stat-src">Material Design 3 Shape System</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Design tokens: что стандартизировать</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Токен</th><th>Значение</th><th>Где применяется</th></tr></thead>
+            <tbody>
+              <tr><td>shape.card</td><td class="mono">16dp</td><td>Все карточки на HomeScreen</td></tr>
+              <tr><td>shape.button</td><td class="mono">14dp</td><td>CTA кнопки, action кнопки в уведомлении</td></tr>
+              <tr><td>shape.chip</td><td class="mono">8dp (или circular)</td><td>Теги, статусные чипы</td></tr>
+              <tr><td>elevation.card</td><td class="mono">2dp</td><td>Все карточки (tonal в dark)</td></tr>
+              <tr><td>spacing.screenPadding</td><td class="mono">20dp</td><td>Горизонтальный отступ всего контента</td></tr>
+              <tr><td>spacing.cardPadding</td><td class="mono">16dp</td><td>Внутренний отступ всех карточек</td></tr>
+              <tr><td>spacing.sectionGap</td><td class="mono">24dp</td><td>Между секциями HomeScreen</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Что должно быть идентичным по всему приложению</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Все карточки — один радиус, один elevation</strong><br><span>Не карточка с 12dp и другая с 16dp. Не карточка с тенью и другая без. Один токен, применённый везде — это "система".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Один тип кнопки для CTA</strong><br><span>Primary action = FilledButton с Primary цветом. Secondary = OutlinedButton. Never mix. Пользователь учит один раз: "фиолетовая кнопка = главное действие".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Temporally consistent feedback</strong><br><span>Нажатие на любую кнопку → один и тот же scale animation (0.95f, 150ms). Не три разных "нажатых состояния" на три типа кнопок. Один паттерн — привычка.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 11. HEALTH PATTERNS ─────────────── -->
+    <section class="section" id="health">
+      <div class="sec-header">
+        <span class="sec-tag">11</span>
+        <h2 class="sec-title">Health App паттерны: специфика категории</h2>
+      </div>
+      <p class="sec-sub">Health и wellness — отдельная категория с собственными исследованными паттернами. Нарушение любого из них снижает engagement даже при хорошем общем дизайне.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile accent">
+          <div class="stat-n">66 дн</div>
+          <div class="stat-l">среднее время формирования привычки (не 21 день). Приложение должно удержать на этот срок</div>
+          <div class="stat-src">Lally et al., European Journal of Social Psychology, 2010</div>
+        </div>
+        <div class="stat-tile green">
+          <div class="stat-n">+25%</div>
+          <div class="stat-l">рост долгосрочного retention при наличии streak-механики в health apps</div>
+          <div class="stat-src">Duolingo Internal Research / продублировано в Loop Habit Tracker UX study</div>
+        </div>
+        <div class="stat-tile amber">
+          <div class="stat-n">5 сек</div>
+          <div class="stat-l">максимальное время check-in взаимодействия для высокого completion rate (Daylio modell)</div>
+          <div class="stat-src">Daylio UX Research via App Store Reviews Analysis</div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Паттерны лучших health apps</h3>
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Personal baseline, не population norm</strong><br><span>"Твой обычный результат 7.2ч сна" vs "Рекомендуется 8ч". Personal comparison = мотивация без осуждения. Oura и наш LLM-промпт уже так делают. UI должен это отражать: "—40 мин от твоего обычного", не "—40 мин от нормы".</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Zero-friction check-in</strong><br><span>3 кнопки прямо в уведомлении. Нажал — готово, приложение не открывается. Daylio: 5 секунд. Наш чек-ин уже так устроен — это правильно.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Позитивное подкрепление, не только критика</strong><br><span>Замечать хорошие отклонения, не только плохие. "Вчера ты взял телефон на 20 мин позже — хороший сигнал" работает лучше чем всегда указывать на проблемы. LLM-промпт уже учитывает это (правило 4 в системном промпте).</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Прогрессивное раскрытие данных</strong><br><span>Oura: 3 уровня глубины. Уровень 1: один aggregate score. Уровень 2: breakdown по категориям. Уровень 3: raw data + trends. Новый пользователь не перегружен деталями, advanced user получает нужное.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Semantic color для здоровья</strong><br><span>Выдели отдельные цвета для состояний: зелёный (хорошо), жёлтый (умеренно), красный (требует внимания). Эти цвета ТОЛЬКО для health-состояний — не для UI-акцентов. Смешивание = confusion.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark dont">✗</div>
+            <div><strong>Не перегружай главный экран данными</strong><br><span>Соблазн показать всё собранное — экран на 12 метрик. Результат: пользователь не знает на что смотреть. Максимум 4–5 метрик в "fold" (видимая область без скролла).</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">Character-driven design: почему работает</h3>
+        <div class="callout accent">
+          <strong>Focus Friend (Google Play Best App 2025):</strong> Один анимированный персонаж "Bean", который реагирует на состояние фокус-сессии. Никаких лишних фич. <em>Это и есть причина победы.</em><br><br>
+          Emotional design создаёт retention, который feature-list не создаёт. Люди возвращаются к приложениям, которые ощущаются "живыми". Replika, Wysa, Headspace — все используют это.
+        </div>
+
+        <ul class="rules">
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Один персонаж/элемент, реагирующий на состояние</strong><br><span>Небольшой Lottie-элемент (64–96dp) в верхней части HomeScreen, который медленно "дышит" в спокойный день и активно пульсирует в энергичный. Меняет speed через LottieAnimatable.speed по readiness score.</span></div>
+          </li>
+          <li class="rule">
+            <div class="rule-mark do">✓</div>
+            <div><strong>Утреннее сообщение как "разговор", не как данные</strong><br><span>Текст прогноза — это голос компаньона, не отчёт. Тёплый тон, первое лицо от приложения. Рамка "текст в карточке" vs "текст в bubble" — bubble ощущается как диалог.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────── 12. CHECKLIST ─────────────── -->
+    <section class="section" id="checklist">
+      <div class="sec-header">
+        <span class="sec-tag">12</span>
+        <h2 class="sec-title">Чеклист: приоритизированный список</h2>
+      </div>
+      <p class="sec-sub">Всё вышеперечисленное — в конкретные задачи. Три уровня: Must Have, Should Have, Nice to Have.</p>
+
+      <div class="sub">
+        <h3 class="sub-title">🟢 Must Have — без этого нет "красивого"</h3>
+        <div class="checklist">
+          <div class="check p1">
+            <span class="check-num">M1</span>
+            <div><strong>Tonal elevation в dark mode</strong><p>Card elevation=2dp на тёмном фоне. Без этого карточки сливаются с фоном в dark mode.</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M2</span>
+            <div><strong>Skeleton loading на HomeScreen</strong><p>Shimmer вместо spinner пока грузятся данные. 3 строки кода с compose-shimmer.</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M3</span>
+            <div><strong>Spring animation на кнопках</strong><p>scale 0.95f + spring(stiffness=High) при press. Haptic Medium на check-in. 5 строк кода.</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M4</span>
+            <div><strong>Tabular numbers на метриках</strong><p>fontFeatureSettings = "tnum" на все числа (шаги, минуты экрана, сон). Цифры не прыгают при обновлении.</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M5</span>
+            <div><strong>Display Large для утреннего приветствия</strong><p>MaterialTheme.typography.displayMedium.copy(fontWeight=Light). Это момент, не подпись.</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M6</span>
+            <div><strong>Consistent shape tokens</strong><p>Один радиус на все карточки (16dp), один на кнопки (14dp). Никаких вариаций "на глаз".</p></div>
+          </div>
+          <div class="check p1">
+            <span class="check-num">M7</span>
+            <div><strong>Semantic colors для health states</strong><p>Зелёный chip если данные хорошие, жёлтый если средние, красный если плохие. Отдельно от Primary.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">🟡 Should Have — сильно улучшит восприятие</h3>
+        <div class="checklist">
+          <div class="check p2">
+            <span class="check-num">S1</span>
+            <div><strong>Animated character / element</strong><p>Lottie-элемент на HomeScreen, реагирующий на readiness (speed от 0.5x до 2.0x). Focus Friend-паттерн.</p></div>
+          </div>
+          <div class="check p2">
+            <span class="check-num">S2</span>
+            <div><strong>Staggered list entry</strong><p>Карточки появляются с delay index×60ms. AnimatedVisibility + fadeIn(tween(delayMillis = index * 60)).</p></div>
+          </div>
+          <div class="check p2">
+            <span class="check-num">S3</span>
+            <div><strong>Counter animation на метриках</strong><p>animateFloatAsState(tween(800)) при первом показе. "214 мин" считает вверх от 0 — earned feeling.</p></div>
+          </div>
+          <div class="check p2">
+            <span class="check-num">S4</span>
+            <div><strong>Empty state для первого запуска</strong><p>Lottie + "Носи телефон сегодня — утром появится первый прогноз". Не пустой экран.</p></div>
+          </div>
+          <div class="check p2">
+            <span class="check-num">S5</span>
+            <div><strong>SharedTransition card → detail</strong><p>SharedTransitionLayout при переходе из карточки утреннего сообщения в полный экран.</p></div>
+          </div>
+          <div class="check p2">
+            <span class="check-num">S6</span>
+            <div><strong>Display-шрифт для ключевых моментов</strong><p>Fraunces / Playfair для приветствия и score. Inter/Roboto для всего остального.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">
+        <h3 class="sub-title">⚪ Nice to Have — polish уровня App Store Featured</h3>
+        <div class="checklist">
+          <div class="check p3">
+            <span class="check-num">N1</span>
+            <div><strong>Ambient background animation</strong><p>Медленно меняющийся gradient на HomeScreen в зависимости от времени суток (утро = тёплый, ночь = прохладный).</p></div>
+          </div>
+          <div class="check p3">
+            <span class="check-num">N2</span>
+            <div><strong>Sparkline-графики на метриках</strong><p>Tiny 7-дневный sparkline под каждой метрикой. Тренд визуально без отдельного экрана.</p></div>
+          </div>
+          <div class="check p3">
+            <span class="check-num">N3</span>
+            <div><strong>Glance Widget</strong><p>Виджет на рабочий стол с утренним прогнозом. Пользователь видит данные не открывая приложение.</p></div>
+          </div>
+          <div class="check p3">
+            <span class="check-num">N4</span>
+            <div><strong>Personalised greeting с именем</strong><p>"Доброе утро, Александр" при наличии имени. Display Large. Пользователи помнят это.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout green" style="margin-top:32px">
+        <strong>Финальное правило:</strong> "Premium — это тонкий слой polish поверх обычного layout." Большинство M–Must Have задач — это по 5–15 строк кода. Совокупный эффект: приложение начинает ощущаться как продукт, а не как студенческий проект.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// Sidebar active state on scroll
+(function() {
+  const links = document.querySelectorAll('.sidebar a');
+  const sections = Array.from(links)
+    .map(a => a.getAttribute('href'))
+    .filter(h => h && h.startsWith('#'))
+    .map(h => document.querySelector(h))
+    .filter(Boolean);
+
+  function update() {
+    let active = sections[0];
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top <= 100) active = s;
+    }
+    links.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + active.id);
+    });
+  }
+  window.addEventListener('scroll', update, {passive: true});
+  update();
+})();
+</script>
+
+</body></html>
