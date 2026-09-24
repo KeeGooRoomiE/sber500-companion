@@ -25,33 +25,36 @@ class DailyCollectWorker @AssistedInject constructor(
     private val repository: CompanionRepository,
 ) : CoroutineWorker(context, params) {
 
+    // Every run sends two days: yesterday in full (the evening after the last run is otherwise
+    // lost, and the server builds the morning forecast from it) and today so far.
     override suspend fun doWork(): Result {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val dayStart = today.atStartOfDay(zone).toInstant()
-        val dayEnd = Instant.now()
+        val now = Instant.now()
 
+        val yesterday = snapshotFor(today.minusDays(1), end = today.atStartOfDay(zone).toInstant(), zone, battery = null)
+        val current = snapshotFor(today, end = now, zone, battery = applicationContext.batteryLevel())
+
+        val ok = repository.postDailySnapshot(yesterday).isSuccess and
+            repository.postDailySnapshot(current).isSuccess
+        return if (ok) Result.success() else Result.retry()
+    }
+
+    /** Usage for [date] until [end]; sleep = the night that ended on the morning of [date]. */
+    private suspend fun snapshotFor(date: LocalDate, end: Instant, zone: ZoneId, battery: BatterySnapshot?): DailySnapshot {
+        val dayStart = date.atStartOfDay(zone).toInstant()
         // Without usage access we still send Health Connect data; usage fields go as null.
-        val usage = usageStats.collect(dayStart.toEpochMilli(), dayEnd.toEpochMilli())
-
+        val usage = usageStats.collect(dayStart.toEpochMilli(), end.toEpochMilli())
+        val nightEnd = minOf(date.atTime(12, 0).atZone(zone).toInstant(), end)
         val sleep = healthConnect.collectSleep(
-            from = today.minusDays(1).atStartOfDay(zone).toInstant(),
-            to = dayEnd,
+            from = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant(),
+            to = nightEnd,
         )
-
-        val steps = healthConnect.collectSteps(from = dayStart, to = dayEnd)
-
-        val battery = applicationContext.batteryLevel()
-
-        val snapshot = DailySnapshot(
-            date = today, usage = usage, sleep = sleep,
+        val steps = healthConnect.collectSteps(from = dayStart, to = end)
+        return DailySnapshot(
+            date = date, usage = usage, sleep = sleep,
             battery = battery, steps = steps.takeIf { it > 0 },
         )
-
-        return when (repository.postDailySnapshot(snapshot).isSuccess) {
-            true  -> Result.success()
-            false -> Result.retry()
-        }
     }
 
     private fun Context.batteryLevel(): BatterySnapshot {

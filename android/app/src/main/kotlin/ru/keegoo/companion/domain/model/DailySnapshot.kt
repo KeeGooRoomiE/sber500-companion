@@ -7,7 +7,7 @@ data class DailySnapshot(
     val date: LocalDate,
     val usage: UsageSnapshot?,   // null without usage access — never send zeros as data
     val sleep: SleepSnapshot?,
-    val battery: BatterySnapshot,
+    val battery: BatterySnapshot?,  // only known for today's snapshot
     val steps: Int? = null,
 )
 

@@ -32,7 +32,7 @@ class CompanionRepository @Inject constructor(
                 bedtime        = snapshot.sleep?.bedtime?.format(TIME_FMT),
                 wakeup         = snapshot.sleep?.wakeup?.format(TIME_FMT),
                 steps          = snapshot.steps,
-                battery_morning = snapshot.battery.levelPercent,
+                battery_morning = snapshot.battery?.levelPercent,
             )
         )
         Log.d("CompanionRepo", "daily snapshot posted: ${snapshot.date}")
@@ -51,6 +51,9 @@ class CompanionRepository @Inject constructor(
             )
         )
     }
+
+    /** "The app is open" — counts the person as active today (DAU). Fire and forget. */
+    suspend fun ping(): Result<Unit> = runCatching { api.ping() }
 
     suspend fun getMorning(): Result<MorningMessageResponse> = runCatching {
         api.getMorning()

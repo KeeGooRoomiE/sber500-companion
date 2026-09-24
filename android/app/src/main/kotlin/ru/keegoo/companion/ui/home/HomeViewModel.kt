@@ -85,6 +85,7 @@ class HomeViewModel @Inject constructor(
 
     /** Re-read today's data — on start and every time Home comes back to the foreground. */
     fun refresh() {
+        viewModelScope.launch { repository.ping() }
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()

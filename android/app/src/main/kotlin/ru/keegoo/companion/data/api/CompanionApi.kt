@@ -14,6 +14,9 @@ interface CompanionApi {
     @POST("api/v1/checkin")
     suspend fun postCheckIn(@Body body: CheckInRequest)
 
+    @POST("api/v1/ping")
+    suspend fun ping()
+
     @GET("api/v1/morning")
     suspend fun getMorning(): MorningMessageResponse
 }
