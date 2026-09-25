@@ -143,6 +143,20 @@ func (h *Handler) Checkin(w http.ResponseWriter, r *http.Request) {
 		Result:      "ok",
 	})
 
+	// Scenario = morning forecast received + evening check-in submitted on the same day.
+	// Log once per day; if morning was never fetched, SentAt is nil and we skip.
+	if msg, err := h.morning.ForDate(r.Context(), uid, date); err == nil && msg != nil && msg.SentAt != nil {
+		h.callLog.Log(r.Context(), analytics.CallEvent{
+			UserID:      uid,
+			Timestamp:   time.Now(),
+			CallType:    analytics.CallTypeTool,
+			Component:   analytics.ComponentScenarioCompleted,
+			Trigger:     analytics.TriggerUserAction,
+			UserVisible: false,
+			Result:      "ok",
+		})
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

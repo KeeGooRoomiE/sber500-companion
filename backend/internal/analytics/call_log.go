@@ -24,8 +24,9 @@ const (
 	ComponentUsageStats Component = "usagestats"
 	ComponentHealthConn Component = "health_connect"
 	ComponentCalendar   Component = "calendar"
-	ComponentCheckin    Component = "checkin"
-	ComponentMorningAPI Component = "morning_api"
+	ComponentCheckin           Component = "checkin"
+	ComponentMorningAPI        Component = "morning_api"
+	ComponentScenarioCompleted Component = "scenario_completed"
 
 	TriggerUserAction Trigger = "user_action"
 	TriggerScheduled  Trigger = "scheduled"

@@ -44,6 +44,10 @@ type MetricsResponse struct {
 	MorningDeliveredToday int      `json:"morning_delivered_today"`
 	CallsPerDAU           *float64 `json:"calls_per_dau"`
 
+	// scenario_completed = morning received + evening check-in on the same day
+	ScenarioCompletedToday int `json:"scenario_completed_today"`
+	ScenarioCompletedTotal int `json:"scenario_completed_total"`
+
 	LLMCallsTotal    int      `json:"llm_calls_total"`
 	LLMCallsToday    int      `json:"llm_calls_today"`
 	LLMCostRubTotal  float64  `json:"llm_cost_rub_total"`
@@ -206,8 +210,13 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	if err := m.db.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM checkins WHERE date = $2 AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM morning_messages WHERE date = $2 AND sent_at IS NOT NULL AND NOT (user_id = ANY($1))),
-		       (SELECT count(*) FROM call_log WHERE ts >= $3)
-	`, devs, today, dayStart).Scan(&checkinsToday, &out.MorningDeliveredToday, &callsToday); err != nil {
+		       (SELECT count(*) FROM call_log WHERE ts >= $3),
+		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND ts >= $3),
+		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed')
+	`, devs, today, dayStart).Scan(
+		&checkinsToday, &out.MorningDeliveredToday, &callsToday,
+		&out.ScenarioCompletedToday, &out.ScenarioCompletedTotal,
+	); err != nil {
 		return nil, err
 	}
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
