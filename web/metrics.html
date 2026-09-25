@@ -167,7 +167,7 @@
 
 <script>
   // ── URL бэкенда — менять здесь когда появится домен ─────────────────────
-  const API_URL = 'https://api.companion.keegooroomie.ru/api/v1/metrics';
+  const API_URL = 'https://api.94-183-236-169.sslip.io/health';
   const LLM_BUDGET_RUB = 50000; // бюджет cloud.ru Foundation Models
 
   // ── Мок-данные (используются при ?demo=1 или когда бэкенд недоступен) ────
@@ -309,8 +309,8 @@
     document.getElementById('content').innerHTML = `
       <div class="error-card">
         <div class="error-icon">🚧</div>
-        <h2>Бэкенд ещё не задеплоен</h2>
-        <p>Данные появятся как только сервер будет доступен.<br>
+        <h2>Не удалось получить данные</h2>
+        <p>Сервер временно недоступен.<br>
         Страница переобновляется автоматически каждые 30 секунд.</p>
       </div>`;
     document.getElementById('updated-at').textContent = '';
