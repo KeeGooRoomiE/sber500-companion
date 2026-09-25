@@ -30,13 +30,22 @@ type MetricsResponse struct {
 	DAUToday       int        `json:"dau_today"`
 	DAU7dAvg       float64    `json:"dau_7d_avg"`
 	DAUHistory     []DAUPoint `json:"dau_history"`
+	RetentionD1Pct *float64   `json:"retention_d1_pct"`
 	RetentionD7Pct *float64   `json:"retention_d7_pct"`
+
+	// Retention funnel — absolute counts for the visual funnel
+	FunnelTotal     int `json:"funnel_total"`
+	FunnelActivated int `json:"funnel_activated"` // users with ≥1 activity day
+	FunnelD1        int `json:"funnel_d1"`        // retained at D1
+	FunnelD7        int `json:"funnel_d7"`        // retained at D7
+	FunnelDAU       int `json:"funnel_dau"`       // active today
 
 	CheckinRatePct        *float64 `json:"checkin_rate_pct"`
 	MorningDeliveredToday int      `json:"morning_delivered_today"`
 	CallsPerDAU           *float64 `json:"calls_per_dau"`
 
 	LLMCallsTotal    int      `json:"llm_calls_total"`
+	LLMCallsToday    int      `json:"llm_calls_today"`
 	LLMCostRubTotal  float64  `json:"llm_cost_rub_total"`
 	LLMCostRubPerDAU *float64 `json:"llm_cost_rub_per_dau"`
 	P50LatencyMs     *float64 `json:"p50_latency_ms"`
@@ -149,8 +158,23 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		out.DAU7dAvg = round(float64(sum)/float64(len(out.DAUHistory)), 1)
 	}
 
+	// Retention D1: users who signed up 1–6 days ago and had any activity after registration day
+	var retD1, cohortD1 int
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(*) FILTER (WHERE EXISTS (
+		           SELECT 1 FROM user_activity a
+		           WHERE a.user_id = u.id AND a.date > (u.created_at AT TIME ZONE $2)::date)),
+		       count(*)
+		FROM users u
+		WHERE (u.created_at AT TIME ZONE $2)::date BETWEEN $3::date - 6 AND $3::date - 1
+		  AND NOT (u.id = ANY($1))
+	`, devs, tz, today).Scan(&retD1, &cohortD1); err != nil {
+		return nil, err
+	}
+	out.RetentionD1Pct = pct(retD1, cohortD1)
+
 	// Retention D7: users who signed up 7–13 days ago and came back on day 7 or later
-	var retained, cohort int
+	var retD7, cohortD7 int
 	if err := m.db.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE EXISTS (
 		           SELECT 1 FROM user_activity a
@@ -159,10 +183,23 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		FROM users u
 		WHERE (u.created_at AT TIME ZONE $2)::date BETWEEN $3::date - 13 AND $3::date - 7
 		  AND NOT (u.id = ANY($1))
-	`, devs, tz, today).Scan(&retained, &cohort); err != nil {
+	`, devs, tz, today).Scan(&retD7, &cohortD7); err != nil {
 		return nil, err
 	}
-	out.RetentionD7Pct = pct(retained, cohort)
+	out.RetentionD7Pct = pct(retD7, cohortD7)
+
+	// Retention funnel — absolute counts across all cohorts
+	var activated int
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(DISTINCT user_id) FROM user_activity WHERE NOT (user_id = ANY($1))
+	`, devs).Scan(&activated); err != nil {
+		return nil, err
+	}
+	out.FunnelTotal = out.UsersTotal
+	out.FunnelActivated = activated
+	out.FunnelD1 = retD1
+	out.FunnelD7 = retD7
+	out.FunnelDAU = out.DAUToday
 
 	// Engagement
 	var checkinsToday, callsToday int
@@ -180,10 +217,11 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	var inTotal, outTotal, inToday, outToday int64
 	if err := m.db.QueryRow(ctx, `
 		SELECT coalesce(sum(prompt_tokens), 0), coalesce(sum(completion_tokens), 0),
-		       coalesce(sum(prompt_tokens) FILTER (WHERE created_at >= $2), 0),
-		       coalesce(sum(completion_tokens) FILTER (WHERE created_at >= $2), 0)
+		       coalesce(sum(prompt_tokens)    FILTER (WHERE created_at >= $2), 0),
+		       coalesce(sum(completion_tokens) FILTER (WHERE created_at >= $2), 0),
+		       count(*)                        FILTER (WHERE created_at >= $2 AND sent_at IS NOT NULL)
 		FROM morning_messages WHERE NOT (user_id = ANY($1))
-	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
+	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday, &out.LLMCallsToday); err != nil {
 		return nil, err
 	}
 	out.LLMCostRubTotal = round(m.cost(inTotal, outTotal), 2)

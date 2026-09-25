@@ -181,6 +181,7 @@
         { key: 'new_users_today',   label: 'Новых сегодня',   unit: 'человек' },
         { key: 'dau_today',         label: 'DAU сегодня',     unit: 'активных' },
         { key: 'dau_7d_avg',        label: 'DAU 7д avg',      unit: 'активных' },
+        { key: 'retention_d1_pct',  label: 'Retention D1',    unit: '% вернулись', decimals: 1 },
         { key: 'retention_d7_pct',  label: 'Retention D7',    unit: '% вернулись', decimals: 1 },
       ]
     },
@@ -196,6 +197,7 @@
       title: 'LLM и инфраструктура',
       tiles: [
         { key: 'llm_calls_total',      label: 'LLM calls total', unit: 'вызовов' },
+        { key: 'llm_calls_today',      label: 'LLM сегодня',     unit: 'вызовов' },
         { key: 'llm_cost_rub_per_dau', label: 'Cost / DAU',      unit: '₽ на активного',   decimals: 2 },
         { key: 'p50_latency_ms',       label: 'P50 latency',     unit: 'мс' },
         { key: 'p95_latency_ms',       label: 'P95 latency',     unit: 'мс', warnAbove: 1500, dangerAbove: 3000 },
@@ -237,19 +239,59 @@
   function renderBudget(data) {
     const total = data.llm_cost_rub_total;
     if (total == null) return '';
-    const pct     = Math.min((total / LLM_BUDGET_RUB) * 100, 100);
-    const cls     = pct >= 80 ? 'danger' : pct >= 50 ? 'warn' : '';
-    const spent   = total.toLocaleString('ru', { maximumFractionDigits: 0 });
-    const budget  = LLM_BUDGET_RUB.toLocaleString('ru');
+    const usedPct  = Math.min((total / LLM_BUDGET_RUB) * 100, 100);
+    const cls      = usedPct >= 80 ? 'danger' : usedPct >= 50 ? 'warn' : '';
+    const spent    = total.toLocaleString('ru', { maximumFractionDigits: 0 });
+    const budget   = LLM_BUDGET_RUB.toLocaleString('ru');
+    const remain   = Math.max(0, LLM_BUDGET_RUB - total).toLocaleString('ru', { maximumFractionDigits: 0 });
+
+    // Projection: at current DAU, cost/month
+    const dau     = data.dau_7d_avg || 0;
+    const perDAU  = data.llm_cost_rub_per_dau;
+    const proj    = (dau > 0 && perDAU != null) ? (perDAU * dau * 30).toLocaleString('ru', { maximumFractionDigits: 0 }) + ' ₽/мес' : '—';
+
+    const extraTiles = `
+      <div class="stat-tile"><span class="stat-label">Остаток бюджета</span><span class="stat-value">${remain}</span><span class="stat-unit">₽ осталось</span></div>
+      <div class="stat-tile"><span class="stat-label">Прогноз расхода</span><span class="stat-value">${proj}</span><span class="stat-unit">при текущем DAU × 30д</span></div>
+      <div class="stat-tile"><span class="stat-label">Cost / 1M input</span><span class="stat-value">73 ₽</span><span class="stat-unit">GigaChat-3-Pro</span></div>`;
+
     return `<div class="budget-card">
       <div class="budget-header">
         <span class="budget-label">LLM бюджет (cloud.ru)</span>
         <span class="budget-values">${spent} ₽ <span class="budget-sub">из ${budget} ₽</span></span>
       </div>
       <div class="budget-track">
-        <div class="budget-fill ${cls}" style="width:${pct.toFixed(1)}%"></div>
+        <div class="budget-fill ${cls}" style="width:${usedPct.toFixed(1)}%"></div>
       </div>
-    </div>`;
+    </div>
+    <div class="stat-grid">${extraTiles}</div>`;
+  }
+
+  function renderFunnel(data) {
+    const steps = [
+      { label: 'Установили',      n: data.funnel_total,     color: '#6B5CE7' },
+      { label: 'Активировались',  n: data.funnel_activated, color: '#8B7CF8' },
+      { label: 'Вернулись D1',    n: data.funnel_d1,        color: '#10B981' },
+      { label: 'Вернулись D7',    n: data.funnel_d7,        color: '#34D399' },
+      { label: 'Активны сегодня', n: data.funnel_dau,       color: '#6EE7B7' },
+    ];
+    const max = Math.max(...steps.map(s => s.n || 0), 1);
+    const rows = steps.map(s => {
+      const n    = s.n ?? 0;
+      const pct  = max > 0 ? (n / max * 100).toFixed(0) : 0;
+      const from = steps[0].n > 0 ? (n / steps[0].n * 100).toFixed(0) + '%' : '—';
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span style="font-weight:600;color:var(--text)">${s.label}</span>
+          <span style="color:var(--muted)">${n.toLocaleString('ru')} <span style="font-size:11px">(${from})</span></span>
+        </div>
+        <div style="height:8px;background:var(--primary-light);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${s.color};border-radius:4px;transition:width .4s"></div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="section"><div class="section-title">Воронка удержания</div>
+      <div class="chart-card" style="padding:20px 24px">${rows}</div></div>`;
   }
 
   function renderChart(history) {
@@ -287,14 +329,12 @@
 
   function renderMetrics(data) {
     let html = '';
-    // Growth + Engagement sections
     html += renderSection(SECTIONS[0], data);
+    html += renderFunnel(data);
     html += renderSection(SECTIONS[1], data);
-    // DAU chart before infra
     if (Array.isArray(data.dau_history) && data.dau_history.length > 0) {
       html += renderChart(data.dau_history);
     }
-    // LLM section + budget bar
     html += renderSection(SECTIONS[2], data);
     html += renderBudget(data);
 
