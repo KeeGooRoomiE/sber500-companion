@@ -155,7 +155,7 @@ func (h *Handler) MorningMessage(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 	msg, err := h.generator.Ensure(r.Context(), uid, today, analytics.TriggerUserAction)
-	notReady := errors.Is(err, forecast.ErrNoData) || errors.Is(err, forecast.ErrBudget) || (err == nil && msg == nil)
+	notReady := errors.Is(err, forecast.ErrNoData) || errors.Is(err, forecast.ErrBudget) || (err == nil && (msg == nil || msg.Message == ""))
 
 	result := "ok"
 	switch {

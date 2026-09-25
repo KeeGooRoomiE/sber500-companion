@@ -128,6 +128,9 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		}
 		event.Result, event.ErrorCode = "error", &code
 		g.callLog.Log(ctx, event)
+		// Store an empty placeholder so we don't retry the LLM for the rest of the day.
+		// ON CONFLICT DO NOTHING semantics: if Insert fails (race or prior attempt), ignore.
+		_ = g.morning.Insert(ctx, &repo.MorningMessage{UserID: userID, Date: date, Message: ""})
 		return nil, err
 	}
 	g.callLog.Log(ctx, event)
