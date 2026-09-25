@@ -23,19 +23,23 @@
 - [x] Live метрики — `web/metrics.html` (тянет с бэкенда, fallback error card)
 - [x] Mock метрики для судей — `web/metrics-mock.html` (22-дневная симуляция: DAU/воронка/ретеншн/LLM)
 - [x] LLM-cost/DAU считается (`prompt_tokens × 73.03₽/1M` + `completion_tokens × 176.39₽/1M`)
-- [x] `call_log` anti-fraud логгер реализован и работает
+- [x] `call_log` anti-fraud логгер + `scenario_completed` событие
 - [x] Android: онбординг, домашний экран, уведомления (morning + checkin), data collectors
 - [x] Backend: все эндпоинты, планировщик 04:10, LLM prompting
+- [x] **VPS задеплоен** — `https://api.94-183-236-169.sslip.io/`, живой, метрики отдаёт
+- [x] **2 живых пользователя** (25.09.2026)
+- [x] MVP раньше дедлайна 06.10 ✅
 
 ### Ждём внешнего
-- [ ] **VPS cloudcore.ru** → деплой бэкенда → заменить `YOUR_DOMAIN` в app
+- [ ] **cloud.ru API key** — главный блокер. LLM не работает до получения ключа.
 - [ ] **AppMetrica ключ** → SDK init в CompanionApp (DAU для организатора считается по AppMetrica)
-- [ ] **cloud.ru API key** → LLM реально заработает на продакшне
 
 ### Осталось сделать
-- [ ] README.md в репозитории (можно без имени персонажа)
-- [ ] 10 RPS stress test на сервере после деплоя (локально на 1 ядре держит 500 RPS — см. `BACKEND_READINESS.md`)
-- [ ] 10 custdev интервью (скрипт: `internal-docs/custdev-script.md`)
+- [ ] README.md в репозитории
+- [ ] 10 RPS stress test на живом сервере (локально 1 ядро держит 500 RPS)
+- [ ] 20 custdev интервью (3/20 сделано, 10 нужно к 29.09)
+- [ ] 50 пользователей к 13.10 — нужна стратегия привлечения
+- [ ] Промт v2 залить в БД через admin API (как придёт LLM ключ)
 
 ## Metrics the competition measures
 
