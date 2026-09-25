@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.todayCheckIn
@@ -61,7 +62,16 @@ object NotificationScheduler {
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         when (inputData.getString(KEY_KIND)?.let { runCatching { ReminderKind.valueOf(it) }.getOrNull() }) {
-            ReminderKind.Morning -> showMorningNotification(applicationContext)
+            ReminderKind.Morning -> {
+                val repo = EntryPointAccessors
+                    .fromApplication(applicationContext, CheckInEntryPoint::class.java)
+                    .repository()
+                val llmText = repo.getMorning()
+                    .getOrNull()
+                    ?.takeIf { it.message.isNotBlank() }
+                    ?.let { NotificationCopy("Прогноз на сегодня", it.message) }
+                showMorningNotification(applicationContext, llmText ?: MorningCopies.forToday())
+            }
             // Already answered today (in the app or earlier) — don't ask again
             ReminderKind.Evening -> if (applicationContext.todayCheckIn().first() == null) {
                 showCheckinNotification(applicationContext)

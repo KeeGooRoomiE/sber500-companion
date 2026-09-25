@@ -22,11 +22,14 @@ android {
         debug {
             // 10.0.2.2 — localhost внутри Android-эмулятора
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://api.companion.keegooroomie.ru/\"")
+            // Replace with real key from AppMetrica dashboard when received
+            buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
     }
 

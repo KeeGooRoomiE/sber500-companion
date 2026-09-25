@@ -90,6 +90,12 @@ class HomeViewModel @Inject constructor(
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()
             _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
+            // Fetch LLM morning forecast in parallel; local forecast is already shown as fallback.
+            viewModelScope.launch {
+                repository.getMorning()
+                    .onSuccess { resp -> _state.update { it.copy(forecast = resp.message) } }
+                // Silently ignore failures — local forecast stays visible.
+            }
         }
     }
 

@@ -6,6 +6,8 @@ import androidx.work.Configuration
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
+import io.appmetrica.analytics.AppMetrica
+import io.appmetrica.analytics.AppMetricaConfig
 import ru.keegoo.companion.notifications.createNotificationChannels
 import ru.keegoo.companion.work.DailyCollectWorker
 import javax.inject.Inject
@@ -30,6 +32,9 @@ class CompanionApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.APPMETRICA_KEY.isNotEmpty()) {
+            AppMetrica.activate(this, AppMetricaConfig.newConfigBuilder(BuildConfig.APPMETRICA_KEY).build())
+        }
         createNotificationChannels(this)
         DailyCollectWorker.schedule(this)
         appScope.launch { NotificationScheduler.ensureScheduled(this@CompanionApp) }
