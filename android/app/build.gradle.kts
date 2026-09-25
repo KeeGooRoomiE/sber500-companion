@@ -14,14 +14,14 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.5.1"
+        versionCode = 9
+        versionName = "0.5.2"
     }
 
     buildTypes {
         debug {
             // 10.0.2.2 — localhost внутри Android-эмулятора
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
         release {
