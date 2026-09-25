@@ -1,5 +1,24 @@
 # Backend — готовность к деплою «купил сервер, раскатал репу»
 
+## Задеплоено 25.09.2026
+
+**Сервер:** VPS cloudcore.ru 2CPU/4GiB/40GB, Ubuntu 24.04, `94.183.236.169`
+**Адрес API:** `https://api.94-183-236-169.sslip.io/` (sslip.io — бесплатный wildcard DNS → IP, TLS от Caddy автоматически)
+**Статус:** `/health` → 200, Postgres 16 + все 5 миграций, Caddy 2.11.4, systemd
+
+Что сделано:
+- `deploy/setup.sh api.94-183-236-169.sslip.io` — Postgres, Caddy, UFW (22/80/443), app-user, `/opt/companion/.env`
+- `deploy/deploy.sh companion` — собран `linux/amd64`, мигрировано, сервис запущен
+- `android/app/build.gradle.kts` — `API_BASE_URL` обновлён на `https://api.94-183-236-169.sslip.io/`
+- `deploy/setup.sh` — баг: файл лога создавался root → Caddy не мог писать; фикс: `chown caddy:caddy /var/log/caddy`
+
+Что осталось:
+- `LLM_API_KEY` в `/opt/companion/.env` — заполнить как придёт ключ cloud.ru
+- Домен `keegooroomie.ru` не куплен; до покупки работаем на sslip.io; после покупки: A-запись + поменять `API_BASE_URL` в `build.gradle.kts` + пересобрать APK
+- `ADMIN_TOKEN` уже сгенерирован в `.env` — для `deploy/prompt.sh` нужен `ssh -L 9090:localhost:9090 companion`
+
+---
+
 Разбор на 24.09.2026. Коротко: **Go-код собирается и логика в целом на месте, но «как есть» завтра не взлетит**.
 Мешают конфиг деплоя, расхождение дат между приложением и планировщиком и открытый API, который позволяет сжечь бюджет LLM.
 

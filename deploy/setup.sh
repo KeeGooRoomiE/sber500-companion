@@ -32,6 +32,7 @@ echo "==> Creating app user and directories"
 id -u "$APP_USER" &>/dev/null || useradd --system --shell /usr/sbin/nologin --home "$APP_DIR" "$APP_USER"
 mkdir -p "$APP_DIR/migrations" /var/log/companion /var/log/caddy /var/backups/companion
 chown "$APP_USER:$APP_USER" "$APP_DIR" /var/log/companion
+chown caddy:caddy /var/log/caddy
 
 echo "==> Configuring PostgreSQL"
 systemctl enable --now postgresql

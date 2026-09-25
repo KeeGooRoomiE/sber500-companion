@@ -27,7 +27,7 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            buildConfigField("String", "API_BASE_URL", "\"https://api.companion.keegooroomie.ru/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // Replace with real key from AppMetrica dashboard when received
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
