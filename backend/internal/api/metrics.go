@@ -78,6 +78,12 @@ func NewMetrics(db *pgxpool.Pool, devIDs []string) *Metrics {
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", m.origin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 
 	m.mu.Lock()

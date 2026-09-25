@@ -43,7 +43,9 @@ func Mount(r chi.Router, d Deps) {
 		r.Use(httprate.Limit(6000, time.Minute, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited)))
 
 		// Public, aggregate-only numbers for web/metrics.html (no auth, CORS enabled).
-		r.Method(http.MethodGet, "/metrics", NewMetrics(d.DB, d.DevUserIDs))
+		metricsH := NewMetrics(d.DB, d.DevUserIDs)
+		r.Method(http.MethodGet, "/metrics", metricsH)
+		r.Method(http.MethodOptions, "/metrics", metricsH)
 
 		// New device identity: a phone registers once; 60/h per IP leaves room for CGNAT, throttles bots.
 		r.With(httprate.Limit(60, time.Hour, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
