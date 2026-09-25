@@ -37,20 +37,22 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(limitBody)
-		// Coarse per-IP ceiling for everything (behind Caddy RealIP is the client address).
-		r.Use(httprate.Limit(600, time.Minute, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited)))
+		// Coarse per-IP ceiling (100 rps). Generous on purpose: Russian mobile carriers put many
+		// subscribers behind one CGNAT address, and a stress test runs from a single machine.
+		// LLM spend is capped elsewhere (one message per user per day + LLM_DAILY_CAP).
+		r.Use(httprate.Limit(6000, time.Minute, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited)))
 
 		// Public, aggregate-only numbers for web/metrics.html (no auth, CORS enabled).
 		r.Method(http.MethodGet, "/metrics", NewMetrics(d.DB, d.DevUserIDs))
 
-		// New device identity. Tight per-IP limit: one phone registers once, bots get throttled.
-		r.With(httprate.Limit(10, time.Hour, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
+		// New device identity: a phone registers once; 60/h per IP leaves room for CGNAT, throttles bots.
+		r.With(httprate.Limit(60, time.Hour, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
 			Post("/register", h.Register)
 
 		r.Group(func(r chi.Router) {
 			r.Use(AuthMiddleware(users))
-			// Per-user limit: the app makes a handful of calls a day.
-			r.Use(httprate.Limit(60, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+			// Per-user limit: the app makes a handful of calls a day; 300/min only stops runaway clients.
+			r.Use(httprate.Limit(300, time.Minute, httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
 				return userIDFrom(r), nil
 			}), httprate.WithLimitHandler(rateLimited)))
 			r.Post("/data/passive", h.PassiveData)

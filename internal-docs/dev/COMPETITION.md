@@ -29,12 +29,12 @@
 
 ### Ждём внешнего
 - [ ] **VPS cloudcore.ru** → деплой бэкенда → заменить `YOUR_DOMAIN` в app
-- [ ] **AppMetrica ключ** → SDK init в CompanionApp
+- [ ] **AppMetrica ключ** → SDK init в CompanionApp (DAU для организатора считается по AppMetrica)
 - [ ] **cloud.ru API key** → LLM реально заработает на продакшне
 
 ### Осталось сделать
 - [ ] README.md в репозитории (можно без имени персонажа)
-- [ ] 10 RPS stress test (wrk или k6) после деплоя бэкенда
+- [ ] 10 RPS stress test на сервере после деплоя (локально на 1 ядре держит 500 RPS — см. `BACKEND_READINESS.md`)
 - [ ] 10 custdev интервью (скрипт: `internal-docs/custdev-script.md`)
 
 ## Metrics the competition measures
