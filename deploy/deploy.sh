@@ -24,6 +24,17 @@ set -euo pipefail
 set -a; . /opt/companion/.env; set +a
 psql "$DATABASE_URL" -qv ON_ERROR_STOP=1 -c \
   "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+# Dump the database before the first pending migration (the nightly backup may be a day old)
+pending=0
+for f in /opt/companion/migrations/*.sql; do
+    [ -z "$(psql "$DATABASE_URL" -tAc "SELECT 1 FROM schema_migrations WHERE name = '$(basename "$f")'")" ] && pending=$((pending + 1))
+done
+if [ "$pending" -gt 0 ]; then
+    mkdir -p /var/backups/companion
+    dump="/var/backups/companion/pre-deploy-$(date +%F-%H%M).sql.gz"
+    pg_dump "$DATABASE_URL" | gzip > "$dump"
+    echo "    $pending new migration(s); backup: $dump ($(du -h "$dump" | cut -f1))"
+fi
 for f in $(ls /opt/companion/migrations/*.sql | sort); do
     name="$(basename "$f")"
     if [ -z "$(psql "$DATABASE_URL" -tAc "SELECT 1 FROM schema_migrations WHERE name = '$name'")" ]; then

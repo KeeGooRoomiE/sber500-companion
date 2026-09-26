@@ -1,0 +1,103 @@
+name: Deploy backend
+
+# Manual: Actions → Deploy backend → Run workflow (or via the API).
+# Runs deploy/deploy.sh from a GitHub runner: build → copy → backup + migrations → restart → /health.
+#
+# Needs repository secrets:
+#   DEPLOY_SSH_KEY  — private key allowed to log in as root on the server (ed25519, no passphrase)
+#   DEPLOY_HOST     — server address (e.g. 94.183.236.169)
+# Optional:
+#   DEPLOY_KNOWN_HOSTS — `ssh-keyscan -t ed25519 HOST` output; without it the key is scanned on the fly
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset_prompts:
+        description: "Switch all three prompts back to the built-in versions from the repo"
+        type: boolean
+        default: false
+      eval:
+        description: "Seed mock personas and render every prompt for them (free, no LLM calls)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Test
+        working-directory: backend
+        run: go vet ./... && go test ./...
+
+      - name: SSH setup
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
+            echo "::error::Add DEPLOY_SSH_KEY and DEPLOY_HOST in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          if [ -n "$KNOWN" ]; then printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts; else ssh-keyscan -T 10 "$HOST" > ~/.ssh/known_hosts; fi
+          printf 'Host %s\n  User root\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  ConnectTimeout 15\n' "$HOST" > ~/.ssh/config
+          echo "SERVER=$HOST" >> "$GITHUB_ENV"
+          ssh "root@$HOST" 'echo "connected: $(hostname), $(uptime -p)"'
+
+      - name: Deploy (backup, migrations, restart, health)
+        run: bash deploy/deploy.sh "$SERVER"
+
+      - name: Applied migrations
+        run: |
+          ssh "root@$SERVER" 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -c "SELECT name, applied_at FROM schema_migrations ORDER BY name"'
+
+      - name: Prompt versions
+        continue-on-error: true
+        run: |
+          for p in morning_system day_review_system weekly_system; do
+            echo "== $p"
+            PROMPT=$p bash deploy/prompt.sh "$SERVER" list | python3 -c 'import json,sys; d=json.load(sys.stdin); print("active_version:", d["active_version"], "(0 = built-in)"); [print("  v%s id=%s active=%s %s" % (v["version"], v["id"], v["is_active"], v.get("note",""))) for v in d["versions"] or []]'
+          done
+
+      - name: Reset prompts to built-in
+        if: ${{ inputs.reset_prompts }}
+        run: |
+          for p in morning_system day_review_system weekly_system; do PROMPT=$p bash deploy/prompt.sh "$SERVER" reset; done
+
+      - name: Seed mock personas and render prompts
+        continue-on-error: true
+        if: ${{ inputs.eval }}
+        run: |
+          bash deploy/prompt.sh "$SERVER" seed > /dev/null
+          for p in morning_system day_review_system weekly_system; do PROMPT=$p bash deploy/prompt.sh "$SERVER" eval; done
+
+      - name: Public smoke check
+        continue-on-error: true
+        run: |
+          curl -fsS -m 15 https://api.companion.keegooroomie.ru/health -o /dev/null -w "health %{http_code}\n" || echo "::warning::public /health not reachable"
+          curl -fsS -m 15 https://api.companion.keegooroomie.ru/api/v1/metrics | head -c 400; echo
+
+      - name: Notify Telegram
+        if: always()
+        env:
+          TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          [ -z "$TG_TOKEN" ] && exit 0
+          [ "${{ job.status }}" = "success" ] && ICON="✅" || ICON="❌"
+          MSG="${ICON} Deploy backend — ${{ job.status }} | $(echo ${{ github.sha }} | cut -c1-7) | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "text=${MSG}" > /dev/null || true

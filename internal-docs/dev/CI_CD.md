@@ -89,11 +89,17 @@ cd deploy/
 
 Requires: `~/.ssh/config` entry for server, `DEPLOY_HOST` env var, server has `/opt/companion/.env`.
 
+Or from GitHub: workflow **Deploy backend** (`.github/workflows/deploy-backend.yml`, manual run).
+It needs the secrets `DEPLOY_SSH_KEY` and `DEPLOY_HOST`; `DEPLOY_KNOWN_HOSTS` is optional. See `deploy/README.md`.
+`deploy.sh` dumps the DB before pending migrations.
+
 ## Secrets in GitHub Actions
 
 | Secret name | Description |
 |-------------|-------------|
 | `TG_BOT_TOKEN` | Telegram bot token for CI notifications |
 | `TG_CHAT_ID` | Telegram chat ID (398066304) |
+| `DEPLOY_SSH_KEY` | private deploy key (root on the VPS), for Deploy backend |
+| `DEPLOY_HOST` | `94.183.236.169` |
 
 Server secrets live in `/opt/companion/.env` on cloudcore.ru VPS — NOT in GitHub.

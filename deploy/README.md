@@ -35,21 +35,37 @@ Re-deploy = step 4 again.
 | `companion.service` | systemd unit (installed by `deploy.sh`) |
 | `Caddyfile` | Reference config; `setup.sh` writes the same one for your domain |
 
+## Deploy from GitHub (no local ssh needed)
+
+Actions → **Deploy backend** → Run workflow. It tests, then runs `deploy.sh` from a GitHub
+runner: backup → migrations → restart → `/health`. It then prints the applied migrations and the
+active prompt versions, can reset the prompts to the built-in ones (checkbox), and renders every
+prompt for the mock personas.
+
+One-time setup: create a deploy key and add it as repository secrets
+(Settings → Secrets and variables → Actions):
+
+```bash
+ssh-keygen -t ed25519 -N "" -C companion-deploy -f companion_deploy
+ssh-copy-id -i companion_deploy.pub root@94.183.236.169        # or append the .pub to /root/.ssh/authorized_keys
+# secrets: DEPLOY_SSH_KEY = contents of companion_deploy, DEPLOY_HOST = 94.183.236.169
+# optional DEPLOY_KNOWN_HOSTS = output of: ssh-keyscan -t ed25519 94.183.236.169
+```
+
 ## Updating a running server (release checklist)
 
 `deploy.sh` is safe to re-run: it applies only migrations missing from `schema_migrations`, each
 in its own transaction. All migrations only **add** tables/columns (`IF NOT EXISTS`) — an older
 app build keeps working against a newer server, so the server can go out before the APK.
 
-1. Backup first (the nightly dump may be up to a day old):
-   `ssh root@SERVER 'sudo -u postgres pg_dump companion | gzip > /var/backups/companion/pre-deploy-$(date +%F-%H%M).sql.gz'`
-2. `bash deploy/deploy.sh SERVER`: watch the `applying 0xx_…` lines and `healthy`.
-3. Check what is applied:
+1. `bash deploy/deploy.sh SERVER` (or the GitHub workflow). If migrations are pending, it first dumps the DB to
+   `/var/backups/companion/pre-deploy-*.sql.gz`. Watch the `applying 0xx_…` lines and `healthy`.
+2. Check what is applied:
    `ssh root@SERVER 'set -a; . /opt/companion/.env; psql "$DATABASE_URL" -c "table schema_migrations"'`
-4. Built-in prompts only apply when no DB version is active (`prompt.sh list` → `active_version: 0`).
+3. Built-in prompts only apply when no DB version is active (`prompt.sh list` → `active_version: 0`).
    If an older version is active, `prompt.sh reset` (per prompt) or push a new one.
-5. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
-6. Publish the APK after the server is up.
+4. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
+5. Publish the APK after the server is up.
 
 Rollback: the previous binary is not kept. Check out the previous tag and run `deploy.sh`; new tables
 stay and are harmless. Restore the dump only if data itself is broken.
