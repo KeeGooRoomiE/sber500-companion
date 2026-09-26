@@ -77,6 +77,7 @@ func (s *Server) Start(ctx context.Context) {
 	r.Post("/admin/prompts/{name}/activate/{id}", s.activate)
 	r.Post("/admin/prompts/{name}/reset", s.reset)
 	r.Post("/admin/prompts/{name}/preview", s.preview)
+	r.Post("/admin/reset-errors", s.resetErrors)
 
 	srv := &http.Server{Addr: addr, Handler: r, ReadTimeout: 10 * time.Second, WriteTimeout: 60 * time.Second}
 	go func() {
@@ -260,6 +261,21 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 		resp.Tokens, resp.Latency = res.PromptTokens+res.CompletionTokens, res.LatencyMs
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// resetErrors inserts an errors_reset marker into call_log so the metrics
+// error rate window starts fresh from this moment.
+func (s *Server) resetErrors(w http.ResponseWriter, r *http.Request) {
+	_, err := s.daily.DB().Exec(r.Context(), `
+		INSERT INTO call_log (user_id, ts, call_type, component, trigger, user_visible, result, latency_ms)
+		VALUES ('admin', NOW(), 'tool', 'errors_reset', 'user_action', false, 'ok', 0)
+	`)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.announce("Счётчик ошибок сброшен")
+	writeJSON(w, http.StatusOK, map[string]string{"status": "reset", "ts": clock.Now().Format(time.RFC3339)})
 }
 
 func (s *Server) announce(text string) {

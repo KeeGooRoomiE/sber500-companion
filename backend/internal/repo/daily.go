@@ -32,6 +32,8 @@ type DailyRepo struct{ db *pgxpool.Pool }
 
 func NewDailyRepo(db *pgxpool.Pool) *DailyRepo { return &DailyRepo{db: db} }
 
+func (r *DailyRepo) DB() *pgxpool.Pool { return r.db }
+
 func (r *DailyRepo) Upsert(ctx context.Context, d *DailyData) error {
 	topApps, _ := json.Marshal(d.TopApps)
 	_, err := r.db.Exec(ctx, `

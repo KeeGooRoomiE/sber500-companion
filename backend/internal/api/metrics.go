@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -48,6 +50,10 @@ type MetricsResponse struct {
 	ScenarioCompletedToday int `json:"scenario_completed_today"`
 	ScenarioCompletedTotal int `json:"scenario_completed_total"`
 
+	// LLM budget from the proxy key/info (cached 15 min, no tokens burned)
+	BudgetSpend float64 `json:"budget_spend"`
+	BudgetMax   float64 `json:"budget_max"`
+
 	LLMCallsTotal    int      `json:"llm_calls_total"`
 	LLMCallsToday    int      `json:"llm_calls_today"`
 	LLMCostRubTotal  float64  `json:"llm_cost_rub_total"`
@@ -70,6 +76,13 @@ type Metrics struct {
 	mu       sync.Mutex
 	cached   *MetricsResponse
 	cachedAt time.Time
+
+	budgetMu       sync.Mutex
+	budgetSpend    float64
+	budgetMax      float64
+	budgetCachedAt time.Time
+
+	httpClient *http.Client
 }
 
 func NewMetrics(db *pgxpool.Pool, devIDs []string) *Metrics {
@@ -81,11 +94,12 @@ func NewMetrics(db *pgxpool.Pool, devIDs []string) *Metrics {
 		devIDs = []string{}
 	}
 	return &Metrics{
-		db:       db,
-		devIDs:   devIDs,
-		priceIn:  envFloat("LLM_PRICE_IN_PER_1M", 73.03),   // GigaChat-3-Pro, cloud.ru
-		priceOut: envFloat("LLM_PRICE_OUT_PER_1M", 176.39), // see internal-docs/dev/LLM_BUDGET.md
-		origin:   origin,
+		db:         db,
+		devIDs:     devIDs,
+		priceIn:    envFloat("LLM_PRICE_IN_PER_1M", 73.03),
+		priceOut:   envFloat("LLM_PRICE_OUT_PER_1M", 176.39),
+		origin:     origin,
+		httpClient: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -236,7 +250,7 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	out.LLMCostRubTotal = round(m.cost(inTotal, outTotal), 2)
 	out.LLMCostRubPerDAU = ratio(m.cost(inToday, outToday), out.DAUToday, 3)
 
-	// LLM quality over the last 24 h
+	// LLM quality; error window starts from the last admin reset or 24 h ago, whichever is later.
 	var p50, p95 *float64
 	var llmErr, llm24 int
 	if err := m.db.QueryRow(ctx, `
@@ -246,12 +260,18 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		       count(*) FILTER (WHERE result = 'error'),
 		       count(*)
 		FROM call_log
-		WHERE call_type = 'llm' AND ts >= now() - interval '24 hours'
+		WHERE call_type = 'llm' AND ts >= GREATEST(
+		    now() - interval '24 hours',
+		    COALESCE((SELECT max(ts) FROM call_log WHERE component = 'errors_reset'), now() - interval '24 hours')
+		)
 	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24); err != nil {
 		return nil, err
 	}
 	out.P50LatencyMs, out.P95LatencyMs = roundPtr(p50), roundPtr(p95)
 	out.ErrorRatePct = pct(llmErr, llm24)
+
+	// Realtime LLM budget from proxy (cached 15 min, no tokens burned).
+	out.BudgetSpend, out.BudgetMax = m.budget(ctx)
 
 	// Uptime: minutes with a heartbeat / minutes observed in the window
 	var beats int
@@ -268,6 +288,48 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 
 	return out, nil
+}
+
+// budget returns (spend, max) from the LLM proxy key/info, cached for 15 minutes.
+// Returns (0, 0) on error so the metrics page shows "--" gracefully.
+func (m *Metrics) budget(ctx context.Context) (spend, max float64) {
+	m.budgetMu.Lock()
+	defer m.budgetMu.Unlock()
+	if time.Since(m.budgetCachedAt) < 15*time.Minute {
+		return m.budgetSpend, m.budgetMax
+	}
+	baseURL := os.Getenv("LLM_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://shared1.multitool.works:4000/v1"
+	}
+	// Strip trailing /v1 to get the proxy root.
+	proxyRoot := baseURL
+	if len(proxyRoot) > 3 && proxyRoot[len(proxyRoot)-3:] == "/v1" {
+		proxyRoot = proxyRoot[:len(proxyRoot)-3]
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyRoot+"/key/info", nil)
+	if err != nil {
+		return 0, 0
+	}
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		slog.Warn("budget fetch failed", "err", err)
+		return 0, 0
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	var payload struct {
+		Info struct {
+			Spend     float64 `json:"spend"`
+			MaxBudget float64 `json:"max_budget"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return 0, 0
+	}
+	m.budgetSpend, m.budgetMax, m.budgetCachedAt = payload.Info.Spend, payload.Info.MaxBudget, time.Now()
+	return m.budgetSpend, m.budgetMax
 }
 
 func (m *Metrics) cost(in, out int64) float64 {
