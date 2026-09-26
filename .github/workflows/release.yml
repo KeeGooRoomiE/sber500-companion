@@ -48,15 +48,15 @@ jobs:
           echo "COMPANION_KEYSTORE=$RUNNER_TEMP/companion.jks" >> "$GITHUB_ENV"
           echo "COMPANION_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon --quiet
+        run: gradle assembleRelease --no-daemon --quiet
 
       - name: Rename APK
         run: |
           VERSION="${{ github.ref_name }}"
-          cp android/app/build/outputs/apk/debug/app-debug.apk companion-latest.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk companion-${VERSION}.apk
+          cp android/app/build/outputs/apk/release/app-release.apk companion-latest.apk
+          cp android/app/build/outputs/apk/release/app-release.apk companion-${VERSION}.apk
 
       - name: Create or update GitHub Release
         env:

@@ -49,6 +49,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
     }
 
