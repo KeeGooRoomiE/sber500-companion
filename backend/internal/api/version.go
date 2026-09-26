@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,32 @@ func versionFile() string {
 		return p
 	}
 	return "/opt/companion/latest_version"
+}
+
+// newerVersion compares dotted numbers: "0.10.0" > "0.9.1". Unparsable a is never newer.
+func newerVersion(a, b string) bool {
+	a, b = strings.TrimPrefix(strings.TrimSpace(a), "v"), strings.TrimPrefix(strings.TrimSpace(b), "v")
+	if a == "" {
+		return false
+	}
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(pa) || i < len(pb); i++ {
+		x, y := 0, 0
+		if i < len(pa) {
+			n, err := strconv.Atoi(pa[i])
+			if err != nil {
+				return false
+			}
+			x = n
+		}
+		if i < len(pb) {
+			y, _ = strconv.Atoi(pb[i])
+		}
+		if x != y {
+			return x > y
+		}
+	}
+	return false
 }
 
 func fromFile() string {
@@ -85,18 +112,14 @@ func (l *latestRelease) get(ctx context.Context) string {
 }
 
 // Version tells the app whether a newer build exists. Public: no user data, no auth.
-// Order: APP_LATEST_VERSION (manual override) → the file CI writes → latest GitHub release →
-// FallbackAppVersion.
+// The newest of: APP_LATEST_VERSION, the file CI writes, the latest GitHub release, the fallback —
+// so a stale value in one place (e.g. a forgotten .env line) can't hide a published update.
 func Version(w http.ResponseWriter, r *http.Request) {
-	latest := strings.TrimSpace(os.Getenv("APP_LATEST_VERSION"))
-	if latest == "" {
-		latest = fromFile()
-	}
-	if latest == "" {
-		latest = releases.get(r.Context())
-	}
-	if latest == "" {
-		latest = FallbackAppVersion
+	latest := FallbackAppVersion
+	for _, v := range []string{strings.TrimSpace(os.Getenv("APP_LATEST_VERSION")), fromFile(), releases.get(r.Context())} {
+		if newerVersion(v, latest) {
+			latest = v
+		}
 	}
 	url := strings.TrimSpace(os.Getenv("APP_DOWNLOAD_URL"))
 	if url == "" {
