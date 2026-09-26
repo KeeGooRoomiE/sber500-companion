@@ -15,6 +15,8 @@ import java.time.LocalDate
 
 private val Context.appPrefs by preferencesDataStore(name = "companion_prefs")
 private val KEY_ONBOARDED = booleanPreferencesKey("onboarded")
+// History (last 7 days) was sent once with usage access — day-0 forecast has something to work with
+private val KEY_BACKFILLED = booleanPreferencesKey("history_backfilled")
 
 // Today's check-in, kept locally so Home knows it's done (also when answered from the notification)
 private val KEY_CHECKIN_DATE = stringPreferencesKey("checkin_date")
@@ -24,6 +26,12 @@ private val KEY_CHECKIN_TAGS = stringSetPreferencesKey("checkin_tags")
 private const val PROFILE_PREFIX = "profile_"
 
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false
+
+suspend fun Context.isBackfilled(): Boolean = appPrefs.data.first()[KEY_BACKFILLED] ?: false
+
+suspend fun Context.setBackfilled() {
+    appPrefs.edit { it[KEY_BACKFILLED] = true }
+}
 
 suspend fun Context.setOnboarded() {
     appPrefs.edit { it[KEY_ONBOARDED] = true }

@@ -41,6 +41,9 @@ func SafeOutput(s string) bool { return !unsafeOutput.MatchString(s) }
 const (
 	historyDays = 7
 	llmTimeout  = 25 * time.Second
+	// After a failed LLM call the day is retried, not written off: up to 3 attempts, 30 min apart.
+	maxAttempts = 3
+	retryAfter  = 30 * time.Minute
 )
 
 type Generator struct {
@@ -72,8 +75,16 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	mu.(*sync.Mutex).Lock()
 	defer mu.(*sync.Mutex).Unlock()
 
-	if msg, err := g.morning.ForDate(ctx, userID, date); err != nil || msg != nil {
-		return msg, err
+	msg, err := g.morning.ForDate(ctx, userID, date)
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		// A real message, or a failed attempt that may not be retried yet: return as is
+		// (an empty message reads as "not ready" upstream).
+		if msg.Message != "" || msg.Attempts >= maxAttempts || time.Since(msg.LastAttemptAt) < retryAfter {
+			return msg, nil
+		}
 	}
 
 	days, err := g.daily.LastN(ctx, userID, historyDays, date.AddDate(0, 0, -1))
@@ -97,11 +108,15 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	}
 
 	system, promptVersion := g.prompts.Active(ctx, prompts.MorningSystem)
+	delivered, err := g.morning.HasDelivered(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	lctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 	start := time.Now()
-	result, err := g.llm.GenerateMorning(lctx, system, days, last)
+	result, err := g.llm.GenerateMorning(lctx, system, days, last, !delivered)
 	if err == nil && !SafeOutput(result.Message) {
 		// A tampered prompt or a model slip must not put links/phones in front of users
 		slog.Error("forecast: unsafe model output rejected", "user", userID, "prompt_version", promptVersion)
@@ -128,14 +143,15 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		}
 		event.Result, event.ErrorCode = "error", &code
 		g.callLog.Log(ctx, event)
-		// Store an empty placeholder so we don't retry the LLM for the rest of the day.
-		// ON CONFLICT DO NOTHING semantics: if Insert fails (race or prior attempt), ignore.
-		_ = g.morning.Insert(ctx, &repo.MorningMessage{UserID: userID, Date: date, Message: ""})
+		// Empty placeholder counts the attempt; the next one is allowed after retryAfter.
+		if ferr := g.morning.RecordFailure(ctx, userID, date); ferr != nil {
+			slog.Warn("forecast: record failure", "err", ferr)
+		}
 		return nil, err
 	}
 	g.callLog.Log(ctx, event)
 
-	msg := &repo.MorningMessage{
+	msg = &repo.MorningMessage{
 		UserID:           userID,
 		Date:             date,
 		Message:          result.Message,

@@ -238,12 +238,12 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	resp := previewResponse{System: system, User: llm.BuildMorningPrompt(days, last)}
+	resp := previewResponse{System: system, User: llm.BuildMorningPrompt(days, last, false)}
 	if req.CallLLM {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 		start := time.Now()
-		res, err := s.llm.GenerateMorning(ctx, system, days, last)
+		res, err := s.llm.GenerateMorning(ctx, system, days, last, false)
 		event := analytics.CallEvent{
 			UserID: "admin", Timestamp: start, CallType: analytics.CallTypeLLM,
 			Component: analytics.ComponentLLMMorning, Trigger: analytics.TriggerUserAction,

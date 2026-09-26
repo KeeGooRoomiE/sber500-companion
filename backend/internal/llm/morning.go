@@ -48,13 +48,14 @@ var DefaultMorningSystem string
 func (c *Client) Model() string { return c.model }
 
 // BuildMorningPrompt renders the user message for the given days and last check-in.
-func BuildMorningPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
-	return buildPrompt(days, last)
+// first=true marks the user's very first message: a short retrospective of their week.
+func BuildMorningPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string {
+	return buildPrompt(days, last, first)
 }
 
 // GenerateMorning calls the model with the given system prompt and the user's data.
-func (c *Client) GenerateMorning(ctx context.Context, system string, days []*repo.DailyData, last *repo.CheckIn) (*GenerateResult, error) {
-	prompt := buildPrompt(days, last)
+func (c *Client) GenerateMorning(ctx context.Context, system string, days []*repo.DailyData, last *repo.CheckIn, first bool) (*GenerateResult, error) {
+	prompt := buildPrompt(days, last, first)
 
 	start := time.Now()
 	resp, err := c.ai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
@@ -147,7 +148,7 @@ func parseHHMM(s string) time.Time {
 	return t
 }
 
-func buildPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
+func buildPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string {
 	var b strings.Builder
 
 	// compute personal weekly averages
@@ -286,6 +287,13 @@ func buildPrompt(days []*repo.DailyData, last *repo.CheckIn) string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\nСоставь утренний прогноз на сегодня.")
+	if first && len(days) > 1 {
+		// Day 0: the app just backfilled history — the value is "here is your usual week".
+		b.WriteString("\nЭто первое сообщение человеку, он только что установил приложение. " +
+			"Опиши его обычную неделю по этим дням: одна самая заметная закономерность и что из неё следует для сегодня. " +
+			"Формат и ограничения те же.")
+	} else {
+		b.WriteString("\nСоставь утренний прогноз на сегодня.")
+	}
 	return b.String()
 }

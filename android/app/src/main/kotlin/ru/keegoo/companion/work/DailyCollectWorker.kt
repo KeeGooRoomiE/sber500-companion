@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.BatteryManager
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import ru.keegoo.companion.data.prefs.setBackfilled
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import ru.keegoo.companion.data.collector.HealthConnectCollector
@@ -25,18 +28,26 @@ class DailyCollectWorker @AssistedInject constructor(
     private val repository: CompanionRepository,
 ) : CoroutineWorker(context, params) {
 
-    // Every run sends two days: yesterday in full (the evening after the last run is otherwise
-    // lost, and the server builds the morning forecast from it) and today so far.
+    // Every run sends yesterday in full (the evening after the last run is otherwise lost, and the
+    // server builds the morning forecast from it) and today so far. A backfill run (KEY_BACKFILL_DAYS)
+    // sends the last N days instead of one — right after onboarding, so the day-0 forecast has history.
     override suspend fun doWork(): Result {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val now = Instant.now()
+        val pastDays = inputData.getInt(KEY_BACKFILL_DAYS, 1).coerceIn(1, 7)
 
-        val yesterday = snapshotFor(today.minusDays(1), end = today.atStartOfDay(zone).toInstant(), zone, battery = null)
-        val current = snapshotFor(today, end = now, zone, battery = applicationContext.batteryLevel())
+        val snapshots = (pastDays downTo 1).map { back ->
+            val date = today.minusDays(back.toLong())
+            snapshotFor(date, end = date.plusDays(1).atStartOfDay(zone).toInstant(), zone, battery = null)
+        } + snapshotFor(today, end = now, zone, battery = applicationContext.batteryLevel())
 
-        val ok = repository.postDailySnapshot(yesterday).isSuccess and
-            repository.postDailySnapshot(current).isSuccess
+        // A day with nothing collected (no usage access, no Health Connect) is not sent at all:
+        // an all-empty row would only look like "no activity" to the forecast.
+        val toSend = snapshots.filter { it.usage != null || it.sleep != null || it.steps != null }
+        val ok = toSend.all { repository.postDailySnapshot(it).isSuccess }
+
+        if (ok && pastDays > 1 && toSend.any { it.usage != null }) applicationContext.setBackfilled()
         return if (ok) Result.success() else Result.retry()
     }
 
@@ -64,6 +75,24 @@ class DailyCollectWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "daily_collect"
+        private const val NOW_WORK_NAME = "daily_collect_now"
+        const val KEY_BACKFILL_DAYS = "backfill_days"
+
+        /**
+         * Collect and send right now (with [pastDays] of history) and wait for it, at most [timeoutMs].
+         * Returns true if the upload finished successfully in time.
+         */
+        suspend fun runNowAndWait(context: Context, pastDays: Int = 7, timeoutMs: Long = 10_000): Boolean {
+            val request = OneTimeWorkRequestBuilder<DailyCollectWorker>()
+                .setInputData(workDataOf(KEY_BACKFILL_DAYS to pastDays))
+                .build()
+            val wm = WorkManager.getInstance(context)
+            wm.enqueueUniqueWork(NOW_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            val info = withTimeoutOrNull(timeoutMs) {
+                wm.getWorkInfoByIdFlow(request.id).first { it?.state?.isFinished == true }
+            }
+            return info?.state == WorkInfo.State.SUCCEEDED
+        }
 
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<DailyCollectWorker>(12, TimeUnit.HOURS)

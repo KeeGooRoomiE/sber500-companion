@@ -74,6 +74,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import kotlinx.coroutines.delay
+import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.collector.hasUsageAccess
 import ru.keegoo.companion.ui.motion.BackdropScene
 import ru.keegoo.companion.ui.motion.CardBoundsTransform
@@ -173,7 +174,13 @@ fun OnboardingScreen(
     // «Смотрю твои данные» — a short thinking moment, then the orb flies into Home.
     LaunchedEffect(step) {
         if (step == LAST_STEP) {
-            delay(if (still) 600 else 1800)
+            // Send the last 7 days now (permissions are granted at this point), so the very first
+            // forecast on Home can be about the person's real week. The orb "thinks" at least 1.8 s
+            // and waits for the upload up to 10 s; Home falls back to the local summary anyway.
+            val started = System.currentTimeMillis()
+            DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 10_000)
+            val minShow = if (still) 600L else 1800L
+            delay((minShow - (System.currentTimeMillis() - started)).coerceAtLeast(0))
             onFinish()
         }
     }

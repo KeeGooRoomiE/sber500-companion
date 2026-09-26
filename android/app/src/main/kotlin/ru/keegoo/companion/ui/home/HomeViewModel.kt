@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.local.SleepSource
 import ru.keegoo.companion.data.local.TodayData
 import ru.keegoo.companion.data.local.TodayRepository
+import ru.keegoo.companion.data.collector.hasUsageAccess
 import ru.keegoo.companion.data.prefs.clearCheckIn
+import ru.keegoo.companion.data.prefs.isBackfilled
+import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
@@ -92,6 +95,11 @@ class HomeViewModel @Inject constructor(
             _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
             // Fetch LLM morning forecast in parallel; local forecast is already shown as fallback.
             viewModelScope.launch {
+                // Usage access granted later than onboarding (e.g. from the card's button):
+                // send the week of history once before asking for the forecast.
+                if (context.hasUsageAccess() && !context.isBackfilled()) {
+                    DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 15_000)
+                }
                 repository.getMorning()
                     .onSuccess { resp -> _state.update { it.copy(forecast = resp.message) } }
                 // Silently ignore failures — local forecast stays visible.
