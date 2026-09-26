@@ -61,6 +61,7 @@ type MetricsResponse struct {
 	P50LatencyMs     *float64 `json:"p50_latency_ms"`
 	P95LatencyMs     *float64 `json:"p95_latency_ms"`
 	ErrorRatePct     *float64 `json:"error_rate_pct"`
+	LLMLastErrorCode *string  `json:"llm_last_error_code"`
 	Uptime24hPct     *float64 `json:"uptime_24h_pct"`
 }
 
@@ -236,19 +237,26 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
 	out.CallsPerDAU = ratio(float64(callsToday), out.DAUToday, 1)
 
-	// LLM cost (tokens are stored per morning message)
+	// LLM cost (tokens are stored per morning message — only successful calls have tokens)
 	var inTotal, outTotal, inToday, outToday int64
 	if err := m.db.QueryRow(ctx, `
 		SELECT coalesce(sum(prompt_tokens), 0), coalesce(sum(completion_tokens), 0),
 		       coalesce(sum(prompt_tokens)    FILTER (WHERE created_at >= $2), 0),
-		       coalesce(sum(completion_tokens) FILTER (WHERE created_at >= $2), 0),
-		       count(*)                        FILTER (WHERE created_at >= $2 AND sent_at IS NOT NULL)
+		       coalesce(sum(completion_tokens) FILTER (WHERE created_at >= $2), 0)
 		FROM morning_messages WHERE NOT (user_id = ANY($1))
-	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday, &out.LLMCallsToday); err != nil {
+	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
 		return nil, err
 	}
 	out.LLMCostRubTotal = round(m.cost(inTotal, outTotal), 2)
 	out.LLMCostRubPerDAU = ratio(m.cost(inToday, outToday), out.DAUToday, 3)
+
+	// LLM calls today — count from call_log so errored calls are included
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(*) FROM call_log
+		WHERE call_type = 'llm' AND ts >= $1 AND NOT (user_id = ANY($2))
+	`, dayStart, devs).Scan(&out.LLMCallsToday); err != nil {
+		return nil, err
+	}
 
 	// LLM quality; error window starts from the last admin reset or 24 h ago, whichever is later.
 	var p50, p95 *float64
@@ -258,13 +266,16 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
 		       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
 		       count(*) FILTER (WHERE result = 'error'),
-		       count(*)
+		       count(*),
+		       (SELECT error_code FROM call_log
+		        WHERE call_type = 'llm' AND result = 'error'
+		        ORDER BY ts DESC LIMIT 1)
 		FROM call_log
 		WHERE call_type = 'llm' AND ts >= GREATEST(
 		    now() - interval '24 hours',
 		    COALESCE((SELECT max(ts) FROM call_log WHERE component = 'errors_reset'), now() - interval '24 hours')
 		)
-	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24); err != nil {
+	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24, &out.LLMLastErrorCode); err != nil {
 		return nil, err
 	}
 	out.P50LatencyMs, out.P95LatencyMs = roundPtr(p50), roundPtr(p95)
