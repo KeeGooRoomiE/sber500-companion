@@ -82,6 +82,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import ru.keegoo.companion.BuildConfig
+import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.notifications.EveningCopies
 import ru.keegoo.companion.notifications.MorningCopies
@@ -429,7 +430,7 @@ private fun MorningCard(
             )
         }
 
-        if (state.facts.isNotEmpty()) {
+        if (state.facts.isNotEmpty() || state.signals.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
@@ -455,6 +456,31 @@ private fun MorningCard(
                 exit = shrinkVertically(tween(220)) + fadeOut(tween(150)),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // What the server found in yesterday's data — the same list the model got
+                    if (state.signals.isNotEmpty()) {
+                        Text(
+                            text = "Что было заметно вчера",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = .75f),
+                        )
+                        state.signals.forEachIndexed { i, s ->
+                            SignalRow(
+                                signal = s,
+                                modifier = Modifier.animateEnterExit(
+                                    enter = fadeIn(tween(260, delayMillis = i * 60)) +
+                                        slideInVertically(tween(360, delayMillis = i * 60, easing = EmphasizedDecelerate)) { it / 2 },
+                                ),
+                            )
+                        }
+                        if (state.facts.isNotEmpty()) {
+                            Text(
+                                text = "Сегодня к этому часу",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = .75f),
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
                     state.facts.forEachIndexed { i, fact ->
                         FactRow(
                             fact = fact,
@@ -467,6 +493,31 @@ private fun MorningCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SignalRow(signal: SignalDto, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = if (signal.positive) "＋" else "•",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = if (signal.positive) 1f else .8f),
+            fontWeight = FontWeight.Bold,
+        )
+        Column {
+            Text(
+                text = signal.title,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = signal.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = .8f),
+            )
         }
     }
 }

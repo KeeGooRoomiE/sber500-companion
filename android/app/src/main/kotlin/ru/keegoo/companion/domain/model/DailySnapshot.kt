@@ -17,6 +17,8 @@ data class UsageSnapshot(
     val firstUnlock: LocalTime?,
     val lastUnlock: LocalTime?,
     val topApps: List<AppUsage>,
+    val unlocksByHour: List<Int> = emptyList(),       // 24 values, local hours
+    val screenMinutesByHour: List<Int> = emptyList(), // 24 values, local hours
 )
 
 data class AppUsage(val packageName: String, val minutes: Int)

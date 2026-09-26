@@ -13,6 +13,7 @@ import ru.keegoo.companion.domain.model.UsageSnapshot
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,8 +29,23 @@ class UsageStatsCollector @Inject constructor(
         val events = mgr.queryEvents(dayStartMs, dayEndMs) ?: return null
         val zone = ZoneId.systemDefault()
 
-        var screenOnMs = 0L
         var unlocks = 0
+        // Hour-by-hour picture of the day: the server reads "busy morning", "work hours" from it
+        val unlocksByHour = IntArray(24)
+        val screenMsByHour = LongArray(24)
+        var screenOnSince: Long? = null
+
+        // Split a screen-on interval at hour boundaries (local time)
+        fun addScreen(from: Long, to: Long) {
+            var cur = from
+            while (cur < to) {
+                val local = Instant.ofEpochMilli(cur).atZone(zone)
+                val nextHour = local.truncatedTo(ChronoUnit.HOURS).plusHours(1).toInstant().toEpochMilli()
+                val chunkEnd = minOf(to, nextHour)
+                screenMsByHour[local.hour] += chunkEnd - cur
+                cur = chunkEnd
+            }
+        }
         var firstUnlockMs = Long.MAX_VALUE
         var lastUnlockMs = Long.MIN_VALUE
         val appForegroundStart = mutableMapOf<String, Long>()
@@ -41,14 +57,16 @@ class UsageStatsCollector @Inject constructor(
             when (event.eventType) {
                 UsageEvents.Event.KEYGUARD_HIDDEN -> {
                     unlocks++
+                    unlocksByHour[Instant.ofEpochMilli(event.timeStamp).atZone(zone).hour]++
                     if (event.timeStamp < firstUnlockMs) firstUnlockMs = event.timeStamp
                     if (event.timeStamp > lastUnlockMs) lastUnlockMs = event.timeStamp
                 }
                 UsageEvents.Event.SCREEN_INTERACTIVE -> {
-                    screenOnMs -= event.timeStamp
+                    if (screenOnSince == null) screenOnSince = event.timeStamp
                 }
                 UsageEvents.Event.SCREEN_NON_INTERACTIVE -> {
-                    if (screenOnMs < 0) screenOnMs += event.timeStamp
+                    screenOnSince?.let { addScreen(it, event.timeStamp) }
+                    screenOnSince = null
                 }
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
                     appForegroundStart[event.packageName] = event.timeStamp
@@ -60,7 +78,8 @@ class UsageStatsCollector @Inject constructor(
                 }
             }
         }
-        if (screenOnMs < 0) screenOnMs += dayEndMs
+        screenOnSince?.let { addScreen(it, dayEndMs) }
+        val screenOnMs = screenMsByHour.sum()
 
         val topApps = appTotalMs.entries
             .filter { it.value >= 60_000 }
@@ -77,6 +96,8 @@ class UsageStatsCollector @Inject constructor(
             firstUnlock = firstUnlockMs.toLocalTime(),
             lastUnlock = lastUnlockMs.toLocalTime(),
             topApps = topApps,
+            unlocksByHour = unlocksByHour.toList(),
+            screenMinutesByHour = screenMsByHour.map { (it / 60_000).toInt() },
         )
     }
 

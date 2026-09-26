@@ -31,6 +31,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
 
 type Server struct {
@@ -245,7 +246,8 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	input := llm.MorningInput{Days: days, Last: last, Profile: profile}
+	input := llm.MorningInput{Days: days, Last: last, Profile: profile,
+		Signals: signals.ForLastDay(days, forecast.WorkApps(profile), llm.AppLabel)}
 	resp := previewResponse{System: system, User: llm.BuildMorningPrompt(input)}
 	if req.CallLLM {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)

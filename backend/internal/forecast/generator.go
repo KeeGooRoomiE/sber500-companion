@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
 
 var (
@@ -121,7 +123,10 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	lctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 	start := time.Now()
-	result, err := g.llm.GenerateMorning(lctx, system, llm.MorningInput{Days: days, Last: last, First: !delivered, Profile: profile})
+	result, err := g.llm.GenerateMorning(lctx, system, llm.MorningInput{
+		Days: days, Last: last, First: !delivered, Profile: profile,
+		Signals: signals.ForLastDay(days, WorkApps(profile), llm.AppLabel),
+	})
 	if err == nil && !SafeOutput(result.Message) {
 		// A tampered prompt or a model slip must not put links/phones in front of users
 		slog.Error("forecast: unsafe model output rejected", "user", userID, "prompt_version", promptVersion)
@@ -170,6 +175,30 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		return nil, err
 	}
 	return msg, nil
+}
+
+// Explain returns what stood out on the day before `date` — the same list the model got.
+func (g *Generator) Explain(ctx context.Context, userID string, date time.Time) ([]signals.Signal, error) {
+	days, err := g.daily.LastN(ctx, userID, historyDays, date.AddDate(0, 0, -1))
+	if err != nil || len(days) == 0 {
+		return nil, err
+	}
+	profile, err := g.users.Profile(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return signals.ForLastDay(days, WorkApps(profile), llm.AppLabel), nil
+}
+
+// WorkApps parses the comma-separated work_apps answer.
+func WorkApps(profile map[string]string) map[string]bool {
+	out := map[string]bool{}
+	for _, p := range strings.Split(profile["work_apps"], ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out[p] = true
+		}
+	}
+	return out
 }
 
 // withinBudget counts today's generated messages (product time zone) against LLM_DAILY_CAP.

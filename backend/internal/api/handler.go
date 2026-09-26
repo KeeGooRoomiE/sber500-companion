@@ -11,6 +11,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
 
 type Handler struct {
@@ -79,6 +80,8 @@ func (h *Handler) PassiveData(w http.ResponseWriter, r *http.Request) {
 		LastUnlock:     req.LastUnlock,
 		TopApps:        apps,
 		BatteryMorning: req.BatteryMorning,
+		HourlyUnlocks:  hours24(req.HourlyUnlocks),
+		HourlyScreen:   hours24(req.HourlyScreen),
 	}); err != nil {
 		slog.Error("daily upsert", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")
@@ -203,9 +206,17 @@ func (h *Handler) MorningMessage(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("mark sent failed", "err", err)
 	}
 
+	sig, err := h.generator.Explain(r.Context(), uid, today)
+	if err != nil {
+		slog.Warn("morning explain", "err", err)
+	}
+	if sig == nil {
+		sig = []signals.Signal{}
+	}
 	writeJSON(w, http.StatusOK, MorningMessageResponse{
 		Date:    msg.Date.Format("2006-01-02"),
 		Message: msg.Message,
+		Signals: sig,
 	})
 }
 
@@ -223,6 +234,19 @@ func (h *Handler) WeeklyFeedback(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- helpers ---
+
+// hours24 keeps an hourly series only if it is exactly 24 non-negative values.
+func hours24(v []int) []int {
+	if len(v) != 24 {
+		return nil
+	}
+	for _, x := range v {
+		if x < 0 || x > 100000 {
+			return nil
+		}
+	}
+	return v
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")

@@ -15,6 +15,8 @@ data class PassiveDataRequest(
     val steps: Int?,
     val battery_morning: Int?,
     val fcm_token: String? = null,
+    val hourly_unlocks: List<Int>? = null,  // 24 values, local hours
+    val hourly_screen: List<Int>? = null,   // minutes per local hour
 )
 
 data class AppUsageDto(
@@ -32,7 +34,11 @@ data class CheckInRequest(
 data class MorningMessageResponse(
     val date: String,
     val message: String,
+    val signals: List<SignalDto>? = null,
 )
+
+/** One thing that stood out yesterday, computed on the server from the data (evidence for the forecast). */
+data class SignalDto(val key: String, val title: String, val detail: String, val positive: Boolean = false)
 
 /** Profile answers used as forecast context; the name is never included. */
 data class ProfileRequest(val answers: Map<String, String>)

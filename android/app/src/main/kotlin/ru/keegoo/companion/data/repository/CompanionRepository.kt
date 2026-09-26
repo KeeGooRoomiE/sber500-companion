@@ -34,6 +34,8 @@ class CompanionRepository @Inject constructor(
                 wakeup         = snapshot.sleep?.wakeup?.format(TIME_FMT),
                 steps          = snapshot.steps,
                 battery_morning = snapshot.battery?.levelPercent,
+                hourly_unlocks = snapshot.usage?.unlocksByHour?.takeIf { it.size == 24 },
+                hourly_screen  = snapshot.usage?.screenMinutesByHour?.takeIf { it.size == 24 },
             )
         )
         Log.d("CompanionRepo", "daily snapshot posted: ${snapshot.date}")

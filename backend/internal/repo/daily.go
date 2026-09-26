@@ -26,6 +26,8 @@ type DailyData struct {
 	LastUnlock     *string
 	TopApps        []AppUsage
 	BatteryMorning *int
+	HourlyUnlocks  []int // 24 values or nil
+	HourlyScreen   []int // minutes per hour, 24 values or nil
 }
 
 type DailyRepo struct{ db *pgxpool.Pool }
@@ -39,10 +41,12 @@ func (r *DailyRepo) Upsert(ctx context.Context, d *DailyData) error {
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO daily_data
 		  (user_id, date, sleep_min, bedtime, wakeup, steps,
-		   screen_min, unlocks, first_unlock, last_unlock, top_apps, battery_morning)
+		   screen_min, unlocks, first_unlock, last_unlock, top_apps, battery_morning,
+		   hourly_unlocks, hourly_screen)
 		VALUES
 		  ($1, $2, $3, $4::time, $5::time, $6,
-		   $7, $8, $9::time, $10::time, $11, $12)
+		   $7, $8, $9::time, $10::time, $11, $12,
+		   $13, $14)
 		-- A later snapshot of the same day may lack a field (e.g. yesterday's has no
 		-- morning battery): keep what we already have instead of overwriting with NULL.
 		ON CONFLICT (user_id, date) DO UPDATE SET
@@ -56,9 +60,12 @@ func (r *DailyRepo) Upsert(ctx context.Context, d *DailyData) error {
 		  last_unlock     = COALESCE(EXCLUDED.last_unlock, daily_data.last_unlock),
 		  top_apps        = CASE WHEN jsonb_array_length(COALESCE(EXCLUDED.top_apps, '[]')) > 0
 		                         THEN EXCLUDED.top_apps ELSE daily_data.top_apps END,
-		  battery_morning = COALESCE(EXCLUDED.battery_morning, daily_data.battery_morning)
+		  battery_morning = COALESCE(EXCLUDED.battery_morning, daily_data.battery_morning),
+		  hourly_unlocks  = COALESCE(EXCLUDED.hourly_unlocks, daily_data.hourly_unlocks),
+		  hourly_screen   = COALESCE(EXCLUDED.hourly_screen, daily_data.hourly_screen)
 	`, d.UserID, d.Date, d.SleepMin, d.Bedtime, d.Wakeup, d.Steps,
-		d.ScreenMin, d.Unlocks, d.FirstUnlock, d.LastUnlock, topApps, d.BatteryMorning)
+		d.ScreenMin, d.Unlocks, d.FirstUnlock, d.LastUnlock, topApps, d.BatteryMorning,
+		d.HourlyUnlocks, d.HourlyScreen)
 	return err
 }
 
@@ -70,7 +77,7 @@ func (r *DailyRepo) LastN(ctx context.Context, userID string, n int, until time.
 		       to_char(bedtime, 'HH24:MI'), to_char(wakeup, 'HH24:MI'),
 		       steps, screen_min, unlocks,
 		       to_char(first_unlock, 'HH24:MI'), to_char(last_unlock, 'HH24:MI'),
-		       top_apps, battery_morning
+		       top_apps, battery_morning, hourly_unlocks, hourly_screen
 		FROM daily_data
 		WHERE user_id = $1 AND date <= $3
 		ORDER BY date DESC
@@ -90,7 +97,7 @@ func (r *DailyRepo) LastN(ctx context.Context, userID string, n int, until time.
 			&d.Bedtime, &d.Wakeup,
 			&d.Steps, &d.ScreenMin, &d.Unlocks,
 			&d.FirstUnlock, &d.LastUnlock,
-			&topAppsRaw, &d.BatteryMorning,
+			&topAppsRaw, &d.BatteryMorning, &d.HourlyUnlocks, &d.HourlyScreen,
 		); err != nil {
 			return nil, err
 		}

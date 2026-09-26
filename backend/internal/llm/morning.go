@@ -12,6 +12,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
 
 type Client struct {
@@ -54,7 +55,11 @@ type MorningInput struct {
 	Last    *repo.CheckIn     // latest check-in, may be nil
 	First   bool              // very first message: a short retrospective of the person's week
 	Profile map[string]string // answers from «Расскажи о себе» (no name)
+	Signals []signals.Signal  // what stood out yesterday, computed from data
 }
+
+// AppLabel is the human name of a package (same names the prompt uses).
+func AppLabel(pkg string) string { return resolveAppName(pkg) }
 
 // BuildMorningPrompt renders the user message.
 func BuildMorningPrompt(in MorningInput) string { return buildPrompt(in) }
@@ -158,6 +163,9 @@ func buildPrompt(in MorningInput) string {
 	days, last, first := in.Days, in.Last, in.First
 	var b strings.Builder
 	workApps := profileContext(&b, in.Profile)
+	if len(in.Days) > 0 {
+		b.WriteString(signals.PromptBlock(in.Signals))
+	}
 
 	// compute personal weekly averages
 	var sumScreen, sumSleep, sumSteps, sumUnlocks int

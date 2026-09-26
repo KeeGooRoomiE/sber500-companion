@@ -1,6 +1,10 @@
 package api
 
-import "time"
+import (
+	"time"
+
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
+)
 
 // --- requests ---
 
@@ -17,6 +21,8 @@ type PassiveDataRequest struct {
 	TopApps        []AppUsageDTO `json:"top_apps"`
 	BatteryMorning *int          `json:"battery_morning"`
 	FCMToken       *string       `json:"fcm_token"`
+	HourlyUnlocks  []int         `json:"hourly_unlocks"` // 24 values, local hours
+	HourlyScreen   []int         `json:"hourly_screen"`  // minutes per local hour
 }
 
 type AppUsageDTO struct {
@@ -48,8 +54,9 @@ type WeeklyFeedbackRequest struct {
 // --- responses ---
 
 type MorningMessageResponse struct {
-	Date    string `json:"date"`
-	Message string `json:"message"`
+	Date    string           `json:"date"`
+	Message string           `json:"message"`
+	Signals []signals.Signal `json:"signals"` // evidence for «Почему такой прогноз»
 }
 
 type ErrorResponse struct {

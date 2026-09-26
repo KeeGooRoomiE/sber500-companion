@@ -21,6 +21,7 @@ import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
+import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.domain.forecast.buildLocalForecast
@@ -43,6 +44,8 @@ data class HomeUiState(
     val hasUsageAccess: Boolean = true,
     val forecast: String? = null,
     val facts: List<ForecastFact> = emptyList(),
+    /** Server-computed evidence for the LLM forecast: «что было заметно вчера». */
+    val signals: List<SignalDto> = emptyList(),
     val screenMin: Int? = null,
     val sleepMin: Int? = null,
     val sleepLabel: String = "Сон",
@@ -106,7 +109,7 @@ class HomeViewModel @Inject constructor(
                     DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 15_000)
                 }
                 repository.getMorning()
-                    .onSuccess { resp -> _state.update { it.copy(forecast = resp.message) } }
+                    .onSuccess { resp -> _state.update { it.copy(forecast = resp.message, signals = resp.signals.orEmpty()) } }
                 // Silently ignore failures — local forecast stays visible.
             }
         }
