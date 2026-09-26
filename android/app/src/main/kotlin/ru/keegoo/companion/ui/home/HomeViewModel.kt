@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.auth.DeviceCredentials
 import ru.keegoo.companion.data.local.SleepSource
+import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.saveProfileAnswer
 import ru.keegoo.companion.data.local.TodayData
@@ -24,6 +25,8 @@ import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
+import ru.keegoo.companion.data.api.model.ExploreAnswer
+import ru.keegoo.companion.data.api.model.ExploreQuestion
 import ru.keegoo.companion.data.api.model.HistoryItem
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.SignalDto
@@ -71,6 +74,27 @@ data class HomeUiState(
     val history: List<HistoryItem> = emptyList(),
     /** The open «Разбор дня» / «Итоги недели» sheet, if any. */
     val review: ReviewUi? = null,
+    /** The open «Хочу ещё» sheet, if any. */
+    val explore: ExploreUi? = null,
+)
+
+/** One question in «Хочу ещё»: waiting for the answer, answered, or failed. */
+data class ExploreItemUi(
+    val id: String,
+    val question: String,
+    val text: String? = null,
+    val facts: List<String> = emptyList(),
+    val error: String? = null,
+) {
+    val loading: Boolean get() = text == null && error == null
+}
+
+data class ExploreUi(
+    val loading: Boolean = true,
+    val items: List<ExploreItemUi> = emptyList(),
+    val next: List<ExploreQuestion> = emptyList(),
+    val left: Int = 0,
+    val error: String? = null,
 )
 
 enum class ReviewKind { Day, Week }
@@ -145,6 +169,8 @@ class HomeViewModel @Inject constructor(
                 if (credentials.restorePending) restoreProfile()
                 repository.getMorning()
                     .onSuccess { resp ->
+                        // Seen in the app — the «first unlock» notification isn't needed today
+                        if (resp.message.isNotBlank()) context.markMorningDelivered()
                         _state.update {
                             it.copy(
                                 forecast = resp.message,
@@ -243,6 +269,78 @@ class HomeViewModel @Inject constructor(
         _state.update { it.copy(review = review.copy(feedback = if (hit) "hit" else "miss")) }
         val kind = if (review.kind == ReviewKind.Week) "week" else "day"
         viewModelScope.launch { repository.feedback(kind, date, hit) }
+    }
+
+    private var exploreJob: Job? = null
+
+    /** «Хочу ещё»: open the sheet with today's answers and the questions the data can answer. */
+    fun openExplore() {
+        exploreJob?.cancel()
+        _state.update { it.copy(explore = ExploreUi()) }
+        exploreJob = viewModelScope.launch {
+            val result = repository.exploreState()
+            _state.update { s ->
+                val cur = s.explore ?: return@update s
+                s.copy(
+                    explore = result.fold(
+                        onSuccess = { r ->
+                            cur.copy(
+                                loading = false,
+                                items = r.answered.orEmpty().map { it.toUi() },
+                                next = r.next.orEmpty(),
+                                left = r.left,
+                            )
+                        },
+                        onFailure = { cur.copy(loading = false, error = "Не получилось связаться с сервером. Попробуй чуть позже.") },
+                    )
+                )
+            }
+        }
+    }
+
+    fun askExplore(q: ExploreQuestion) {
+        val cur = _state.value.explore ?: return
+        if (cur.items.any { it.loading }) return
+        _state.update { it.copy(explore = cur.copy(items = cur.items + ExploreItemUi(q.id, q.text), next = emptyList())) }
+        exploreJob = viewModelScope.launch {
+            val result = repository.exploreAsk(q.id)
+            _state.update { s ->
+                val e = s.explore ?: return@update s
+                s.copy(
+                    explore = result.fold(
+                        onSuccess = { r ->
+                            val a = r.answer
+                            e.copy(
+                                items = e.items.map { if (it.id == q.id && a != null) a.toUi() else it },
+                                next = r.next.orEmpty(),
+                                left = r.left,
+                            )
+                        },
+                        onFailure = { err ->
+                            e.copy(
+                                items = e.items.map { if (it.id == q.id && it.loading) it.copy(error = exploreErrorText(err)) else it },
+                                // let the person try another question (or the same one again)
+                                next = cur.next,
+                            )
+                        },
+                    )
+                )
+            }
+        }
+    }
+
+    fun closeExplore() {
+        exploreJob?.cancel()
+        _state.update { it.copy(explore = null) }
+    }
+
+    private fun ExploreAnswer.toUi() = ExploreItemUi(id, question, text, facts.orEmpty())
+
+    private fun exploreErrorText(e: Throwable): String = when ((e as? HttpException)?.code()) {
+        404 -> "На этот вопрос пока не хватает данных."
+        429 -> "На сегодня вопросов достаточно — завтра будут новые."
+        503 -> "ИИ временно недоступен — попробуй чуть позже."
+        else -> "Не получилось связаться с сервером. Попробуй чуть позже."
     }
 
     private fun reviewErrorText(e: Throwable): String = when ((e as? HttpException)?.code()) {

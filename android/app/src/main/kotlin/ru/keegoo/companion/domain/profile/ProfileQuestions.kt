@@ -41,6 +41,9 @@ object ProfileIds {
 /** Stays on the phone; everything else is sent to the server as forecast context. */
 val LocalOnlyProfileIds = setOf(ProfileIds.NAME)
 
+/** Morning forecast option: sent right after the first unlock of the morning, not at a fixed time. */
+const val MorningOnWake = "Когда возьму телефон"
+
 // Declared before ProfileQuestions: top-level vals initialise in file order
 val DefaultMorningTime: LocalTime = LocalTime.of(7, 40)
 val DefaultEveningTime: LocalTime = LocalTime.of(20, 30)
@@ -71,7 +74,9 @@ val ProfileQuestions = listOf(
         multi = true, oneTime = true,
     ),
     ProfileQuestion(
-        ProfileIds.MORNING_TIME, "Когда присылать утренний прогноз?", null, listOf("7:00", "7:40", "8:30", "9:30"),
+        ProfileIds.MORNING_TIME, "Когда присылать утренний прогноз?",
+        "«Когда возьму телефон» — сразу после первой разблокировки утром",
+        listOf(MorningOnWake, "7:00", "7:40", "8:30", "9:30"),
         timePick = true, defaultTime = DefaultMorningTime,
     ),
     ProfileQuestion(

@@ -143,3 +143,15 @@ fun Context.hasUsageAccess(): Boolean {
         mode == AppOpsManager.MODE_ALLOWED
     }
 }
+
+/** Time of the first unlock (keyguard dismissed) in [fromMs, toMs), or null. Needs usage access. */
+fun Context.firstUnlockBetween(fromMs: Long, toMs: Long): Long? {
+    val mgr = getSystemService(UsageStatsManager::class.java) ?: return null
+    val events = mgr.queryEvents(fromMs, toMs) ?: return null
+    val e = UsageEvents.Event()
+    while (events.hasNextEvent()) {
+        events.getNextEvent(e)
+        if (e.eventType == UsageEvents.Event.KEYGUARD_HIDDEN) return e.timeStamp
+    }
+    return null
+}

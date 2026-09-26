@@ -9,6 +9,8 @@ import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
+import ru.keegoo.companion.data.api.model.ExploreRequest
+import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.HistoryResponse
@@ -80,6 +82,11 @@ class CompanionRepository @Inject constructor(
     }
 
     suspend fun weekReview(): Result<ReviewResponse> = runCatching { api.postWeekReview() }
+
+    /** «Хочу ещё»: today's answers + questions that can be asked now. */
+    suspend fun exploreState(): Result<ExploreResponse> = runCatching { api.getExplore() }
+
+    suspend fun exploreAsk(id: String): Result<ExploreResponse> = runCatching { api.postExplore(ExploreRequest(id)) }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 

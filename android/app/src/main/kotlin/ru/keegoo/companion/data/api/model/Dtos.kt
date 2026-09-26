@@ -54,6 +54,20 @@ data class ProfileRequest(val answers: Map<String, String>)
 
 data class HistoryItem(val date: String, val message: String, val feedback: String? = null)
 
+/** «Хочу ещё»: a follow-up question the person's data can answer. */
+data class ExploreQuestion(val id: String, val text: String)
+
+data class ExploreAnswer(val id: String, val question: String, val text: String, val facts: List<String>? = null)
+
+data class ExploreResponse(
+    val answered: List<ExploreAnswer>? = null,
+    val next: List<ExploreQuestion>? = null,
+    val left: Int = 0,
+    val answer: ExploreAnswer? = null,
+)
+
+data class ExploreRequest(val id: String)
+
 /** kind = "morning" | "day" | "week"; verdict = "hit" (Совпало) | "miss" (Не совсем). */
 data class FeedbackRequest(val kind: String, val date: String, val verdict: String)
 data class HistoryResponse(val items: List<HistoryItem>)

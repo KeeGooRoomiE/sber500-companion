@@ -25,6 +25,9 @@ private val KEY_CHECKIN_TAGS = stringSetPreferencesKey("checkin_tags")
 
 private const val PROFILE_PREFIX = "profile_"
 
+// The morning forecast reached the person today (notification or opened in the app)
+private val KEY_MORNING_DELIVERED = stringPreferencesKey("morning_delivered_date")
+
 // «Меня можно обновить» closed for this version on this date — asked again after a few days
 private val KEY_UPDATE_DISMISSED_VERSION = stringPreferencesKey("update_dismissed_version")
 private val KEY_UPDATE_DISMISSED_DATE = stringPreferencesKey("update_dismissed_date")
@@ -42,6 +45,13 @@ suspend fun Context.dismissUpdate(version: String) {
         it[KEY_UPDATE_DISMISSED_VERSION] = version
         it[KEY_UPDATE_DISMISSED_DATE] = LocalDate.now().toString()
     }
+}
+
+suspend fun Context.isMorningDeliveredToday(): Boolean =
+    appPrefs.data.first()[KEY_MORNING_DELIVERED] == LocalDate.now().toString()
+
+suspend fun Context.markMorningDelivered() {
+    appPrefs.edit { it[KEY_MORNING_DELIVERED] = LocalDate.now().toString() }
 }
 
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false

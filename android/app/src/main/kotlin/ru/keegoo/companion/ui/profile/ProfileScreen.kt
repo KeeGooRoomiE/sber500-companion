@@ -139,7 +139,7 @@ fun ProfileScreen(
         scope.launch {
             context.saveProfileAnswer(q.id, value)
             when (q.id) {
-                ProfileIds.MORNING_TIME -> parseTime(value)?.let { NotificationScheduler.reschedule(context, ReminderKind.Morning, it) }
+                ProfileIds.MORNING_TIME -> NotificationScheduler.applyMorning(context, value)
                 ProfileIds.EVENING_TIME -> parseTime(value)?.let { NotificationScheduler.reschedule(context, ReminderKind.Evening, it) }
             }
             if (q.oneTime && !showPast) {

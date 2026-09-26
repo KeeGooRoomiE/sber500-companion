@@ -414,7 +414,7 @@ private fun FeedbackChip(label: String, accent: Color, filled: Boolean, onClick:
 
 /** Three shimmering lines — the companion is writing. */
 @Composable
-private fun WritingPlaceholder() {
+internal fun WritingPlaceholder() {
     val t = rememberInfiniteTransition(label = "writing")
     val x by t.animateFloat(-400f, 900f, infiniteRepeatable(tween(1300, easing = LinearEasing), RepeatMode.Restart), label = "wx")
     val base = MaterialTheme.colorScheme.surfaceVariant
