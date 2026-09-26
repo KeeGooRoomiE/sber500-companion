@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// One signing key for every published APK. Android installs an update only over an app signed
+// with the same key; CI used to make a fresh debug key per run, so each release forced people to
+// uninstall (losing local data). CI writes the key from the COMPANION_KEYSTORE_B64 secret;
+// without it (local builds) the usual per-machine debug key is used.
+val sharedKeystore = System.getenv("COMPANION_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+
 android {
     namespace = "ru.keegoo.companion"
     compileSdk = 35
@@ -14,12 +20,24 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.6.0"
+        versionCode = 11
+        versionName = "0.6.1"
+    }
+
+    signingConfigs {
+        if (sharedKeystore != null) {
+            create("shared") {
+                storeFile = sharedKeystore
+                storePassword = System.getenv("COMPANION_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("COMPANION_KEY_ALIAS") ?: "companion"
+                keyPassword = System.getenv("COMPANION_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         debug {
+            if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
             // 10.0.2.2 — localhost внутри Android-эмулятора
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // TODO: вставить ключ из дашборда AppMetrica, когда будет получен

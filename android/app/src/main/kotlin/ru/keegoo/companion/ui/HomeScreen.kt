@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -368,8 +369,12 @@ private fun TopBar(
                         boundsTransform = OrbBoundsTransform,
                     )
                     .size(48.dp)
-                    .clip(AppShapes.circle)
-                    .clickable {
+                    // No clip: the question badge sits on the orb's edge and would be cut off.
+                    // An unbounded round ripple keeps the touch feedback circular instead.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 28.dp),
+                    ) {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         onOrbClick()
                     },

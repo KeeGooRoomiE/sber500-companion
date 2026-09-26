@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.data.auth.DeviceCredentials
 import ru.keegoo.companion.data.local.SleepSource
+import ru.keegoo.companion.data.prefs.profileAnswersNow
+import ru.keegoo.companion.data.prefs.saveProfileAnswer
 import ru.keegoo.companion.data.local.TodayData
 import ru.keegoo.companion.data.local.TodayRepository
 import ru.keegoo.companion.data.collector.hasUsageAccess
@@ -92,6 +95,7 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val today: TodayRepository,
     private val repository: CompanionRepository,
+    private val credentials: DeviceCredentials,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -137,6 +141,8 @@ class HomeViewModel @Inject constructor(
                     DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 15_000)
                 }
                 repository.getHistory().onSuccess { h -> _state.update { it.copy(history = h.items) } }
+                // Reinstalled on a phone the server knows: bring back «Расскажи о себе»
+                if (credentials.restorePending) restoreProfile()
                 repository.getMorning()
                     .onSuccess { resp ->
                         _state.update {
@@ -151,6 +157,14 @@ class HomeViewModel @Inject constructor(
                 // Silently ignore failures — local forecast stays visible.
             }
         }
+    }
+
+    private suspend fun restoreProfile() {
+        val remote = repository.getProfile().getOrNull() ?: return
+        val local = context.profileAnswersNow()
+        remote.filterKeys { it !in local && it !in LocalOnlyProfileIds }
+            .forEach { (id, answer) -> context.saveProfileAnswer(id, answer) }
+        credentials.restoreDone()
     }
 
     private var profileJob: Job? = null

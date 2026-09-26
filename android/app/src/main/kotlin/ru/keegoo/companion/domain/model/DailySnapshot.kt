@@ -9,6 +9,7 @@ data class DailySnapshot(
     val sleep: SleepSnapshot?,
     val battery: BatterySnapshot?,  // only known for today's snapshot
     val steps: Int? = null,
+    val stepsByHour: List<Int> = emptyList(), // 24 values, local hours (Health Connect)
 )
 
 data class UsageSnapshot(

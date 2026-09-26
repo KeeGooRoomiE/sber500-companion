@@ -61,10 +61,10 @@ class DailyCollectWorker @AssistedInject constructor(
             from = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant(),
             to = nightEnd,
         )
-        val steps = healthConnect.collectSteps(from = dayStart, to = end)
+        val steps = healthConnect.collectStepsByHour(from = dayStart, to = end, zone = zone)
         return DailySnapshot(
             date = date, usage = usage, sleep = sleep,
-            battery = battery, steps = steps.takeIf { it > 0 },
+            battery = battery, steps = steps?.total, stepsByHour = steps?.byHour.orEmpty(),
         )
     }
 

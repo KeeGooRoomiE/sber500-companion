@@ -25,6 +25,9 @@ interface CompanionApi {
     @PUT("api/v1/profile")
     suspend fun putProfile(@Body body: ProfileRequest)
 
+    @GET("api/v1/profile")
+    suspend fun getProfile(): ProfileRequest
+
     @POST("api/v1/ping")
     suspend fun ping()
 

@@ -1,6 +1,8 @@
 package ru.keegoo.companion.data.auth
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -11,20 +13,25 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import ru.keegoo.companion.BuildConfig
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private data class RegisterResponse(val user_id: String, val token: String)
+private data class RegisterRequest(val device_key: String?)
+private data class RegisterResponse(val user_id: String, val token: String, val returning: Boolean = false)
 
 /**
  * Server-issued identity: POST /api/v1/register returns a random user id and a secret token.
  * The token lives in app-private storage and goes out as "Authorization: Bearer …".
- * Nothing is derived from device ids anymore.
+ *
+ * Reinstall: registration also sends a hash of ANDROID_ID. On Android 8+ it is unique per
+ * device + app signing key and survives uninstalling, so a reinstalled app gets its old identity
+ * back (history, forecasts, answers) instead of starting from zero. The raw id never leaves the phone.
  */
 @Singleton
 class DeviceCredentials @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
 ) {
     private val prefs = context.getSharedPreferences("device_auth", Context.MODE_PRIVATE)
 
@@ -35,6 +42,11 @@ class DeviceCredentials @Inject constructor(
         .build()
 
     val userId: String? get() = prefs.getString(KEY_USER, null)
+
+    /** The server recognised this phone after a reinstall and the answers are not restored yet. */
+    val restorePending: Boolean get() = prefs.getBoolean(KEY_RESTORE, false)
+
+    fun restoreDone() = prefs.edit().putBoolean(KEY_RESTORE, false).apply()
 
     /** Current token, registering first if there is none. Null if the server is unreachable. */
     @Synchronized
@@ -49,28 +61,47 @@ class DeviceCredentials @Inject constructor(
     }
 
     private fun register(): String? = try {
+        val body = Gson().toJson(RegisterRequest(deviceKey()))
         val request = Request.Builder()
             .url(BuildConfig.API_BASE_URL + "api/v1/register")
-            .post(ByteArray(0).toRequestBody("application/json".toMediaType()))
+            .post(body.toRequestBody("application/json".toMediaType()))
             .build()
         bare.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) {
                 Log.w(TAG, "register failed: ${resp.code}")
                 return null
             }
-            val body = Gson().fromJson(resp.body?.charStream(), RegisterResponse::class.java)
-            prefs.edit().putString(KEY_USER, body.user_id).putString(KEY_TOKEN, body.token).apply()
-            body.token
+            val reg = Gson().fromJson(resp.body?.charStream(), RegisterResponse::class.java)
+            prefs.edit()
+                .putString(KEY_USER, reg.user_id)
+                .putString(KEY_TOKEN, reg.token)
+                // Only a fresh install needs restoring; a 401 re-register keeps local answers
+                .putBoolean(KEY_RESTORE, reg.returning && !prefs.getBoolean(KEY_HAD_TOKEN, false))
+                .putBoolean(KEY_HAD_TOKEN, true)
+                .apply()
+            reg.token
         }
     } catch (e: Exception) {
         Log.w(TAG, "register error", e)
         null
     }
 
+    // Hash of ANDROID_ID with an app-specific prefix; null on the rare device that has none.
+    @SuppressLint("HardwareIds")
+    private fun deviceKey(): String? {
+        val id = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" } // old emulator constant
+            ?: return null
+        val digest = MessageDigest.getInstance("SHA-256").digest("companion:$id".toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
     companion object {
         private const val TAG = "DeviceCredentials"
         private const val KEY_USER = "user_id"
         private const val KEY_TOKEN = "token"
+        private const val KEY_RESTORE = "restore_pending"
+        private const val KEY_HAD_TOKEN = "had_token"
     }
 }
 

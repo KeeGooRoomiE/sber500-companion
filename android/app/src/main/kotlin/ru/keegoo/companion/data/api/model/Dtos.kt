@@ -23,6 +23,7 @@ data class PassiveDataRequest(
     val fcm_token: String? = null,
     val hourly_unlocks: List<Int>? = null,  // 24 values, local hours
     val hourly_screen: List<Int>? = null,   // minutes per local hour
+    val hourly_steps: List<Int>? = null,    // Health Connect steps per local hour
 )
 
 data class AppUsageDto(

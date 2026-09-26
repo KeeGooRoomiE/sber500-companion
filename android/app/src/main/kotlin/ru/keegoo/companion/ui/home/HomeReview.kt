@@ -174,7 +174,7 @@ internal fun PillButton(text: String, modifier: Modifier = Modifier, filled: Boo
                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 onClick()
             }
-            .padding(vertical = 11.dp),
+            .padding(horizontal = 16.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(

@@ -42,6 +42,7 @@ class CompanionRepository @Inject constructor(
                 battery_morning = snapshot.battery?.levelPercent,
                 hourly_unlocks = snapshot.usage?.unlocksByHour?.takeIf { it.size == 24 },
                 hourly_screen  = snapshot.usage?.screenMinutesByHour?.takeIf { it.size == 24 },
+                hourly_steps   = snapshot.stepsByHour.takeIf { it.size == 24 },
             )
         )
         Log.d("CompanionRepo", "daily snapshot posted: ${snapshot.date}")
@@ -65,6 +66,9 @@ class CompanionRepository @Inject constructor(
     suspend fun putProfile(answers: Map<String, String>): Result<Unit> = runCatching {
         api.putProfile(ProfileRequest(answers))
     }
+
+    /** Answers the server kept (everything except the name) — restored after a reinstall. */
+    suspend fun getProfile(): Result<Map<String, String>> = runCatching { api.getProfile().answers.orEmpty() }
 
     /** "The app is open" — counts the person as active today (DAU). Fire and forget. */
     suspend fun ping(): Result<Unit> = runCatching { api.ping() }

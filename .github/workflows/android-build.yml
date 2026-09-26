@@ -48,6 +48,19 @@ jobs:
           key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/libs.versions.toml') }}
           restore-keys: gradle-
 
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.COMPANION_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.COMPANION_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::COMPANION_KEYSTORE_B64 is not set — APK signed with a random key; people will have to reinstall to update"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/companion.jks"
+          echo "COMPANION_KEYSTORE=$RUNNER_TEMP/companion.jks" >> "$GITHUB_ENV"
+          echo "COMPANION_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Build debug APK
         working-directory: android
         run: gradle assembleDebug --no-daemon --stacktrace

@@ -101,5 +101,10 @@ It needs the secrets `DEPLOY_SSH_KEY` and `DEPLOY_HOST`; `DEPLOY_KNOWN_HOSTS` is
 | `TG_CHAT_ID` | Telegram chat ID (398066304) |
 | `DEPLOY_SSH_KEY` | private deploy key (root on the VPS), for Deploy backend |
 | `DEPLOY_HOST` | `94.183.236.169` |
+| `COMPANION_KEYSTORE_B64` | base64 of the APK signing keystore (PKCS12, alias `companion`). Without it every build gets a random key and updates can't install over the old app |
+| `COMPANION_KEYSTORE_PASSWORD` | its password (store = key) |
+
+**Signing:** releases are debug APKs signed with the shared key from these secrets (see `android/app/build.gradle.kts`).
+Changing the key forces every user to reinstall once. Keep a copy of the keystore outside GitHub.
 
 Server secrets live in `/opt/companion/.env` on cloudcore.ru VPS — NOT in GitHub.
