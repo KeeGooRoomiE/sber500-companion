@@ -201,7 +201,6 @@
         { key: 'llm_calls_total',      label: 'LLM calls total', unit: 'вызовов' },
         { key: 'llm_calls_today',      label: 'LLM сегодня',     unit: 'вызовов' },
         { key: 'llm_cost_rub_per_dau', label: 'Cost / DAU',      unit: '₽ на активного',   decimals: 2 },
-        { key: 'budget_spend',         label: 'Бюджет потрачено', unit: 'из 50 000',         decimals: 2 },
         { key: 'p50_latency_ms',       label: 'P50 latency',     unit: 'мс' },
         { key: 'p95_latency_ms',       label: 'P95 latency',     unit: 'мс', warnAbove: 1500, dangerAbove: 3000 },
         { key: 'error_rate_pct',       label: 'Error rate',      unit: '%',  decimals: 2, warnAbove: 1, dangerAbove: 3 },
@@ -241,13 +240,15 @@
   }
 
   function renderBudget(data) {
-    const total = data.llm_cost_rub_total;
-    if (total == null) return '';
-    const usedPct  = Math.min((total / LLM_BUDGET_RUB) * 100, 100);
+    // budget_spend/budget_max come from the proxy's /key/info (real-time, cached 15 min)
+    const spend  = data.budget_spend  ?? 0;
+    const maxBud = data.budget_max    || LLM_BUDGET_RUB;
+    if (spend == null) return '';
+    const usedPct  = Math.min((spend / maxBud) * 100, 100);
     const cls      = usedPct >= 80 ? 'danger' : usedPct >= 50 ? 'warn' : '';
-    const spent    = total.toLocaleString('ru', { maximumFractionDigits: 0 });
-    const budget   = LLM_BUDGET_RUB.toLocaleString('ru');
-    const remain   = Math.max(0, LLM_BUDGET_RUB - total).toLocaleString('ru', { maximumFractionDigits: 0 });
+    const spent    = spend.toLocaleString('ru', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const budget   = maxBud.toLocaleString('ru');
+    const remain   = Math.max(0, maxBud - spend).toLocaleString('ru', { maximumFractionDigits: 0 });
 
     // Projection: at current DAU, cost/month
     const dau     = data.dau_7d_avg || 0;
