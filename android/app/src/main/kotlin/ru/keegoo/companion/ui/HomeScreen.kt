@@ -85,6 +85,9 @@ import kotlinx.coroutines.delay
 import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.ui.home.CheckInSection
+import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
+import ru.keegoo.companion.ui.permissions.appInfoIntent
+import ru.keegoo.companion.ui.permissions.usageAccessIntent
 import ru.keegoo.companion.ui.home.DayTimelineCard
 import ru.keegoo.companion.ui.home.FeedbackRow
 import ru.keegoo.companion.ui.home.HistorySection
@@ -212,9 +215,13 @@ fun HomeScreen(
                                 onRate = vm::rateMorning,
                                 onOpenUsageAccess = {
                                     try {
-                                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                        context.startActivity(context.usageAccessIntent(direct = true))
                                     } catch (_: ActivityNotFoundException) {
-                                        // some OEM builds hide this screen; nothing else to open
+                                        try {
+                                            context.startActivity(context.usageAccessIntent(direct = false))
+                                        } catch (_: ActivityNotFoundException) {
+                                            // some OEM builds hide this screen; nothing else to open
+                                        }
                                     }
                                 },
                             )
@@ -463,6 +470,34 @@ private fun MorningCard(
                         .padding(horizontal = 14.dp, vertical = 9.dp)
                 ) {
                     Text("Открыть настройки", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                }
+                // Sideloaded APK on Android 13+: the switch is blocked until «restricted settings» are allowed
+                var showHelp by rememberSaveable { mutableStateOf(false) }
+                Text(
+                    text = if (showHelp) "Скрыть подсказку" else "Android не даёт включить?",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = .85f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showHelp = !showHelp }
+                        .padding(vertical = 2.dp),
+                )
+                AnimatedVisibility(
+                    visible = showHelp,
+                    enter = expandVertically(spring(dampingRatio = 1f, stiffness = 400f)) + fadeIn(),
+                    exit = shrinkVertically(tween(220)) + fadeOut(tween(150)),
+                ) {
+                    val ctx = LocalContext.current
+                    RestrictedSettingsSteps(
+                        content = Color.White,
+                        accent = Color.White,
+                        onOpenAppInfo = {
+                            try {
+                                ctx.startActivity(ctx.appInfoIntent())
+                            } catch (_: ActivityNotFoundException) {
+                            }
+                        },
+                    )
                 }
             }
             state.forecast != null -> Text(

@@ -84,6 +84,12 @@ import ru.keegoo.companion.ui.motion.OrbBoundsTransform
 import ru.keegoo.companion.ui.motion.OrbMode
 import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import java.time.LocalTime
 
 /** How long an answered one-time question stays on screen (with «Учту ✓») before folding away. */
 private const val FOLD_AWAY_MS = 5_000L
@@ -303,6 +309,18 @@ private fun QuestionCard(
     onAnswer: (String) -> Unit,
 ) {
     val view = LocalView.current
+    var pickTime by rememberSaveable(question.id) { mutableStateOf(false) }
+    if (pickTime) {
+        TimePickDialog(
+            title = question.title,
+            initial = parseTime(answer) ?: question.defaultTime ?: LocalTime.of(8, 0),
+            onDismiss = { pickTime = false },
+            onConfirm = { t ->
+                pickTime = false
+                onAnswer("%02d:%02d".format(t.hour, t.minute))
+            },
+        )
+    }
     val chevron by animateFloatAsState(if (expanded) 180f else 0f, tween(280), label = "qChevron")
     val border by animateColorAsState(
         if (expanded) MaterialTheme.colorScheme.primary else Color.Transparent, tween(250), label = "qBorder",
@@ -372,11 +390,39 @@ private fun QuestionCard(
                                 },
                             )
                         }
+                        if (question.timePick) {
+                            // An exact time the person picked themselves ("07:15"), shown as its own chip
+                            val custom = answer?.takeIf { it !in question.options && parseTime(it) != null }
+                            AnswerChip(
+                                text = custom?.let { "$it ✎" } ?: "Своё время…",
+                                on = custom != null,
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    pickTime = true
+                                },
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/** Hour and minute on the Material dial (24 h). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickDialog(title: String, initial: LocalTime, onDismiss: () -> Unit, onConfirm: (LocalTime) -> Unit) {
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+        text = { TimePicker(state = state) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) }) { Text("Готово") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+    )
 }
 
 @Composable

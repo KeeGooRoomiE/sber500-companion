@@ -18,6 +18,10 @@ data class ProfileQuestion(
     val freeText: Boolean = false,
     val multi: Boolean = false,
     val oneTime: Boolean = false,
+    /** Besides the ready-made options, «Своё время…» opens an hour/minute picker; stored as "HH:MM". */
+    val timePick: Boolean = false,
+    /** Where the picker starts when there is no answer yet. */
+    val defaultTime: LocalTime? = null,
 )
 
 object ProfileIds {
@@ -37,6 +41,10 @@ object ProfileIds {
 /** Stays on the phone; everything else is sent to the server as forecast context. */
 val LocalOnlyProfileIds = setOf(ProfileIds.NAME)
 
+// Declared before ProfileQuestions: top-level vals initialise in file order
+val DefaultMorningTime: LocalTime = LocalTime.of(7, 40)
+val DefaultEveningTime: LocalTime = LocalTime.of(20, 30)
+
 val ProfileQuestions = listOf(
     ProfileQuestion(ProfileIds.NAME, "Как к тебе обращаться?", "Имя остаётся на телефоне — только для приветствия", freeText = true),
     ProfileQuestion(
@@ -48,17 +56,31 @@ val ProfileQuestions = listOf(
         ProfileIds.TRIGGERS, "Что чаще всего выбивает из колеи?", "Можно несколько — на это я буду смотреть в первую очередь",
         listOf("Работа и звонки", "Недосып", "Погода", "Люди", "Нагрузка и спорт", "Ничего особенного"), multi = true, oneTime = true,
     ),
-    ProfileQuestion(ProfileIds.BEDTIME, "Во сколько обычно ложишься?", null, listOf("До 23:00", "23:00–00:00", "После полуночи", "По-разному"), oneTime = true),
-    ProfileQuestion(ProfileIds.WAKE, "Во сколько обычно встаёшь?", null, listOf("До 7:00", "7:00–8:00", "8:00–9:00", "Позже"), oneTime = true),
+    ProfileQuestion(
+        ProfileIds.BEDTIME, "Во сколько обычно ложишься?", null, listOf("До 23:00", "23:00–00:00", "После полуночи", "По-разному"),
+        oneTime = true, timePick = true, defaultTime = LocalTime.of(23, 30),
+    ),
+    ProfileQuestion(
+        ProfileIds.WAKE, "Во сколько обычно встаёшь?", null, listOf("До 7:00", "7:00–8:00", "8:00–9:00", "Позже"),
+        oneTime = true, timePick = true, defaultTime = LocalTime.of(7, 30),
+    ),
     ProfileQuestion(ProfileIds.WEARABLE, "Носишь часы или фитнес-браслет?", "С ними сон считается точнее", listOf("Да, каждый день", "Иногда", "Нет"), oneTime = true),
-    ProfileQuestion(ProfileIds.GOAL, "Что хочется понять или изменить?", null, listOf("Меньше телефона", "Лучше спать", "Меньше стресса", "Просто наблюдать"), oneTime = true),
-    ProfileQuestion(ProfileIds.MORNING_TIME, "Когда присылать утренний прогноз?", null, listOf("7:00", "7:40", "8:30", "9:30")),
-    ProfileQuestion(ProfileIds.EVENING_TIME, "Когда спрашивать, как прошёл день?", null, listOf("19:30", "20:30", "21:30", "22:30")),
+    ProfileQuestion(
+        ProfileIds.GOAL, "Что хочется понять или изменить?", "Можно несколько",
+        listOf("Меньше телефона", "Лучше спать", "Меньше стресса", "Больше движения", "Понять, что влияет на настроение", "Просто наблюдать"),
+        multi = true, oneTime = true,
+    ),
+    ProfileQuestion(
+        ProfileIds.MORNING_TIME, "Когда присылать утренний прогноз?", null, listOf("7:00", "7:40", "8:30", "9:30"),
+        timePick = true, defaultTime = DefaultMorningTime,
+    ),
+    ProfileQuestion(
+        ProfileIds.EVENING_TIME, "Когда спрашивать, как прошёл день?", null, listOf("19:30", "20:30", "21:30", "22:30"),
+        timePick = true, defaultTime = DefaultEveningTime,
+    ),
     ProfileQuestion(ProfileIds.TONE, "Как тебе удобнее, чтобы я говорил?", null, listOf("Мягко, с поддержкой", "Коротко и по делу")),
 )
 
-val DefaultMorningTime: LocalTime = LocalTime.of(7, 40)
-val DefaultEveningTime: LocalTime = LocalTime.of(20, 30)
 
 fun parseTime(value: String?): LocalTime? = value?.let {
     runCatching {

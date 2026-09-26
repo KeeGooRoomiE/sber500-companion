@@ -86,6 +86,11 @@ import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.motion.rememberReducedMotion
 import ru.keegoo.companion.ui.theme.AppShapes
 import ru.keegoo.companion.ui.theme.CompanionTheme
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.shrinkVertically
+import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
+import ru.keegoo.companion.ui.permissions.appInfoIntent
+import ru.keegoo.companion.ui.permissions.usageAccessIntent
 
 private val HEALTH_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(SleepSessionRecord::class),
@@ -162,10 +167,20 @@ fun OnboardingScreen(
         }
     }
 
-    // Usage access lives in system settings; we continue when the person comes back.
+    // Usage access lives in system settings. Back with access → next step. Back without it →
+    // most likely Android's «restricted settings» for sideloaded apps: show how to unlock it
+    // (or skip) instead of silently moving on without the main data source.
+    var usageBlocked by rememberSaveable { mutableStateOf(false) }
     val usageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { _ -> requestHealth() }
+    ) { _ ->
+        if (context.hasUsageAccess()) {
+            usageBlocked = false
+            requestHealth()
+        } else {
+            usageBlocked = true
+        }
+    }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -251,6 +266,40 @@ fun OnboardingScreen(
         Spacer(Modifier.weight(1f))
 
         AnimatedVisibility(
+            visible = usageBlocked && step == 1,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RestrictedSettingsSteps(
+                        content = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onOpenAppInfo = {
+                            try {
+                                context.startActivity(context.appInfoIntent())
+                            } catch (_: ActivityNotFoundException) {
+                                // no app-info screen on this build — the steps still explain the way
+                            }
+                        },
+                    )
+                    Text(
+                        text = "Пропустить — без этого доступа прогноз будет беднее",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .8f),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { usageBlocked = false; requestHealth() }
+                            .padding(vertical = 4.dp),
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
             visible = hcUnavailable && step == 2,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut(),
@@ -302,12 +351,18 @@ fun OnboardingScreen(
                         when (step) {
                             0 -> step = 1
                             1 -> if (context.hasUsageAccess()) {
+                                usageBlocked = false
                                 requestHealth()
                             } else {
+                                // Straight to our own switch where the phone supports it
                                 try {
-                                    usageLauncher.launch(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                    usageLauncher.launch(context.usageAccessIntent(direct = true))
                                 } catch (_: ActivityNotFoundException) {
-                                    requestHealth()
+                                    try {
+                                        usageLauncher.launch(context.usageAccessIntent(direct = false))
+                                    } catch (_: ActivityNotFoundException) {
+                                        requestHealth()
+                                    }
                                 }
                             }
                             2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
