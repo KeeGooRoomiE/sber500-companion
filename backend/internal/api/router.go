@@ -31,6 +31,7 @@ func Mount(r chi.Router, d Deps) {
 		checkin:   repo.NewCheckInRepo(d.DB),
 		morning:   repo.NewMorningRepo(d.DB),
 		activity:  repo.NewActivityRepo(d.DB),
+		feedback:  repo.NewFeedbackRepo(d.DB),
 		generator: d.Generator,
 		callLog:   d.CallLog,
 	}
@@ -65,7 +66,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Get("/history", h.History)
 			r.Post("/review/day", h.DayReview)
 			r.Post("/review/week", h.WeekReview)
-			r.Post("/feedback/weekly", h.WeeklyFeedback)
+			r.Post("/feedback", h.Feedback)
 		})
 	})
 }

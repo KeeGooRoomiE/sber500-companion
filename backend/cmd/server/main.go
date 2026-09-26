@@ -21,6 +21,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
@@ -44,7 +45,8 @@ func main() {
 	}
 	defer db.Close()
 
-	devUserIDs := splitCSV(os.Getenv("DEV_USER_IDS"))
+	// Test personas (internal/mock) are dev users too: out of metrics and call_log counts.
+	devUserIDs := append(splitCSV(os.Getenv("DEV_USER_IDS")), mock.IDs()...)
 	callLog := analytics.NewLogger(db, devUserIDs)
 	morningRepo := repo.NewMorningRepo(db)
 	llmClient := llm.NewClient()
@@ -80,7 +82,7 @@ func main() {
 	sched := scheduler.New(morningRepo, generator)
 	sched.Start(ctx)
 	go heartbeat(ctx, repo.NewActivityRepo(db))
-	admin.New(db, promptStore, llmClient, callLog).Start(ctx)
+	admin.New(db, promptStore, llmClient, callLog, devUserIDs).Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -103,6 +103,7 @@ func (r *MorningRepo) UsersToGenerate(ctx context.Context, date time.Time) ([]st
 		LEFT JOIN morning_messages m ON m.user_id = d.user_id AND m.date = $1
 		WHERE d.date BETWEEN $1::date - 2 AND $1::date - 1
 		  AND (m.id IS NULL OR (m.message = '' AND m.attempts < 3))
+		  AND d.user_id NOT LIKE 'mock\_%' -- test personas never burn the daily budget
 	`, date)
 	if err != nil {
 		return nil, err

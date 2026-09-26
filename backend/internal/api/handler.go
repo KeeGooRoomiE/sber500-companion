@@ -20,6 +20,7 @@ type Handler struct {
 	checkin   *repo.CheckInRepo
 	morning   *repo.MorningRepo
 	activity  *repo.ActivityRepo
+	feedback  *repo.FeedbackRepo
 	generator *forecast.Generator
 	callLog   *analytics.Logger
 }
@@ -213,24 +214,54 @@ func (h *Handler) MorningMessage(w http.ResponseWriter, r *http.Request) {
 	if sig == nil {
 		sig = []signals.Signal{}
 	}
+	verdict, err := h.feedback.Get(r.Context(), uid, "morning", today)
+	if err != nil {
+		slog.Warn("morning feedback", "err", err)
+	}
 	writeJSON(w, http.StatusOK, MorningMessageResponse{
-		Date:    msg.Date.Format("2006-01-02"),
-		Message: msg.Message,
-		Signals: sig,
+		Date:     msg.Date.Format("2006-01-02"),
+		Message:  msg.Message,
+		Signals:  sig,
+		Feedback: verdict,
 	})
 }
 
-// WeeklyFeedback stores user reaction to the weekly summary.
-func (h *Handler) WeeklyFeedback(w http.ResponseWriter, r *http.Request) {
-	var req WeeklyFeedbackRequest
+// Feedback stores «Совпало» / «Не совсем» for the morning forecast or a day / week review.
+// Only recent texts can be rated (forecasts: today and the two days before; reviews: 30 days).
+func (h *Handler) Feedback(w http.ResponseWriter, r *http.Request) {
+	var req FeedbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-
-	// TODO: persist to weekly_feedback table
-	_ = userIDFrom(r)
-	w.WriteHeader(http.StatusNoContent)
+	date, err := parseDate(req.Date)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid date")
+		return
+	}
+	today := clock.Today()
+	back := 30
+	if req.Kind == "morning" {
+		back = 2
+	}
+	kindOK := req.Kind == "morning" || req.Kind == "day" || req.Kind == "week"
+	if !kindOK || (req.Verdict != "hit" && req.Verdict != "miss") ||
+		date.After(today) || date.Before(today.AddDate(0, 0, -back)) {
+		writeError(w, http.StatusBadRequest, "bad kind, verdict or date")
+		return
+	}
+	uid := userIDFrom(r)
+	h.touch(r, uid)
+	err = h.feedback.Set(r.Context(), uid, req.Kind, date, req.Verdict)
+	switch {
+	case errors.Is(err, repo.ErrNothingToRate):
+		writeError(w, http.StatusNotFound, "nothing to rate")
+	case err != nil:
+		slog.Error("feedback", "user", uid, "err", err)
+		writeError(w, http.StatusInternalServerError, "db error")
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 // --- helpers ---

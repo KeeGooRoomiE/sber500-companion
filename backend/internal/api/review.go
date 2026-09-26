@@ -13,8 +13,9 @@ import (
 )
 
 type HistoryItem struct {
-	Date    string `json:"date"`
-	Message string `json:"message"`
+	Date     string `json:"date"`
+	Message  string `json:"message"`
+	Feedback string `json:"feedback"` // "" | "hit" | "miss"
 }
 
 type HistoryResponse struct {
@@ -30,8 +31,16 @@ func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := HistoryResponse{Items: make([]HistoryItem, 0, len(msgs))}
+	var verdicts map[string]string
+	if len(msgs) > 0 {
+		verdicts, err = h.feedback.Morning(r.Context(), userIDFrom(r), msgs[len(msgs)-1].Date, msgs[0].Date)
+		if err != nil {
+			slog.Warn("history feedback", "err", err)
+		}
+	}
 	for _, m := range msgs {
-		out.Items = append(out.Items, HistoryItem{Date: m.Date.Format("2006-01-02"), Message: m.Message})
+		d := m.Date.Format("2006-01-02")
+		out.Items = append(out.Items, HistoryItem{Date: d, Message: m.Message, Feedback: verdicts[d]})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -41,10 +50,11 @@ type DayReviewRequest struct {
 }
 
 type ReviewResponse struct {
-	Kind    string           `json:"kind"` // "day" | "week"
-	Date    string           `json:"date"`
-	Text    string           `json:"text"`
-	Signals []signals.Signal `json:"signals"`
+	Kind     string           `json:"kind"` // "day" | "week"
+	Date     string           `json:"date"`
+	Text     string           `json:"text"`
+	Signals  []signals.Signal `json:"signals"`
+	Feedback string           `json:"feedback"` // "" | "hit" | "miss"
 }
 
 // DayReview explains one day on request («Разбор дня»).
@@ -74,7 +84,8 @@ func (h *Handler) DayReview(w http.ResponseWriter, r *http.Request) {
 	if sig == nil {
 		sig = []signals.Signal{}
 	}
-	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "day", Date: date.Format("2006-01-02"), Text: rv.Text, Signals: sig})
+	verdict, _ := h.feedback.Get(r.Context(), uid, "day", date)
+	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "day", Date: date.Format("2006-01-02"), Text: rv.Text, Signals: sig, Feedback: verdict})
 }
 
 // WeekReview sums up the last 7 days on request («Итоги недели»).
@@ -85,7 +96,8 @@ func (h *Handler) WeekReview(w http.ResponseWriter, r *http.Request) {
 	if h.reviewError(w, uid, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "week", Date: rv.Date.Format("2006-01-02"), Text: rv.Text, Signals: []signals.Signal{}})
+	verdict, _ := h.feedback.Get(r.Context(), uid, "week", rv.Date)
+	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "week", Date: rv.Date.Format("2006-01-02"), Text: rv.Text, Signals: []signals.Signal{}, Feedback: verdict})
 }
 
 // reviewError maps generator errors to responses; true if a response was written.

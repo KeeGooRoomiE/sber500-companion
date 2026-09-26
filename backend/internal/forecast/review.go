@@ -19,14 +19,40 @@ import (
 var ErrBadDate = errors.New("date out of range")
 
 const (
-	reviewMaxBack   = 30        // days back a day review may look
-	todayRefresh    = time.Hour // a review of today is refreshed at most hourly
-	weeklyMinDays   = 3         // fewer days make a summary meaningless
-	dayReviewTokens = 260       // ≈450 characters in Russian
-	weeklyTokens    = 380       // ≈650 characters
-	dayReviewChars  = 480
-	weeklyChars     = 700
+	reviewMaxBack = 30        // days back a day review may look
+	todayRefresh  = time.Hour // a review of today is refreshed at most hourly
+	weeklyMinDays = 3         // fewer days make a summary meaningless
 )
+
+// Limits caps one on-demand text: model tokens and characters after trimming.
+type Limits struct{ Tokens, Chars int }
+
+var (
+	DayReviewLimits = Limits{Tokens: 260, Chars: 480} // ≈450 characters in Russian
+	WeeklyLimits    = Limits{Tokens: 380, Chars: 700} // ≈650 characters
+)
+
+// DaySignals explains the last day in `days` (oldest first) for this person.
+func DaySignals(days []*repo.DailyData, profile map[string]string) []signals.Signal {
+	return signals.ForLastDay(days, WorkApps(profile), llm.AppLabel)
+}
+
+// DayReviewPrompt builds the user prompt for «Разбор дня»; days end with the reviewed day.
+func DayReviewPrompt(days []*repo.DailyData, sig []signals.Signal, checkin *repo.CheckIn, profile map[string]string, partial bool) string {
+	return llm.BuildDayReview(llm.DayReviewInput{
+		Day: days[len(days)-1], Usual: days[:len(days)-1], CheckIn: checkin,
+		Signals: sig, Profile: profile, Partial: partial,
+	})
+}
+
+// WeeklyPrompt builds the user prompt for «Итоги недели» with per-day signals.
+func WeeklyPrompt(days []*repo.DailyData, checkins map[string]*repo.CheckIn, profile map[string]string) string {
+	perDay := map[string][]signals.Signal{}
+	for i := range days {
+		perDay[days[i].Date.Format("2006-01-02")] = DaySignals(days[:i+1], profile)
+	}
+	return llm.BuildWeekly(llm.WeeklyInput{Days: days, CheckIns: checkins, Signals: perDay, Profile: profile})
+}
 
 // DayReview explains one day on request (cached; today's is refreshed at most hourly).
 func (g *Generator) DayReview(ctx context.Context, userID string, date time.Time) (*repo.Review, []signals.Signal, error) {
@@ -48,7 +74,7 @@ func (g *Generator) DayReview(ctx context.Context, userID string, date time.Time
 	if err != nil {
 		return nil, nil, err
 	}
-	sig := signals.ForLastDay(days, WorkApps(profile), llm.AppLabel)
+	sig := DaySignals(days, profile)
 
 	cached, err := g.reviews.Get(ctx, userID, "day", date)
 	if err != nil {
@@ -62,11 +88,8 @@ func (g *Generator) DayReview(ctx context.Context, userID string, date time.Time
 	if err != nil {
 		return nil, nil, err
 	}
-	user := llm.BuildDayReview(llm.DayReviewInput{
-		Day: days[len(days)-1], Usual: days[:len(days)-1], CheckIn: checkins[date.Format("2006-01-02")],
-		Signals: sig, Profile: profile, Partial: date.Equal(today),
-	})
-	rv, err := g.complete(ctx, userID, prompts.DayReviewSystem, analytics.ComponentLLMDay, "day", date, user, dayReviewTokens, dayReviewChars)
+	user := DayReviewPrompt(days, sig, checkins[date.Format("2006-01-02")], profile, date.Equal(today))
+	rv, err := g.complete(ctx, userID, prompts.DayReviewSystem, analytics.ComponentLLMDay, "day", date, user, DayReviewLimits)
 	return rv, sig, err
 }
 
@@ -94,18 +117,13 @@ func (g *Generator) WeeklyReview(ctx context.Context, userID string) (*repo.Revi
 	if err != nil {
 		return nil, err
 	}
-	work := WorkApps(profile)
-	perDay := map[string][]signals.Signal{}
-	for i := range days {
-		perDay[days[i].Date.Format("2006-01-02")] = signals.ForLastDay(days[:i+1], work, llm.AppLabel)
-	}
-	user := llm.BuildWeekly(llm.WeeklyInput{Days: days, CheckIns: checkins, Signals: perDay, Profile: profile})
-	return g.complete(ctx, userID, prompts.WeeklySystem, analytics.ComponentLLMWeekly, "week", today, user, weeklyTokens, weeklyChars)
+	user := WeeklyPrompt(days, checkins, profile)
+	return g.complete(ctx, userID, prompts.WeeklySystem, analytics.ComponentLLMWeekly, "week", today, user, WeeklyLimits)
 }
 
 // complete runs one on-demand LLM text: budget → prompt → call → safety → log → save.
 func (g *Generator) complete(ctx context.Context, userID, promptName string, component analytics.Component,
-	kind string, date time.Time, user string, maxTokens, maxChars int) (*repo.Review, error) {
+	kind string, date time.Time, user string, lim Limits) (*repo.Review, error) {
 	if ok, err := g.withinBudget(ctx); err != nil {
 		return nil, err
 	} else if !ok {
@@ -117,7 +135,7 @@ func (g *Generator) complete(ctx context.Context, userID, promptName string, com
 	lctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 	start := time.Now()
-	res, err := g.llm.Complete(lctx, system, user, maxTokens, maxChars)
+	res, err := g.llm.Complete(lctx, system, user, lim.Tokens, lim.Chars)
 	if err == nil && !SafeOutput(res.Message) {
 		slog.Error("review: unsafe model output rejected", "user", userID, "kind", kind)
 		err = ErrUnsafeOutput

@@ -46,6 +46,12 @@ type MetricsResponse struct {
 	MorningDeliveredToday int      `json:"morning_delivered_today"`
 	CallsPerDAU           *float64 `json:"calls_per_dau"`
 
+	// «Совпало / Не совсем» under the morning forecast, last 30 days.
+	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.
+	ForecastAccuracyPct     *float64 `json:"forecast_accuracy_pct"`
+	ForecastRated30d        int      `json:"forecast_rated_30d"`
+	ForecastFeedbackRatePct *float64 `json:"forecast_feedback_rate_pct"`
+
 	// scenario_completed = morning received + evening check-in on the same day
 	ScenarioCompletedToday int `json:"scenario_completed_today"`
 	ScenarioCompletedTotal int `json:"scenario_completed_total"`
@@ -235,6 +241,22 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
 	out.CallsPerDAU = ratio(float64(callsToday), out.DAUToday, 1)
+
+	// Forecast accuracy from «Совпало / Не совсем» (30 days, dev users excluded)
+	var hits, rated, delivered30 int
+	if err := m.db.QueryRow(ctx, `
+		SELECT (SELECT count(*) FILTER (WHERE verdict = 'hit') FROM feedback
+		        WHERE kind = 'morning' AND date > $2::date - 30 AND NOT (user_id = ANY($1))),
+		       (SELECT count(*) FROM feedback
+		        WHERE kind = 'morning' AND date > $2::date - 30 AND NOT (user_id = ANY($1))),
+		       (SELECT count(*) FROM morning_messages
+		        WHERE sent_at IS NOT NULL AND date > $2::date - 30 AND NOT (user_id = ANY($1)))
+	`, devs, today).Scan(&hits, &rated, &delivered30); err != nil {
+		return nil, err
+	}
+	out.ForecastAccuracyPct = pct(hits, rated)
+	out.ForecastRated30d = rated
+	out.ForecastFeedbackRatePct = pct(rated, delivered30)
 
 	// LLM cost (tokens are stored per morning message — only successful calls have tokens)
 	var inTotal, outTotal, inToday, outToday int64

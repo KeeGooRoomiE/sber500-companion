@@ -93,44 +93,86 @@ func (c *Client) GenerateMorning(ctx context.Context, system string, in MorningI
 
 // appLabel resolves common package names to human-readable labels.
 var appLabel = map[string]string{
-	"com.instagram.android":        "Instagram",
-	"com.instagram.lite":           "Instagram Lite",
-	"com.google.android.youtube":   "YouTube",
-	"org.telegram.messenger":       "Telegram",
-	"org.telegram.messenger.web":   "Telegram",
-	"com.vkontakte.android":        "VK",
-	"ru.vk.superapp":               "VK",
-	"com.whatsapp":                 "WhatsApp",
-	"com.tiktok.android":           "TikTok",
-	"com.zhiliaoapp.musically":     "TikTok",
-	"com.twitter.android":          "Twitter/X",
-	"com.facebook.katana":          "Facebook",
-	"com.facebook.lite":            "Facebook Lite",
-	"com.snapchat.android":         "Snapchat",
-	"com.netflix.mediaclient":      "Netflix",
-	"ru.ok.android":                "OK",
-	"com.google.android.gm":        "Gmail",
-	"com.google.android.apps.maps": "Google Maps",
-	"ru.sberbank.android.main":     "СберБанк",
-	"ru.tinkoff.banking":           "Тинькофф",
-	"com.apple.android.music":      "Apple Music",
-	"com.spotify.music":            "Spotify",
-	"com.google.android.music":     "Google Music",
-	"com.android.chrome":           "Chrome",
-	"org.mozilla.firefox":          "Firefox",
-	"com.microsoft.teams":          "Teams",
-	"com.slack":                    "Slack",
-	"com.notion.id":                "Notion",
+	"com.instagram.android":            "Instagram",
+	"com.instagram.lite":               "Instagram Lite",
+	"com.google.android.youtube":       "YouTube",
+	"org.telegram.messenger":           "Telegram",
+	"org.telegram.messenger.web":       "Telegram",
+	"com.vkontakte.android":            "VK",
+	"ru.vk.superapp":                   "VK",
+	"com.whatsapp":                     "WhatsApp",
+	"com.tiktok.android":               "TikTok",
+	"com.zhiliaoapp.musically":         "TikTok",
+	"com.twitter.android":              "Twitter/X",
+	"com.facebook.katana":              "Facebook",
+	"com.facebook.lite":                "Facebook Lite",
+	"com.snapchat.android":             "Snapchat",
+	"com.netflix.mediaclient":          "Netflix",
+	"ru.ok.android":                    "OK",
+	"com.google.android.gm":            "Gmail",
+	"com.google.android.apps.maps":     "Google Maps",
+	"ru.sberbank.android.main":         "СберБанк",
+	"ru.tinkoff.banking":               "Тинькофф",
+	"com.apple.android.music":          "Apple Music",
+	"com.spotify.music":                "Spotify",
+	"com.google.android.music":         "Google Music",
+	"com.android.chrome":               "Chrome",
+	"org.mozilla.firefox":              "Firefox",
+	"com.microsoft.teams":              "Teams",
+	"com.slack":                        "Slack",
+	"com.notion.id":                    "Notion",
+	"com.google.android.chrome":        "Chrome",
+	"com.google.android.dialer":        "Телефон",
+	"com.android.dialer":               "Телефон",
+	"com.samsung.android.dialer":       "Телефон",
+	"com.samsung.android.incallui":     "Телефон",
+	"com.google.android.apps.meetings": "Google Meet",
+	"com.google.android.apps.docs":     "Google Docs",
+	"com.google.android.calendar":      "Google Календарь",
+	"us.zoom.videomeetings":            "Zoom",
+	"com.microsoft.office.outlook":     "Outlook",
+	"com.bitrix24.android":             "Битрикс24",
+	"com.atlassian.android.jira.core":  "Jira",
+	"ru.yandex.telemost":               "Телемост",
+	"ru.kontur.talk":                   "Контур.Толк",
+	"ru.sberbankmobile":                "СберБанк",
+	"com.idamob.tinkoff.android":       "Т-Банк",
+	"ru.yandex.searchplugin":           "Яндекс",
+	"ru.yandex.yandexmaps":             "Яндекс Карты",
+	"ru.yandex.taxi":                   "Яндекс Go",
+	"ru.yandex.music":                  "Яндекс Музыка",
+	"ru.yandex.mail":                   "Яндекс Почта",
+	"ru.ozon.app.android":              "Ozon",
+	"com.wildberries.ru":               "Wildberries",
+	"ru.avito.android":                 "Авито",
+	"com.vk.vkcompose":                 "VK",
+	"com.vk.vkvideo":                   "VK Видео",
+	"ru.rutube.app":                    "Rutube",
+	"ru.kinopoisk":                     "Кинопоиск",
+	"ru.mail.mailapp":                  "Почта Mail.ru",
+	"com.reddit.frontpage":             "Reddit",
+	"com.discord":                      "Discord",
+	"com.pinterest":                    "Pinterest",
+	"ru.oneme.app":                     "MAX",
+}
+
+// Package segments that say nothing about the app ("com.bitrix24.android" → "Bitrix24").
+var genericSegments = map[string]bool{
+	"com": true, "ru": true, "org": true, "net": true, "io": true, "me": true, "us": true, "app": true,
+	"apps": true, "android": true, "mobile": true, "client": true, "main": true, "lite": true,
+	"prod": true, "release": true, "google": true, "yandex": true,
 }
 
 func resolveAppName(pkg string) string {
 	if label, ok := appLabel[pkg]; ok {
 		return label
 	}
-	// strip com./ru./org. prefix for readability
+	// Unknown package: the last segment that actually names something, capitalised
 	parts := strings.Split(pkg, ".")
-	if len(parts) >= 2 {
-		return parts[len(parts)-1]
+	for i := len(parts) - 1; i >= 0; i-- {
+		if p := parts[i]; p != "" && !genericSegments[strings.ToLower(p)] {
+			return strings.ToUpper(p[:1]) + p[1:]
+		}
 	}
 	return pkg
 }
@@ -208,16 +250,22 @@ func buildPrompt(in MorningInput) string {
 	}
 
 	// detect declining sleep trend (days are chronological, oldest first)
-	decliningDays := 0
+	// A step counts only as a real drop (10+ min) and the streak must lose 45+ min in total,
+	// otherwise 7:21, 7:20, 7:05 reads as "sleep is falling" (found by the mock eval).
+	decliningDays, streakStart := 0, 0
 	for i := 1; i < len(days); i++ {
 		if days[i].SleepMin != nil && days[i-1].SleepMin != nil &&
-			*days[i].SleepMin < *days[i-1].SleepMin {
+			*days[i].SleepMin <= *days[i-1].SleepMin-10 {
+			if decliningDays == 0 {
+				streakStart = *days[i-1].SleepMin
+			}
 			decliningDays++
 		} else {
 			decliningDays = 0
 		}
 	}
-	if decliningDays >= 2 {
+	lastSleep := days[len(days)-1].SleepMin
+	if decliningDays >= 2 && lastSleep != nil && streakStart-*lastSleep >= 45 {
 		b.WriteString(fmt.Sprintf("⚠️ Сон снижается %d дня подряд — тон должен быть мягким.\n\n", decliningDays+1))
 	}
 

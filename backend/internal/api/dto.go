@@ -46,17 +46,19 @@ type CheckInRequest struct {
 	NoteText *string  `json:"note_text"`
 }
 
-type WeeklyFeedbackRequest struct {
-	WeekStart string `json:"week_start"` // "2006-01-02"
-	Feedback  string `json:"feedback"`   // "yes" | "no" | "partially"
+type FeedbackRequest struct {
+	Kind    string `json:"kind"`    // "morning" | "day" | "week"
+	Date    string `json:"date"`    // "2006-01-02" — the date of the rated text
+	Verdict string `json:"verdict"` // "hit" (Совпало) | "miss" (Не совсем)
 }
 
 // --- responses ---
 
 type MorningMessageResponse struct {
-	Date    string           `json:"date"`
-	Message string           `json:"message"`
-	Signals []signals.Signal `json:"signals"` // evidence for «Почему такой прогноз»
+	Date     string           `json:"date"`
+	Message  string           `json:"message"`
+	Signals  []signals.Signal `json:"signals"`  // evidence for «Почему такой прогноз»
+	Feedback string           `json:"feedback"` // "" | "hit" | "miss"
 }
 
 type ErrorResponse struct {

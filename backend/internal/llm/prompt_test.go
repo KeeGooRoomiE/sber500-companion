@@ -38,3 +38,38 @@ func TestBuildPromptProfile(t *testing.T) {
 		t.Error("context block without a profile")
 	}
 }
+
+func TestResolveAppName(t *testing.T) {
+	cases := map[string]string{
+		"org.telegram.messenger": "Telegram",
+		"com.bitrix24.android":   "Битрикс24",
+		"com.example.coolapp":    "Coolapp",
+		"ru.somebank.mobile.app": "Somebank",
+		"com.unknown.android":    "Unknown",
+		"single":                 "Single",
+	}
+	for pkg, want := range cases {
+		if got := resolveAppName(pkg); got != want {
+			t.Errorf("resolveAppName(%q) = %q, want %q", pkg, got, want)
+		}
+	}
+}
+
+func TestSleepTrendIgnoresNoise(t *testing.T) {
+	mk := func(sleep ...int) []*repo.DailyData {
+		var out []*repo.DailyData
+		for i, s := range sleep {
+			v := s
+			out = append(out, &repo.DailyData{Date: time.Date(2026, 9, 10+i, 0, 0, 0, 0, time.UTC), SleepMin: &v})
+		}
+		return out
+	}
+	// 7:21 → 7:20 → 7:05 → 6:55: small steps, 26 min in total — not a trend
+	if p := BuildMorningPrompt(MorningInput{Days: mk(441, 440, 425, 415)}); strings.Contains(p, "Сон снижается") {
+		t.Error("tiny drops must not be called a falling-sleep trend")
+	}
+	// 7:30 → 6:50 → 6:10 → 5:20: a real slide
+	if p := BuildMorningPrompt(MorningInput{Days: mk(450, 410, 370, 320)}); !strings.Contains(p, "Сон снижается 4 дня подряд") {
+		t.Error("a real 2h slide must be flagged")
+	}
+}
