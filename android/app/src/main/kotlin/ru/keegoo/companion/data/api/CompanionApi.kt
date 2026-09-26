@@ -7,6 +7,7 @@ import retrofit2.http.PUT
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.FeedbackRequest
+import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.CheckInRequest
@@ -35,6 +36,9 @@ interface CompanionApi {
 
     @POST("api/v1/review/week")
     suspend fun postWeekReview(): ReviewResponse
+
+    @GET("api/v1/version")
+    suspend fun getVersion(): VersionResponse
 
     @POST("api/v1/feedback")
     suspend fun postFeedback(@Body body: FeedbackRequest)

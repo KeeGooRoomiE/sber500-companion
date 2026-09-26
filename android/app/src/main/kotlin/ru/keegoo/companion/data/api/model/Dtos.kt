@@ -2,6 +2,12 @@ package ru.keegoo.companion.data.api.model
 
 import com.google.gson.annotations.SerializedName
 
+/** Newest released APK — the app compares it with its own version (in-app update prompt). */
+data class VersionResponse(
+    val latest: String,
+    @SerializedName("download_url") val downloadUrl: String,
+)
+
 data class PassiveDataRequest(
     val date: String,             // "2006-01-02"
     val screen_min: Int?,

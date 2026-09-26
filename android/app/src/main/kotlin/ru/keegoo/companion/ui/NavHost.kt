@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
@@ -28,6 +29,7 @@ import ru.keegoo.companion.ui.motion.CompanionBackdrop
 import ru.keegoo.companion.ui.motion.LocalBackdrop
 import ru.keegoo.companion.ui.onboarding.OnboardingScreen
 import ru.keegoo.companion.ui.profile.ProfileScreen
+import ru.keegoo.companion.ui.update.UpdateToast
 
 private const val ROUTE_ONBOARDING = "onboarding"
 private const val ROUTE_HOME = "home"
@@ -92,6 +94,8 @@ fun CompanionNavHost() {
                         }
                     }
                 }
+                // «Меня можно обновить» over every screen once the person is past onboarding
+                if (start) UpdateToast(Modifier.align(Alignment.BottomCenter))
             }
         }
     }

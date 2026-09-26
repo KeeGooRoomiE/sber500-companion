@@ -98,8 +98,8 @@ jobs:
       - name: Public smoke check
         continue-on-error: true
         run: |
-          curl -fsS -m 15 https://api.companion.keegooroomie.ru/health -o /dev/null -w "health %{http_code}\n" || echo "::warning::public /health not reachable"
-          curl -fsS -m 15 https://api.companion.keegooroomie.ru/api/v1/metrics | head -c 400; echo
+          curl -fsS -m 15 https://api.94-183-236-169.sslip.io/health -o /dev/null -w "health %{http_code}\n" || echo "::warning::public /health not reachable"
+          curl -fsS -m 15 https://api.94-183-236-169.sslip.io/api/v1/version | head -c 400; echo
 
       - name: Notify Telegram
         if: always()

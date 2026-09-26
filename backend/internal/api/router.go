@@ -45,6 +45,9 @@ func Mount(r chi.Router, d Deps) {
 
 		// Public, aggregate-only numbers for web/metrics.html (no auth, CORS enabled).
 		metricsH := NewMetrics(d.DB, d.DevUserIDs)
+		// Newest APK version for the in-app «Меня можно обновить» (public, cached 5 min).
+		r.Get("/version", Version)
+
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)
 

@@ -25,6 +25,25 @@ private val KEY_CHECKIN_TAGS = stringSetPreferencesKey("checkin_tags")
 
 private const val PROFILE_PREFIX = "profile_"
 
+// «Меня можно обновить» closed for this version on this date — asked again after a few days
+private val KEY_UPDATE_DISMISSED_VERSION = stringPreferencesKey("update_dismissed_version")
+private val KEY_UPDATE_DISMISSED_DATE = stringPreferencesKey("update_dismissed_date")
+
+/** The update toast was closed for [version] less than [days] days ago. */
+suspend fun Context.isUpdateDismissed(version: String, days: Long): Boolean {
+    val p = appPrefs.data.first()
+    if (p[KEY_UPDATE_DISMISSED_VERSION] != version) return false
+    val date = p[KEY_UPDATE_DISMISSED_DATE]?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return false
+    return date.plusDays(days).isAfter(LocalDate.now())
+}
+
+suspend fun Context.dismissUpdate(version: String) {
+    appPrefs.edit {
+        it[KEY_UPDATE_DISMISSED_VERSION] = version
+        it[KEY_UPDATE_DISMISSED_DATE] = LocalDate.now().toString()
+    }
+}
+
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false
 
 suspend fun Context.isBackfilled(): Boolean = appPrefs.data.first()[KEY_BACKFILLED] ?: false
