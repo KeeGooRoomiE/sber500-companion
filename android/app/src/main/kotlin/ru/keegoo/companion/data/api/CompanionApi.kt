@@ -10,6 +10,7 @@ import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.CheckInRequest
+import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 
@@ -40,4 +41,7 @@ interface CompanionApi {
 
     @GET("api/v1/morning")
     suspend fun getMorning(): MorningMessageResponse
+
+    @POST("api/v1/event")
+    suspend fun postEvent(@Body body: EventRequest)
 }

@@ -67,6 +67,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/review/day", h.DayReview)
 			r.Post("/review/week", h.WeekReview)
 			r.Post("/feedback", h.Feedback)
+			r.Post("/event", h.Event)
 		})
 	})
 }

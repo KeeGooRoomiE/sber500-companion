@@ -4,6 +4,7 @@ import android.util.Log
 import ru.keegoo.companion.data.api.CompanionApi
 import ru.keegoo.companion.data.api.model.AppUsageDto
 import ru.keegoo.companion.data.api.model.CheckInRequest
+import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
@@ -82,5 +83,9 @@ class CompanionRepository @Inject constructor(
 
     suspend fun getMorning(): Result<MorningMessageResponse> = runCatching {
         api.getMorning()
+    }
+
+    suspend fun postEvent(type: String): Result<Unit> = runCatching {
+        api.postEvent(EventRequest(type))
     }
 }

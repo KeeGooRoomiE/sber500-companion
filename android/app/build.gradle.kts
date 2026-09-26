@@ -22,13 +22,14 @@ android {
         debug {
             // 10.0.2.2 — localhost внутри Android-эмулятора
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
+            // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
-            // Replace with real key from AppMetrica dashboard when received
+            // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
     }

@@ -14,6 +14,7 @@ const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
 
 const val EXTRA_FEEL = "feel"
+const val EXTRA_NOTIF_SOURCE = "notif_source"
 const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 
 const val NOTIF_ID_MORNING = 1001
@@ -63,9 +64,11 @@ fun createNotificationChannels(context: Context) {
     )
 }
 
-private fun openAppIntent(context: Context): PendingIntent = PendingIntent.getActivity(
-    context, 0,
-    Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+private fun openAppIntent(context: Context, source: String): PendingIntent = PendingIntent.getActivity(
+    context, source.hashCode(),
+    Intent(context, MainActivity::class.java)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        .putExtra(EXTRA_NOTIF_SOURCE, source),
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
@@ -76,7 +79,7 @@ fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCo
         .setContentText(copy.body)
         .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        .setContentIntent(openAppIntent(context))
+        .setContentIntent(openAppIntent(context, "morning"))
         .setAutoCancel(true)
         .build()
 
@@ -101,7 +104,7 @@ fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCo
         .setContentTitle(copy.title)
         .setContentText(copy.body)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        .setContentIntent(openAppIntent(context))
+        .setContentIntent(openAppIntent(context, "checkin"))
         .setAutoCancel(true)
         .addAction(0, "😊 Отлично",   actionIntent("OK"))
         .addAction(0, "😐 Нормально", actionIntent("MEH"))

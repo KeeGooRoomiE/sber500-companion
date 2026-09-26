@@ -62,3 +62,5 @@ data class ReviewResponse(
     val signals: List<SignalDto>? = null,
     val feedback: String? = null,
 )
+
+data class EventRequest(val type: String)

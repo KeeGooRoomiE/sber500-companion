@@ -264,6 +264,28 @@ func (h *Handler) Feedback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Event logs a client-side event (e.g. notification_opened) to call_log.
+func (h *Handler) Event(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Type == "" {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	uid := userIDFrom(r)
+	h.callLog.Log(r.Context(), analytics.CallEvent{
+		UserID:      uid,
+		Timestamp:   time.Now(),
+		CallType:    analytics.CallTypeTool,
+		Component:   analytics.ComponentNotificationOpened,
+		Trigger:     analytics.TriggerUserAction,
+		UserVisible: false,
+		Result:      req.Type,
+	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- helpers ---
 
 // hours24 keeps an hourly series only if it is exactly 24 non-negative values.
