@@ -11,8 +11,25 @@ import (
 	"time"
 )
 
-// FallbackAppVersion is used only while GitHub can't be reached (and APP_LATEST_VERSION is unset).
-const FallbackAppVersion = "0.6.1"
+// FallbackAppVersion is the last resort when neither the version file nor GitHub is available.
+const FallbackAppVersion = "0.7.1"
+
+// versionFile is written by CI (release and deploy workflows) with the latest released version.
+// The VPS can't always reach api.github.com, so this is the primary source.
+func versionFile() string {
+	if p := os.Getenv("APP_LATEST_VERSION_FILE"); p != "" {
+		return p
+	}
+	return "/opt/companion/latest_version"
+}
+
+func fromFile() string {
+	b, err := os.ReadFile(versionFile())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.TrimSpace(string(b)), "v")
+}
 
 // DefaultDownloadURL is the landing's download section (it links the latest release APK).
 const DefaultDownloadURL = "https://keegooroomie.github.io/sber500-companion/#download"
@@ -68,9 +85,13 @@ func (l *latestRelease) get(ctx context.Context) string {
 }
 
 // Version tells the app whether a newer build exists. Public: no user data, no auth.
-// Order: APP_LATEST_VERSION (manual override) → latest GitHub release → FallbackAppVersion.
+// Order: APP_LATEST_VERSION (manual override) → the file CI writes → latest GitHub release →
+// FallbackAppVersion.
 func Version(w http.ResponseWriter, r *http.Request) {
 	latest := strings.TrimSpace(os.Getenv("APP_LATEST_VERSION"))
+	if latest == "" {
+		latest = fromFile()
+	}
 	if latest == "" {
 		latest = releases.get(r.Context())
 	}

@@ -114,3 +114,21 @@ jobs:
             -d chat_id="${TG_CHAT}" \
             -d disable_web_page_preview="true" \
             --data-urlencode "text=${MSG}"
+
+      - name: Tell the server the latest app version
+        # The VPS can't always reach api.github.com; /api/v1/version reads this file first.
+        continue-on-error: true
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          HOST=$(printf '%s' "$HOST" | tr -d '\r' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?DEPLOY_HOST[[:space:]]*=[[:space:]]*//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]//g')
+          KEY=$(printf '%s' "$KEY" | tr -d '\r' | sed -E '1s/^[[:space:]]*DEPLOY_SSH_KEY[[:space:]]*=[[:space:]]*//; 1s/^["'"'"']//; $s/["'"'"'][[:space:]]*$//')
+          [ -z "$KEY" ] || [ -z "$HOST" ] && { echo "no deploy secrets — skipping"; exit 0; }
+          VERSION=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)
+          [ -z "$VERSION" ] && { echo "no published release"; exit 0; }
+          mkdir -p ~/.ssh && printf '%s\n' "$KEY" > ~/.ssh/id_version && chmod 600 ~/.ssh/id_version
+          ssh-keyscan -T 10 "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          printf '%s\n' "${VERSION#v}" | ssh -i ~/.ssh/id_version "root@$HOST" 'cat > /opt/companion/latest_version && chmod 644 /opt/companion/latest_version'
+          echo "latest app version on the server: ${VERSION#v}"
