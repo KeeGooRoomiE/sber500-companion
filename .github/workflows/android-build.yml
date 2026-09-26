@@ -63,7 +63,8 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        # Release too: it is what ships (signing, R8 settings) — debug alone hid the 0.6.1–0.7.0 bug
+        run: gradle assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

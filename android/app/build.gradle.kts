@@ -20,8 +20,8 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.7.0"
+        versionCode = 13
+        versionName = "0.7.1"
     }
 
     signingConfigs {
@@ -44,7 +44,10 @@ android {
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
         }
         release {
-            isMinifyEnabled = true
+            // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
+            // {"a":…} to the server and parsed empty tokens → a registration storm, no forecasts).
+            // The APK is small; if minify ever comes back, proguard-rules.pro keeps the models.
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // TODO: вставить ключ из дашборда AppMetrica, когда будет получен

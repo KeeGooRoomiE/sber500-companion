@@ -65,7 +65,16 @@ class DeviceCredentials @Inject constructor(
         }
     }
 
-    private fun register(): String? = try {
+    // After a failed registration, wait before trying again: many requests at once must not turn
+    // one broken answer into dozens of new users on the server.
+    @Volatile private var lastFailure = 0L
+
+    private fun register(): String? {
+        if (System.currentTimeMillis() - lastFailure < RETRY_AFTER_MS) return null
+        return doRegister().also { if (it == null) lastFailure = System.currentTimeMillis() }
+    }
+
+    private fun doRegister(): String? = try {
         val body = Gson().toJson(RegisterRequest(deviceKey()))
         val request = Request.Builder()
             .url(BuildConfig.API_BASE_URL + "api/v1/register")
@@ -77,6 +86,12 @@ class DeviceCredentials @Inject constructor(
                 return null
             }
             val reg = Gson().fromJson(resp.body?.charStream(), RegisterResponse::class.java)
+            // Gson ignores Kotlin nullability: an answer it could not map has null fields
+            @Suppress("SENSELESS_COMPARISON")
+            if (reg == null || reg.token.isNullOrBlank() || reg.user_id.isNullOrBlank()) {
+                Log.w(TAG, "register: unreadable answer")
+                return null
+            }
             prefs.edit()
                 .putString(KEY_USER, reg.user_id)
                 .putString(KEY_TOKEN, reg.token)
@@ -107,6 +122,7 @@ class DeviceCredentials @Inject constructor(
         private const val KEY_TOKEN = "token"
         private const val KEY_RESTORE = "restore_pending"
         private const val KEY_HAD_TOKEN = "had_token"
+        private const val RETRY_AFTER_MS = 30_000L
     }
 }
 
