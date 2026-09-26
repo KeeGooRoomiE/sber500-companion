@@ -35,6 +35,8 @@ data class MorningMessageResponse(
     val date: String,
     val message: String,
     val signals: List<SignalDto>? = null,
+    /** "" | "hit" | "miss" — the person's «Совпало / Не совсем» for this forecast. */
+    val feedback: String? = null,
 )
 
 /** One thing that stood out yesterday, computed on the server from the data (evidence for the forecast). */
@@ -43,7 +45,10 @@ data class SignalDto(val key: String, val title: String, val detail: String, val
 /** Profile answers used as forecast context; the name is never included. */
 data class ProfileRequest(val answers: Map<String, String>)
 
-data class HistoryItem(val date: String, val message: String)
+data class HistoryItem(val date: String, val message: String, val feedback: String? = null)
+
+/** kind = "morning" | "day" | "week"; verdict = "hit" (Совпало) | "miss" (Не совсем). */
+data class FeedbackRequest(val kind: String, val date: String, val verdict: String)
 data class HistoryResponse(val items: List<HistoryItem>)
 
 /** date = "yyyy-MM-dd"; the server defaults to yesterday when null. */
@@ -55,4 +60,5 @@ data class ReviewResponse(
     val date: String,
     val text: String,
     val signals: List<SignalDto>? = null,
+    val feedback: String? = null,
 )

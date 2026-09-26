@@ -49,6 +49,10 @@ data class HomeUiState(
     val facts: List<ForecastFact> = emptyList(),
     /** Server-computed evidence for the LLM forecast: «что было заметно вчера». */
     val signals: List<SignalDto> = emptyList(),
+    /** Date of the server (LLM) forecast; null while only the local one is shown — nothing to rate. */
+    val forecastDate: String? = null,
+    /** «Совпало / Не совсем» for today's forecast: null, "hit" or "miss". */
+    val morningFeedback: String? = null,
     val screenMin: Int? = null,
     val sleepMin: Int? = null,
     val sleepLabel: String = "Сон",
@@ -75,6 +79,10 @@ data class ReviewUi(
     val text: String? = null,
     val signals: List<SignalDto> = emptyList(),
     val error: String? = null,
+    /** The reviewed date from the server — needed to rate the text. */
+    val date: String? = null,
+    /** «Похоже на правду?»: null, "hit" or "miss". */
+    val feedback: String? = null,
 )
 
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
@@ -130,7 +138,16 @@ class HomeViewModel @Inject constructor(
                 }
                 repository.getHistory().onSuccess { h -> _state.update { it.copy(history = h.items) } }
                 repository.getMorning()
-                    .onSuccess { resp -> _state.update { it.copy(forecast = resp.message, signals = resp.signals.orEmpty()) } }
+                    .onSuccess { resp ->
+                        _state.update {
+                            it.copy(
+                                forecast = resp.message,
+                                signals = resp.signals.orEmpty(),
+                                forecastDate = resp.date,
+                                morningFeedback = resp.feedback?.takeIf(String::isNotBlank),
+                            )
+                        }
+                    }
                 // Silently ignore failures — local forecast stays visible.
             }
         }
@@ -179,12 +196,39 @@ class HomeViewModel @Inject constructor(
                 val current = s.review ?: return@update s
                 s.copy(
                     review = result.fold(
-                        onSuccess = { r -> current.copy(loading = false, text = r.text, signals = r.signals.orEmpty()) },
+                        onSuccess = { r ->
+                            current.copy(
+                                loading = false, text = r.text, signals = r.signals.orEmpty(),
+                                date = r.date, feedback = r.feedback?.takeIf(String::isNotBlank),
+                            )
+                        },
                         onFailure = { e -> current.copy(loading = false, error = reviewErrorText(e)) },
                     )
                 )
             }
         }
+    }
+
+    /** «Совпало» / «Не совсем» under today's forecast. Optimistic: the mark shows at once. */
+    fun rateMorning(hit: Boolean) {
+        val date = _state.value.forecastDate ?: return
+        val verdict = if (hit) "hit" else "miss"
+        _state.update { s ->
+            s.copy(
+                morningFeedback = verdict,
+                history = s.history.map { h -> if (h.date == date) h.copy(feedback = verdict) else h },
+            )
+        }
+        viewModelScope.launch { repository.feedback("morning", date, hit) }
+    }
+
+    /** «Похоже на правду?» under a day / week review. */
+    fun rateReview(hit: Boolean) {
+        val review = _state.value.review ?: return
+        val date = review.date ?: return
+        _state.update { it.copy(review = review.copy(feedback = if (hit) "hit" else "miss")) }
+        val kind = if (review.kind == ReviewKind.Week) "week" else "day"
+        viewModelScope.launch { repository.feedback(kind, date, hit) }
     }
 
     private fun reviewErrorText(e: Throwable): String = when ((e as? HttpException)?.code()) {

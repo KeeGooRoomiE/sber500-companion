@@ -8,6 +8,7 @@ import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
+import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.domain.model.DailySnapshot
@@ -73,6 +74,11 @@ class CompanionRepository @Inject constructor(
     }
 
     suspend fun weekReview(): Result<ReviewResponse> = runCatching { api.postWeekReview() }
+
+    /** «Совпало / Не совсем»; a second call changes the answer. */
+    suspend fun feedback(kind: String, date: String, hit: Boolean): Result<Unit> = runCatching {
+        api.postFeedback(FeedbackRequest(kind, date, if (hit) "hit" else "miss"))
+    }
 
     suspend fun getMorning(): Result<MorningMessageResponse> = runCatching {
         api.getMorning()

@@ -85,6 +85,7 @@ import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.ui.home.CheckInSection
 import ru.keegoo.companion.ui.home.DayTimelineCard
+import ru.keegoo.companion.ui.home.FeedbackRow
 import ru.keegoo.companion.ui.home.HistorySection
 import ru.keegoo.companion.ui.home.ReviewSheet
 import ru.keegoo.companion.ui.home.ReviewUi
@@ -207,6 +208,7 @@ fun HomeScreen(
                                     clipInOverlayDuringTransition = OverlayClip(AppShapes.cardHero),
                                 ),
                                 state = state,
+                                onRate = vm::rateMorning,
                                 onOpenUsageAccess = {
                                     try {
                                         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -309,7 +311,9 @@ fun HomeScreen(
                 slideInVertically(tween(420, easing = EmphasizedDecelerate)) { it / 3 },
             exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { it / 4 },
         ) {
-            shownReview?.let { ReviewSheet(modifier = Modifier, review = it, onClose = vm::closeReview) }
+            shownReview?.let {
+                ReviewSheet(modifier = Modifier, review = it, onClose = vm::closeReview, onRate = vm::rateReview)
+            }
         }
     }
 }
@@ -413,6 +417,7 @@ private fun ShimmerBox(modifier: Modifier, baseColor: Color) {
 private fun MorningCard(
     modifier: Modifier,
     state: HomeUiState,
+    onRate: (Boolean) -> Unit,
     onOpenUsageAccess: () -> Unit,
 ) {
     var whyOpen by rememberSaveable { mutableStateOf(false) }
@@ -531,8 +536,22 @@ private fun MorningCard(
                 }
             }
         }
+
+        // By the afternoon the day is visible enough to say whether the forecast fit.
+        // Only the server forecast is rated — the local one is just today's numbers.
+        if (state.forecastDate != null && LocalTime.now().hour >= FeedbackFromHour) {
+            FeedbackRow(
+                question = "Совпало с днём?",
+                feedback = state.morningFeedback,
+                onRate = onRate,
+                text = Color.White.copy(alpha = .9f),
+                accent = Color.White,
+            )
+        }
     }
 }
+
+private const val FeedbackFromHour = 14
 
 @Composable
 private fun SignalRow(signal: SignalDto, modifier: Modifier = Modifier) {

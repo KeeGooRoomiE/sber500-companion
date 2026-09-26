@@ -1,7 +1,14 @@
 package ru.keegoo.companion.ui.home
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -37,6 +44,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -219,7 +228,19 @@ private fun HistoryPanel(item: HistoryItem) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(date, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = date,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            // The person's own verdict on that forecast
+            when (item.feedback) {
+                "hit" -> Text("совпало ✓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                "miss" -> Text("не совсем", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Text(
             text = item.message,
             style = MaterialTheme.typography.bodyMedium,
@@ -234,7 +255,7 @@ private fun HistoryPanel(item: HistoryItem) {
 
 /** The sheet for «Разбор дня» and «Итоги недели»: shimmer while the model writes, then text + evidence. */
 @Composable
-internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Unit) {
+internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Unit, onRate: (Boolean) -> Unit) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -302,7 +323,92 @@ internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Un
                     }
                 }
             }
+            if (review.text != null && review.date != null) {
+                key(review.kind, review.date) {
+                    FeedbackRow(
+                        question = "Похоже на правду?",
+                        feedback = review.feedback,
+                        onRate = onRate,
+                        text = MaterialTheme.colorScheme.onSurfaceVariant,
+                        accent = MaterialTheme.colorScheme.primary,
+                        foldAfterMs = null,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
         }
+    }
+}
+
+// ─── «Совпало / Не совсем» ────────────────────────────────────────────────────
+
+/**
+ * The person's verdict on a forecast or review — the accuracy metric and the signal for
+ * prompt changes. After a tap the chips turn into a thank-you; with [foldAfterMs] the row
+ * then folds away. A verdict given earlier (e.g. before the app was reopened) is not asked again.
+ */
+@Composable
+internal fun FeedbackRow(
+    question: String,
+    feedback: String?,
+    onRate: (Boolean) -> Unit,
+    text: Color,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    foldAfterMs: Long? = 4_000,
+) {
+    val ratedBefore = remember { feedback != null }
+    var visible by remember { mutableStateOf(!ratedBefore || foldAfterMs == null) }
+    LaunchedEffect(feedback) {
+        if (feedback != null && !ratedBefore && foldAfterMs != null) {
+            delay(foldAfterMs)
+            visible = false
+        }
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = expandVertically(spring(dampingRatio = 1f, stiffness = 400f)) + fadeIn(),
+        exit = shrinkVertically(tween(420)) + fadeOut(tween(300)),
+    ) {
+        AnimatedContent(
+            targetState = feedback,
+            transitionSpec = { fadeIn(tween(260, delayMillis = 80)) togetherWith fadeOut(tween(160)) },
+            label = "feedback",
+        ) { verdict ->
+            if (verdict == null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(question, style = MaterialTheme.typography.labelLarge, color = text, modifier = Modifier.weight(1f))
+                    FeedbackChip("Совпало", accent, filled = true) { onRate(true) }
+                    FeedbackChip("Не совсем", accent, filled = false) { onRate(false) }
+                }
+            } else {
+                Text(
+                    text = if (verdict == "hit") "Спасибо — учту ✓" else "Спасибо — разберусь, что было не так",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = text,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeedbackChip(label: String, accent: Color, filled: Boolean, onClick: () -> Unit) {
+    val view = LocalView.current
+    Box(
+        Modifier
+            .clip(AppShapes.button)
+            .background(if (filled) accent.copy(alpha = .18f) else Color.Transparent)
+            .border(1.dp, accent.copy(alpha = .7f), AppShapes.button)
+            .clickable {
+                view.confirmHaptic()
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = accent)
     }
 }
 
