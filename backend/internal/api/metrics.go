@@ -268,6 +268,8 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM morning_messages
 		    UNION ALL
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM reviews
+		    UNION ALL
+		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM explore_answers
 		) t WHERE NOT (user_id = ANY($1))
 	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
 		return nil, err

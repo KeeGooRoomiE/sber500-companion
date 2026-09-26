@@ -152,7 +152,7 @@ func Purge(ctx context.Context, db *pgxpool.Pool) error {
 }
 
 // Tables that reference users(id); order matters only for the final users delete.
-var userTables = []string{"feedback", "reviews", "morning_messages", "checkins", "daily_data", "user_activity", "weekly_feedback"}
+var userTables = []string{"explore_answers", "feedback", "reviews", "morning_messages", "checkins", "daily_data", "user_activity", "weekly_feedback"}
 
 func purge(ctx context.Context, tx pgx.Tx) error {
 	for _, t := range userTables {

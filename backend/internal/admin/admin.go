@@ -28,6 +28,7 @@ import (
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/explore"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
@@ -121,7 +122,8 @@ func (s *Server) auth(next http.Handler) http.Handler {
 
 // knownName limits the API to prompts the code actually uses.
 func knownName(name string) bool {
-	return name == prompts.MorningSystem || name == prompts.DayReviewSystem || name == prompts.WeeklySystem
+	return name == prompts.MorningSystem || name == prompts.DayReviewSystem || name == prompts.WeeklySystem ||
+		name == prompts.ExploreSystem
 }
 
 type listResponse struct {
@@ -268,6 +270,22 @@ func (s *Server) render(ctx context.Context, name, userID string) (*rendered, er
 		}
 		in := llm.MorningInput{Days: week, Last: last, Profile: profile, Signals: sig, First: len(days) <= 2}
 		return &rendered{user: llm.BuildMorningPrompt(in), signals: sig, morning: &in}, nil
+	case prompts.ExploreSystem:
+		// The most interesting question this person's month can answer (similar days first)
+		start := yesterday.AddDate(0, 0, -30)
+		month, err := s.daily.LastN(ctx, userID, 31, yesterday)
+		if err != nil {
+			return nil, err
+		}
+		checkins, err := s.checkin.Range(ctx, userID, start, yesterday)
+		if err != nil {
+			return nil, err
+		}
+		qs := explore.Build(explore.Input{Days: month, CheckIns: checkins, WorkApps: forecast.WorkApps(profile), LabelOf: llm.AppLabel})
+		if len(qs) == 0 {
+			return nil, forecast.ErrNoData
+		}
+		return &rendered{user: llm.BuildExplore(qs[0].Text, qs[0].Facts, profile), signals: sig, limits: forecast.ExploreLimits}, nil
 	case prompts.DayReviewSystem:
 		checkins, err := s.checkin.Range(ctx, userID, yesterday, yesterday)
 		if err != nil {
@@ -302,6 +320,9 @@ func (s *Server) run(ctx context.Context, name, system string, rd *rendered, out
 		res, err = s.llm.GenerateMorning(ctx, system, *rd.morning)
 	case prompts.DayReviewSystem:
 		component = analytics.ComponentLLMDay
+		res, err = s.llm.Complete(ctx, system, rd.user, rd.limits.Tokens, rd.limits.Chars)
+	case prompts.ExploreSystem:
+		component = analytics.ComponentLLMExplore
 		res, err = s.llm.Complete(ctx, system, rd.user, rd.limits.Tokens, rd.limits.Chars)
 	default:
 		component = analytics.ComponentLLMWeekly

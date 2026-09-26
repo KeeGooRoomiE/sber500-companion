@@ -330,3 +330,20 @@ func minutes(m int) string {
 		return fmt.Sprintf("%d ч %d м", m/60, m%60)
 	}
 }
+
+// Formatting shared with the explore package (same wording everywhere).
+
+// FormatMinutes renders 95 as "1 ч 35 м".
+func FormatMinutes(m int) string { return minutes(m) }
+
+// FormatCount renders 12400 as "12 400".
+func FormatCount(v int) string { return thousands(v) }
+
+// ClockMinutes parses "HH:MM" into minutes; times before 05:00 count as after midnight.
+func ClockMinutes(s *string) (int, bool) { return clock(s) }
+
+// FormatClock renders minutes (possibly past 24:00) as "HH:MM".
+func FormatClock(v int) string { return hhmm(v) }
+
+// IsWorkApp reports whether a package is a well-known work app (Slack, Zoom, Битрикс24…).
+func IsWorkApp(pkg string) bool { return knownWorkApps[pkg] != "" }
