@@ -50,7 +50,7 @@ def screen_hourly(total, unl):
     return out
 
 def day(offset, *, screen, unlocks, first, last, apps, sleep=None, bed=None, wake=None,
-        steps=None, feel=None, tags=None, weights=None, note=None):
+        steps=None, feel=None, tags=None, weights=None, note=None, step_weights=None):
     u = hourly(unlocks, first, last, weights)
     d = {"offset": offset, "screen_min": screen, "unlocks": unlocks,
          "first_unlock": first, "last_unlock": last,
@@ -59,7 +59,12 @@ def day(offset, *, screen, unlocks, first, last, apps, sleep=None, bed=None, wak
     if sleep is not None: d["sleep_min"] = sleep
     if bed: d["bedtime"] = bed
     if wake: d["wakeup"] = wake
-    if steps is not None: d["steps"] = steps
+    if steps is not None:
+        d["steps"] = steps
+        # Steps per hour over the waking day; commute-ish bumps at 8–9 and 18–19
+        sw = {8: 2.5, 9: 1.5, 13: 1.5, 18: 2.5, 19: 1.5}
+        sw.update(step_weights or {})
+        d["hourly_steps"] = hourly(steps, wake or first, last if hm(last) > hm("20:00") else "22:00", sw)
     if feel: d["feel"] = feel
     if tags: d["tags"] = tags
     if note: d["note"] = note
@@ -125,7 +130,7 @@ for off in range(-7, -1):
         feel=random.choice(["ok", "meh"])))
 d.append(day(-1, screen=115, unlocks=34, first="08:05", last="22:30",
     apps=[("org.telegram.messenger", 30), ("ru.yandex.yandexmaps", 20), ("com.spotify.music", 18), ("com.instagram.android", 12)],
-    sleep=505, bed="22:50", wake="07:15", steps=11200, feel="ok", tags=["Прогулка"],
+    sleep=505, bed="22:50", wake="07:15", steps=11200, feel="ok", tags=["Прогулка"], step_weights={11: 12},
     note="Выходной без спешки: выспался, час гулял без телефона, вечером музыка"))
 personas.append({"id": "mock_calm", "title": "Спокойный день: выспался, утро без телефона, мало экрана",
     "profile": {"work_place": "По-разному", "wearable": "Да, каждый день", "goal": "Меньше стресса", "tone": "Мягко, с поддержкой"},
@@ -141,7 +146,7 @@ for off in range(-7, -1):
         feel=random.choice(["ok", "meh"])))
 d.append(day(-1, screen=320, unlocks=104, first="07:14", last="00:45",
     apps=[("org.telegram.messenger", 150), ("com.bitrix24.android", 60), ("com.google.android.youtube", 30), ("com.instagram.android", 15)],
-    sleep=375, bed="00:55", wake="07:10", steps=2100, feel="hard",
+    sleep=375, bed="00:55", wake="07:10", steps=2100, feel="hard", step_weights={7: 0.01, 8: 0.01, 9: 0.01, 10: 0.01, 11: 0.01},
     note="Чаты с командой с утра до ночи, в Telegram по работе; лёг поздно, встал по будильнику",
     weights={9: 2, 10: 3, 11: 3, 12: 2, 13: 2, 14: 3, 15: 3, 16: 3, 17: 2, 23: 2, 0: 2}))
 personas.append({"id": "mock_remote", "title": "Удалёнщик: Telegram рабочий, вчера чаты весь день и до ночи",

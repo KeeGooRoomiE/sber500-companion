@@ -66,6 +66,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Get("/morning", h.MorningMessage)
 			r.Post("/ping", h.Ping)
 			r.Put("/profile", h.PutProfile)
+			r.Get("/profile", h.GetProfile)
 			r.Get("/history", h.History)
 			r.Post("/review/day", h.DayReview)
 			r.Post("/review/week", h.WeekReview)

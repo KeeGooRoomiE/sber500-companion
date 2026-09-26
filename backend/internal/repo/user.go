@@ -25,19 +25,41 @@ type UserRepo struct{ db *pgxpool.Pool }
 
 func NewUserRepo(db *pgxpool.Pool) *UserRepo { return &UserRepo{db: db} }
 
-// Register creates a user with a random id and returns (id, token). Only the token's
-// hash is stored; the token itself is shown once.
-func (r *UserRepo) Register(ctx context.Context) (string, string, error) {
-	id, err := randomString(16)
-	if err != nil {
-		return "", "", err
-	}
+// Register returns (id, token, returning). With a device key the phone keeps its identity across
+// reinstalls: a known key gets a fresh token for the same user (the old token stops working).
+// Only hashes are stored; the token itself is shown once.
+func (r *UserRepo) Register(ctx context.Context, deviceKey string) (string, string, bool, error) {
 	token, err := randomString(32)
 	if err != nil {
-		return "", "", err
+		return "", "", false, err
 	}
-	_, err = r.db.Exec(ctx, `INSERT INTO users (id, token_hash) VALUES ($1, $2)`, "u_"+id, HashToken(token))
-	return "u_" + id, token, err
+	var deviceHash *string
+	if deviceKey != "" {
+		h := HashToken("device:" + deviceKey)
+		deviceHash = &h
+		var id string
+		err := r.db.QueryRow(ctx, `
+			UPDATE users SET token_hash = $2, last_seen = NOW() WHERE device_hash = $1 RETURNING id
+		`, h, HashToken(token)).Scan(&id)
+		if err == nil {
+			return id, token, true, nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return "", "", false, err
+		}
+	}
+	id, err := randomString(16)
+	if err != nil {
+		return "", "", false, err
+	}
+	// ON CONFLICT: two first launches racing with the same key — the second one takes over.
+	err = r.db.QueryRow(ctx, `
+		INSERT INTO users (id, token_hash, device_hash) VALUES ($1, $2, $3)
+		ON CONFLICT (device_hash) WHERE device_hash IS NOT NULL
+		DO UPDATE SET token_hash = EXCLUDED.token_hash, last_seen = NOW()
+		RETURNING id
+	`, "u_"+id, HashToken(token), deviceHash).Scan(&id)
+	return id, token, false, err
 }
 
 // ByToken resolves a bearer token to a user id and bumps last_seen. ok=false if unknown.

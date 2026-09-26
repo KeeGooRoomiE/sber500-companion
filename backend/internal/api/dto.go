@@ -23,6 +23,7 @@ type PassiveDataRequest struct {
 	FCMToken       *string       `json:"fcm_token"`
 	HourlyUnlocks  []int         `json:"hourly_unlocks"` // 24 values, local hours
 	HourlyScreen   []int         `json:"hourly_screen"`  // minutes per local hour
+	HourlySteps    []int         `json:"hourly_steps"`   // Health Connect steps per local hour
 }
 
 type AppUsageDTO struct {

@@ -26,6 +26,20 @@ type ProfileRequest struct {
 	Answers map[string]string `json:"answers"`
 }
 
+// GetProfile returns the stored answers — a reinstalled app restores «Расскажи о себе» from here.
+func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	p, err := h.users.Profile(r.Context(), userIDFrom(r))
+	if err != nil {
+		slog.Error("profile read", "err", err)
+		writeError(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	if p == nil {
+		p = map[string]string{}
+	}
+	writeJSON(w, http.StatusOK, ProfileRequest{Answers: p})
+}
+
 // PutProfile stores the answers used as context for the forecast. Unknown keys are dropped.
 func (h *Handler) PutProfile(w http.ResponseWriter, r *http.Request) {
 	var req ProfileRequest

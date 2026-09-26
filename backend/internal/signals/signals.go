@@ -122,6 +122,38 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		}
 	}
 
+	// Movement vs the person's norm. Steps come from Health Connect — most phones count them
+	// even without a watch. 0 means "no data" (no Health Connect), not "didn't move".
+	stepsOf := func(x *repo.DailyData) (float64, bool) {
+		if x.Steps == nil || *x.Steps <= 0 {
+			return 0, false
+		}
+		return float64(*x.Steps), true
+	}
+	if st, ok := stepsOf(d); ok {
+		usual, n := avg(base, stepsOf)
+		switch {
+		case n >= 2 && usual >= 3000 && st <= usual*0.5:
+			add(Signal{Key: "low_move", Title: "Мало движения", Detail: fmt.Sprintf("%s шагов — обычно %s", thousands(int(st)), thousands(round(usual))), strength: usual / math.Max(st, 1)})
+		case n >= 2 && st >= 8000 && st >= usual*1.5:
+			add(Signal{Key: "active_day", Title: "Много движения", Detail: fmt.Sprintf("%s шагов — обычно %s", thousands(int(st)), thousands(round(usual))), Positive: true, strength: st / math.Max(usual, 1)})
+		}
+	}
+	// A walk: one hour with 2000+ steps (≈15–20 minutes of walking)
+	if h, v := peakHour(d.HourlySteps); v >= 2000 {
+		add(Signal{Key: "walk", Title: "Была прогулка", Detail: fmt.Sprintf("%s шагов с %02d до %02d", thousands(v), h, (h+1)%24), Positive: true, strength: float64(v) / 2000})
+	}
+	// A still morning: almost no steps before noon when usually there are some
+	if m, ok := sumHours(d.HourlySteps, 6, 12); ok {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+			v, ok := sumHours(x.HourlySteps, 6, 12)
+			return float64(v), ok
+		})
+		if n >= 2 && usual >= 1000 && m < 300 {
+			add(Signal{Key: "still_morning", Title: "Утро без движения", Detail: fmt.Sprintf("до полудня %d шагов — обычно %s", m, thousands(round(usual))), strength: usual / 1000})
+		}
+	}
+
 	// Phone right after waking up (or not)
 	if w, ok1 := clock(d.Wakeup); ok1 {
 		if f, ok2 := clock(d.FirstUnlock); ok2 && f >= w {
@@ -255,6 +287,36 @@ func clock(s *string) (int, bool) {
 }
 
 func hhmm(v int) string { return fmt.Sprintf("%02d:%02d", (v/60)%24, v%60) }
+
+// peakHour returns the hour with the most steps and its value (0 if no series).
+func peakHour(h []int) (int, int) {
+	if len(h) != 24 {
+		return 0, 0
+	}
+	best := 0
+	for i, v := range h {
+		if v > h[best] {
+			best = i
+		}
+	}
+	return best, h[best]
+}
+
+// thousands formats 7240 as "7 240" (Russian style, thin no-break space).
+func thousands(v int) string {
+	s := strconv.Itoa(v)
+	if len(s) <= 4 {
+		return s
+	}
+	var b strings.Builder
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteRune('\u202f')
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
+}
 
 func round(v float64) int { return int(math.Round(v)) }
 

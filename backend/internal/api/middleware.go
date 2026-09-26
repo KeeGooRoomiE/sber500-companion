@@ -45,21 +45,39 @@ func userIDFrom(r *http.Request) string {
 	return v
 }
 
+type RegisterRequest struct {
+	// Hash of the app's per-device id (survives reinstall). Optional: without it the
+	// phone always gets a new identity, like before.
+	DeviceKey string `json:"device_key"`
+}
+
 type RegisterResponse struct {
-	UserID string `json:"user_id"`
-	Token  string `json:"token"`
+	UserID    string `json:"user_id"`
+	Token     string `json:"token"`
+	Returning bool   `json:"returning"` // we know this phone: old data, forecasts and answers are back
 }
 
 // Register issues a new device identity. Rate-limited per IP in the router.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	uid, token, err := h.users.Register(r.Context())
+	var req RegisterRequest
+	if r.ContentLength != 0 {
+		_ = json.NewDecoder(r.Body).Decode(&req) // old apps send an empty body
+	}
+	key := strings.TrimSpace(req.DeviceKey)
+	if len(key) < 32 || len(key) > 128 {
+		key = "" // not a hash — ignore rather than trust
+	}
+	uid, token, returning, err := h.users.Register(r.Context(), key)
 	if err != nil {
 		slog.Error("register", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")
 		return
 	}
+	if returning {
+		slog.Info("register: returning device", "user", uid)
+	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusCreated, RegisterResponse{UserID: uid, Token: token})
+	writeJSON(w, http.StatusCreated, RegisterResponse{UserID: uid, Token: token, Returning: returning})
 }
 
 // rateLimited answers in the API's JSON error shape.

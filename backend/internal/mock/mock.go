@@ -47,6 +47,7 @@ type Day struct {
 	TopApps       []repo.AppUsage `json:"top_apps"`
 	HourlyUnlocks []int           `json:"hourly_unlocks"`
 	HourlyScreen  []int           `json:"hourly_screen"`
+	HourlySteps   []int           `json:"hourly_steps"`
 	Feel          string          `json:"feel"` // evening check-in; "" = none
 	Tags          []string        `json:"tags"`
 	Note          string          `json:"note"` // what really happened — for the reviewer, never seeded
@@ -118,10 +119,11 @@ func Seed(ctx context.Context, db *pgxpool.Pool, today time.Time) ([]Persona, er
 			apps, _ := json.Marshal(d.TopApps)
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO daily_data (user_id, date, sleep_min, bedtime, wakeup, steps, screen_min, unlocks,
-				                        first_unlock, last_unlock, top_apps, hourly_unlocks, hourly_screen)
-				VALUES ($1, $2, $3, $4::time, $5::time, $6, $7, $8, $9::time, $10::time, $11, $12, $13)
+				                        first_unlock, last_unlock, top_apps, hourly_unlocks, hourly_screen,
+				                        hourly_steps)
+				VALUES ($1, $2, $3, $4::time, $5::time, $6, $7, $8, $9::time, $10::time, $11, $12, $13, $14)
 			`, p.ID, date, d.SleepMin, d.Bedtime, d.Wakeup, d.Steps, d.ScreenMin, d.Unlocks,
-				d.FirstUnlock, d.LastUnlock, apps, d.HourlyUnlocks, d.HourlyScreen); err != nil {
+				d.FirstUnlock, d.LastUnlock, apps, d.HourlyUnlocks, d.HourlyScreen, d.HourlySteps); err != nil {
 				return nil, fmt.Errorf("%s %s: %w", p.ID, date.Format("2006-01-02"), err)
 			}
 			if d.Feel != "" {

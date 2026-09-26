@@ -83,6 +83,7 @@ func (h *Handler) PassiveData(w http.ResponseWriter, r *http.Request) {
 		BatteryMorning: req.BatteryMorning,
 		HourlyUnlocks:  hours24(req.HourlyUnlocks),
 		HourlyScreen:   hours24(req.HourlyScreen),
+		HourlySteps:    hours24(req.HourlySteps),
 	}); err != nil {
 		slog.Error("daily upsert", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")
