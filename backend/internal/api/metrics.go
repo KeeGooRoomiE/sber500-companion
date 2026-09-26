@@ -61,7 +61,6 @@ type MetricsResponse struct {
 	P50LatencyMs     *float64 `json:"p50_latency_ms"`
 	P95LatencyMs     *float64 `json:"p95_latency_ms"`
 	ErrorRatePct     *float64 `json:"error_rate_pct"`
-	LLMLastErrorCode *string  `json:"llm_last_error_code"`
 	Uptime24hPct     *float64 `json:"uptime_24h_pct"`
 }
 
@@ -266,16 +265,13 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
 		       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
 		       count(*) FILTER (WHERE result = 'error'),
-		       count(*),
-		       (SELECT error_code FROM call_log
-		        WHERE call_type = 'llm' AND result = 'error'
-		        ORDER BY ts DESC LIMIT 1)
+		       count(*)
 		FROM call_log
 		WHERE call_type = 'llm' AND ts >= GREATEST(
 		    now() - interval '24 hours',
 		    COALESCE((SELECT max(ts) FROM call_log WHERE component = 'errors_reset'), now() - interval '24 hours')
 		)
-	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24, &out.LLMLastErrorCode); err != nil {
+	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24); err != nil {
 		return nil, err
 	}
 	out.P50LatencyMs, out.P95LatencyMs = roundPtr(p50), roundPtr(p95)
