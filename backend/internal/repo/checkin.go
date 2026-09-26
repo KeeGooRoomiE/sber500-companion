@@ -45,3 +45,24 @@ func (r *CheckInRepo) Latest(ctx context.Context, userID string) (*CheckIn, erro
 	}
 	return c, nil
 }
+
+// Range returns check-ins in [from, to] keyed by date ("2006-01-02").
+func (r *CheckInRepo) Range(ctx context.Context, userID string, from, to time.Time) (map[string]*CheckIn, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT user_id, date, day_feel, tags, note_text FROM checkins
+		WHERE user_id = $1 AND date BETWEEN $2 AND $3
+	`, userID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]*CheckIn{}
+	for rows.Next() {
+		c := &CheckIn{}
+		if err := rows.Scan(&c.UserID, &c.Date, &c.DayFeel, &c.Tags, &c.NoteText); err != nil {
+			return nil, err
+		}
+		out[c.Date.Format("2006-01-02")] = c
+	}
+	return out, rows.Err()
+}

@@ -242,7 +242,11 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		SELECT coalesce(sum(prompt_tokens), 0), coalesce(sum(completion_tokens), 0),
 		       coalesce(sum(prompt_tokens)    FILTER (WHERE created_at >= $2), 0),
 		       coalesce(sum(completion_tokens) FILTER (WHERE created_at >= $2), 0)
-		FROM morning_messages WHERE NOT (user_id = ANY($1))
+		FROM (
+		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM morning_messages
+		    UNION ALL
+		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM reviews
+		) t WHERE NOT (user_id = ANY($1))
 	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
 		return nil, err
 	}

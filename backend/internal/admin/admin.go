@@ -110,7 +110,9 @@ func (s *Server) auth(next http.Handler) http.Handler {
 }
 
 // knownName limits the API to prompts the code actually uses.
-func knownName(name string) bool { return name == prompts.MorningSystem }
+func knownName(name string) bool {
+	return name == prompts.MorningSystem || name == prompts.DayReviewSystem || name == prompts.WeeklySystem
+}
 
 type listResponse struct {
 	Name          string           `json:"name"`
@@ -219,7 +221,8 @@ type previewResponse struct {
 func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	var req previewRequest
-	if !knownName(name) || json.NewDecoder(r.Body).Decode(&req) != nil || req.UserID == "" {
+	// Preview renders the morning prompt; review prompts are checked in the app itself
+	if name != prompts.MorningSystem || json.NewDecoder(r.Body).Decode(&req) != nil || req.UserID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "need user_id"})
 		return
 	}

@@ -42,3 +42,17 @@ data class SignalDto(val key: String, val title: String, val detail: String, val
 
 /** Profile answers used as forecast context; the name is never included. */
 data class ProfileRequest(val answers: Map<String, String>)
+
+data class HistoryItem(val date: String, val message: String)
+data class HistoryResponse(val items: List<HistoryItem>)
+
+/** date = "yyyy-MM-dd"; the server defaults to yesterday when null. */
+data class DayReviewRequest(val date: String? = null)
+
+/** «Разбор дня» / «Итоги недели» — an on-demand LLM text. */
+data class ReviewResponse(
+    val kind: String,
+    val date: String,
+    val text: String,
+    val signals: List<SignalDto>? = null,
+)

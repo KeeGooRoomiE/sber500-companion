@@ -119,3 +119,25 @@ func (r *MorningRepo) UsersToGenerate(ctx context.Context, date time.Time) ([]st
 	}
 	return ids, rows.Err()
 }
+
+// History returns the user's delivered morning messages, newest first.
+func (r *MorningRepo) History(ctx context.Context, userID string, limit int) ([]MorningMessage, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT date, message FROM morning_messages
+		WHERE user_id = $1 AND message <> ''
+		ORDER BY date DESC LIMIT $2
+	`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []MorningMessage
+	for rows.Next() {
+		m := MorningMessage{UserID: userID}
+		if err := rows.Scan(&m.Date, &m.Message); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}

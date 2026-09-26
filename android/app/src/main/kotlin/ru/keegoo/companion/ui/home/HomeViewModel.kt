@@ -21,7 +21,10 @@ import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
+import ru.keegoo.companion.data.api.model.HistoryItem
+import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.SignalDto
+import retrofit2.HttpException
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.domain.forecast.buildLocalForecast
@@ -55,6 +58,23 @@ data class HomeUiState(
     val tags: Set<String> = emptySet(),
     val name: String? = null,
     val unansweredQuestions: Int = 0,
+    /** Today's screen minutes per hour — the day timeline. */
+    val hourlyScreen: List<Int>? = null,
+    /** Past morning forecasts, newest first (panels at the bottom). */
+    val history: List<HistoryItem> = emptyList(),
+    /** The open «Разбор дня» / «Итоги недели» sheet, if any. */
+    val review: ReviewUi? = null,
+)
+
+enum class ReviewKind { Day, Week }
+
+data class ReviewUi(
+    val kind: ReviewKind,
+    val title: String,
+    val loading: Boolean = true,
+    val text: String? = null,
+    val signals: List<SignalDto> = emptyList(),
+    val error: String? = null,
 )
 
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
@@ -108,6 +128,7 @@ class HomeViewModel @Inject constructor(
                 if (context.hasUsageAccess() && !context.isBackfilled()) {
                     DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 15_000)
                 }
+                repository.getHistory().onSuccess { h -> _state.update { it.copy(history = h.items) } }
                 repository.getMorning()
                     .onSuccess { resp -> _state.update { it.copy(forecast = resp.message, signals = resp.signals.orEmpty()) } }
                 // Silently ignore failures — local forecast stays visible.
@@ -126,6 +147,50 @@ class HomeViewModel @Inject constructor(
             delay(1_000)
             if (repository.putProfile(forServer).isSuccess) lastSentProfile = forServer
         }
+    }
+
+    private var reviewJob: Job? = null
+
+    /** «Разбор дня»: yesterday by default, or today while it's still going. */
+    fun openDayReview(date: LocalDate) {
+        val today = LocalDate.now()
+        val title = when (date) {
+            today -> "Разбор сегодняшнего дня"
+            today.minusDays(1) -> "Разбор вчерашнего дня"
+            else -> "Разбор дня"
+        }
+        runReview(ReviewUi(ReviewKind.Day, title)) { repository.dayReview(date) }
+    }
+
+    /** «Итоги недели»: the last 7 days summed up. */
+    fun openWeekReview() = runReview(ReviewUi(ReviewKind.Week, "Итоги недели")) { repository.weekReview() }
+
+    fun closeReview() {
+        reviewJob?.cancel()
+        _state.update { it.copy(review = null) }
+    }
+
+    private fun runReview(initial: ReviewUi, call: suspend () -> Result<ReviewResponse>) {
+        reviewJob?.cancel()
+        _state.update { it.copy(review = initial) }
+        reviewJob = viewModelScope.launch {
+            val result = call()
+            _state.update { s ->
+                val current = s.review ?: return@update s
+                s.copy(
+                    review = result.fold(
+                        onSuccess = { r -> current.copy(loading = false, text = r.text, signals = r.signals.orEmpty()) },
+                        onFailure = { e -> current.copy(loading = false, error = reviewErrorText(e)) },
+                    )
+                )
+            }
+        }
+    }
+
+    private fun reviewErrorText(e: Throwable): String = when ((e as? HttpException)?.code()) {
+        404 -> "Пока мало данных для разбора — загляни через день-другой."
+        429 -> "На сегодня разборов достаточно — завтра можно снова."
+        else -> "Не получилось связаться с сервером. Попробуй чуть позже."
     }
 
     fun onCheckIn(feel: DayFeel) {
@@ -167,6 +232,7 @@ private fun HomeUiState.withData(d: TodayData): HomeUiState {
         unlocks = d.unlocks,
         sleepMin = d.sleepMin,
         sleepLabel = if (phoneFree) "Без телефона" else "Сон",
+        hourlyScreen = d.hourlyScreen,
         details = mapOf(
             StatKind.Screen to StatDetail(
                 d.weekScreen,

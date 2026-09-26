@@ -25,6 +25,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,7 +49,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,14 +81,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import ru.keegoo.companion.BuildConfig
 import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
-import ru.keegoo.companion.notifications.EveningCopies
-import ru.keegoo.companion.notifications.MorningCopies
-import ru.keegoo.companion.notifications.showCheckinNotification
-import ru.keegoo.companion.notifications.showMorningNotification
 import ru.keegoo.companion.ui.home.CheckInSection
+import ru.keegoo.companion.ui.home.DayTimelineCard
+import ru.keegoo.companion.ui.home.HistorySection
+import ru.keegoo.companion.ui.home.ReviewSheet
+import ru.keegoo.companion.ui.home.ReviewUi
 import ru.keegoo.companion.ui.home.HomeUiState
 import ru.keegoo.companion.ui.home.HomeViewModel
 import ru.keegoo.companion.ui.home.StatKind
@@ -104,9 +103,10 @@ import ru.keegoo.companion.ui.motion.OrbMode
 import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
 import ru.keegoo.companion.ui.theme.Primary
+import java.time.LocalDate
 import java.time.LocalTime
 
-private enum class HomeBlock { Morning, Stats, CheckIn }
+private enum class HomeBlock { Morning, Stats, Timeline, CheckIn }
 
 // M3 "emphasized decelerate" — for things arriving on screen
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
@@ -145,15 +145,19 @@ fun HomeScreen(
     }
 
     // Morning: forecast first. Evening: the check-in moves to the top.
-    var evening by rememberSaveable { mutableStateOf(isEveningNow()) }
+    val evening = remember { isEveningNow() }
     var openStat by rememberSaveable { mutableStateOf<StatKind?>(null) }
     var lastStat by rememberSaveable { mutableStateOf(StatKind.Screen) }
     BackHandler(enabled = openStat != null) { openStat = null }
+    BackHandler(enabled = state.review != null) { vm.closeReview() }
+    // Keep the last review around so the sheet can animate out after it's closed
+    var shownReview by remember { mutableStateOf<ReviewUi?>(null) }
+    if (state.review != null) shownReview = state.review
 
     val blocks = if (evening) {
-        listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats)
+        listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
     } else {
-        listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.CheckIn)
+        listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
     val entries = statEntries(state)
@@ -179,7 +183,11 @@ fun HomeScreen(
             }
             items(blocks, key = { it.name }) { block ->
                 // Blocks below the hero card rise in one after another once the orb has landed.
-                val enterDelay = if (block == HomeBlock.Stats) 220 else 300
+                val enterDelay = when (block) {
+                    HomeBlock.Stats -> 220
+                    HomeBlock.Timeline -> 260
+                    else -> 300
+                }
                 val rise = with(animatedScope) {
                     Modifier.animateEnterExit(
                         enter = fadeIn(tween(360, delayMillis = enterDelay)) +
@@ -215,6 +223,12 @@ fun HomeScreen(
                             openStat = openStat,
                             onOpen = { kind -> lastStat = kind; openStat = kind },
                         )
+                        HomeBlock.Timeline -> DayTimelineCard(
+                            modifier = rise,
+                            hourlyScreen = state.hourlyScreen,
+                            onReviewYesterday = { vm.openDayReview(LocalDate.now().minusDays(1)) },
+                            onReviewToday = { vm.openDayReview(LocalDate.now()) },
+                        )
                         HomeBlock.CheckIn -> CheckInSection(
                             modifier = rise,
                             selected = state.checkedIn,
@@ -226,14 +240,12 @@ fun HomeScreen(
                     }
                 }
             }
-            if (BuildConfig.DEBUG) {
-                item(key = "debug") {
-                    DebugPanel(
-                        evening = evening,
-                        onToggleEvening = { evening = !evening },
-                        onResetCheckIn = vm::resetCheckIn,
-                    )
-                }
+            item(key = "history") {
+                HistorySection(
+                    modifier = Modifier.animateItem(),
+                    history = state.history,
+                    onWeekly = vm::openWeekReview,
+                )
             }
         }
 
@@ -273,6 +285,31 @@ fun HomeScreen(
                     onClose = { openStat = null },
                 )
             }
+        }
+
+        // ── «Разбор дня» / «Итоги недели» sheet ──
+        AnimatedVisibility(
+            visible = state.review != null,
+            enter = fadeIn(tween(250)),
+            exit = fadeOut(tween(200)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = .28f))
+                    .clickable(remember { MutableInteractionSource() }, indication = null) { vm.closeReview() }
+            )
+        }
+        AnimatedVisibility(
+            visible = state.review != null,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 10.dp, end = 10.dp, bottom = bars.calculateBottomPadding() + 10.dp),
+            enter = fadeIn(tween(300)) +
+                slideInVertically(tween(420, easing = EmphasizedDecelerate)) { it / 3 },
+            exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { it / 4 },
+        ) {
+            shownReview?.let { ReviewSheet(modifier = Modifier, review = it, onClose = vm::closeReview) }
         }
     }
 }
@@ -565,92 +602,5 @@ private fun FactRow(fact: ForecastFact, index: Int, modifier: Modifier = Modifie
                 )
             }
         }
-    }
-}
-
-// ─── Debug ────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun DebugPanel(
-    evening: Boolean,
-    onToggleEvening: () -> Unit,
-    onResetCheckIn: () -> Unit,
-) {
-    val context = LocalContext.current
-    var open by rememberSaveable { mutableStateOf(false) }
-    val chevron by animateFloatAsState(if (open) 180f else 0f, tween(280), label = "debugChevron")
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(AppShapes.card)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .8f)),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { open = !open }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Отладка",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "▾",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.graphicsLayer { rotationZ = chevron },
-            )
-        }
-        AnimatedVisibility(
-            visible = open,
-            enter = expandVertically(spring(dampingRatio = 1f, stiffness = 400f)) + fadeIn(),
-            exit = shrinkVertically(tween(220)) + fadeOut(tween(150)),
-        ) {
-            Column(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DebugButton("🌅 Утреннее", Modifier.weight(1f)) {
-                        showMorningNotification(context, MorningCopies.random())
-                    }
-                    DebugButton("🌙 Вечернее", Modifier.weight(1f)) {
-                        showCheckinNotification(context, EveningCopies.random())
-                    }
-                }
-                // Server-issued id — put it into DEV_USER_IDS on the server to exclude this phone from metrics
-                val userId = remember {
-                    context.getSharedPreferences("device_auth", android.content.Context.MODE_PRIVATE)
-                        .getString("user_id", null) ?: "ещё не зарегистрирован"
-                }
-                androidx.compose.foundation.text.selection.SelectionContainer {
-                    Text(
-                        text = "user_id: $userId",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DebugButton(if (evening) "Показать утро" else "Показать вечер", Modifier.weight(1f), onToggleEvening)
-                    DebugButton("Сбросить чек-ин", Modifier.weight(1f), onResetCheckIn)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DebugButton(text: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier,
-        shape = AppShapes.button,
-        contentPadding = PaddingValues(vertical = 10.dp),
-    ) {
-        Text(text, style = MaterialTheme.typography.labelMedium)
     }
 }

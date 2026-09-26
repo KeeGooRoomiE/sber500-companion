@@ -7,6 +7,9 @@ import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
+import ru.keegoo.companion.data.api.model.DayReviewRequest
+import ru.keegoo.companion.data.api.model.HistoryResponse
+import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.domain.model.DailySnapshot
 import ru.keegoo.companion.domain.model.DayFeel
 import java.time.format.DateTimeFormatter
@@ -62,6 +65,14 @@ class CompanionRepository @Inject constructor(
 
     /** "The app is open" — counts the person as active today (DAU). Fire and forget. */
     suspend fun ping(): Result<Unit> = runCatching { api.ping() }
+
+    suspend fun getHistory(): Result<HistoryResponse> = runCatching { api.getHistory() }
+
+    suspend fun dayReview(date: java.time.LocalDate?): Result<ReviewResponse> = runCatching {
+        api.postDayReview(DayReviewRequest(date?.format(DATE_FMT)))
+    }
+
+    suspend fun weekReview(): Result<ReviewResponse> = runCatching { api.postWeekReview() }
 
     suspend fun getMorning(): Result<MorningMessageResponse> = runCatching {
         api.getMorning()

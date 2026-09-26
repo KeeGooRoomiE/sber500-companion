@@ -48,7 +48,11 @@ func main() {
 	callLog := analytics.NewLogger(db, devUserIDs)
 	morningRepo := repo.NewMorningRepo(db)
 	llmClient := llm.NewClient()
-	promptStore := prompts.NewStore(db, map[string]string{prompts.MorningSystem: llm.DefaultMorningSystem})
+	promptStore := prompts.NewStore(db, map[string]string{
+		prompts.MorningSystem:   llm.DefaultMorningSystem,
+		prompts.DayReviewSystem: llm.DefaultDayReviewSystem,
+		prompts.WeeklySystem:    llm.DefaultWeeklySystem,
+	})
 	generator := forecast.NewGenerator(db, repo.NewDailyRepo(db), repo.NewCheckInRepo(db), morningRepo, llmClient, callLog, promptStore)
 
 	r := chi.NewRouter()

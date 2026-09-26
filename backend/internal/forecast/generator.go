@@ -54,6 +54,7 @@ type Generator struct {
 	checkin  *repo.CheckInRepo
 	morning  *repo.MorningRepo
 	users    *repo.UserRepo
+	reviews  *repo.ReviewRepo
 	llm      *llm.Client
 	callLog  *analytics.Logger
 	prompts  *prompts.Store
@@ -68,7 +69,7 @@ func NewGenerator(db *pgxpool.Pool, daily *repo.DailyRepo, checkin *repo.CheckIn
 	if err != nil || dailyCap <= 0 {
 		dailyCap = 300
 	}
-	return &Generator{db: db, users: repo.NewUserRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
+	return &Generator{db: db, users: repo.NewUserRepo(db), reviews: repo.NewReviewRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
 }
 
 // Ensure returns the message for (user, date), generating it if missing.
@@ -208,8 +209,9 @@ func (g *Generator) withinBudget(ctx context.Context) (bool, error) {
 	now := clock.Now()
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, clock.Location())
 	var n int
-	err := g.db.QueryRow(ctx,
-		`SELECT count(*) FROM morning_messages WHERE created_at >= $1`, dayStart,
-	).Scan(&n)
+	err := g.db.QueryRow(ctx, `
+		SELECT (SELECT count(*) FROM morning_messages WHERE created_at >= $1)
+		     + (SELECT count(*) FROM reviews WHERE created_at >= $1)
+	`, dayStart).Scan(&n)
 	return n < g.dailyCap, err
 }

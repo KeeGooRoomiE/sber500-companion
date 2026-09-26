@@ -21,6 +21,7 @@ const (
 	ComponentLLMMorning        Component = "llm_morning"
 	ComponentLLMCheckin        Component = "llm_checkin"
 	ComponentLLMWeekly         Component = "llm_weekly"
+	ComponentLLMDay            Component = "llm_day_review"
 	ComponentUsageStats        Component = "usagestats"
 	ComponentHealthConn        Component = "health_connect"
 	ComponentCalendar          Component = "calendar"

@@ -39,6 +39,8 @@ data class TodayData(
     val weekScreen: List<Int?>,
     val weekUnlocks: List<Int?>,
     val weekSleep: List<Int?>,
+    /** Today's screen minutes per hour (24 values) for the day timeline; null without usage access. */
+    val hourlyScreen: List<Int>? = null,
 )
 
 private const val PAST_DAYS = 6
@@ -102,6 +104,7 @@ class TodayRepository @Inject constructor(
             weekScreen = pastFull.map { it?.screenMinutes } + todayUsage?.screenMinutes,
             weekUnlocks = pastFull.map { it?.unlocks } + todayUsage?.unlocks,
             weekSleep = sleepByNight.map { it?.first },
+            hourlyScreen = todayUsage?.screenMinutesByHour?.takeIf { it.size == 24 },
         )
     }
 

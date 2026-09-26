@@ -11,8 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// MorningSystem is the system prompt of the morning forecast.
-const MorningSystem = "morning_system"
+// Prompt names. Each has a built-in default and may have DB versions.
+const (
+	MorningSystem   = "morning_system"
+	DayReviewSystem = "day_review_system"
+	WeeklySystem    = "weekly_system"
+)
 
 // MaxBodyLen keeps a prompt within a sane size (≈ a few hundred tokens of instructions).
 const MaxBodyLen = 8000
