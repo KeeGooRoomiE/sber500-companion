@@ -1,7 +1,8 @@
 name: Deploy backend
 
-# Manual: Actions → Deploy backend → Run workflow (or via the API).
+# Automatic on push to main (backend/, deploy/ or this file) and manual from Actions → Deploy backend.
 # Runs deploy/deploy.sh from a GitHub runner: build → copy → backup + migrations → restart → /health.
+# Never swap only the binary: new code expects its migrations to be applied first.
 #
 # Needs repository secrets:
 #   DEPLOY_SSH_KEY  — private key allowed to log in as root on the server (ed25519, no passphrase)
@@ -10,6 +11,12 @@ name: Deploy backend
 #   DEPLOY_KNOWN_HOSTS — `ssh-keyscan -t ed25519 HOST` output; without it the key is scanned on the fly
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deploy/**'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
     inputs:
       reset_prompts:
@@ -47,6 +54,9 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
+          # Tolerate secrets pasted as whole .env lines ("DEPLOY_HOST=1.2.3.4"), quotes, spaces, CRLF
+          HOST=$(printf '%s' "$HOST" | tr -d '\r' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?DEPLOY_HOST[[:space:]]*=[[:space:]]*//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]//g')
+          KEY=$(printf '%s' "$KEY" | tr -d '\r' | sed -E '1s/^[[:space:]]*DEPLOY_SSH_KEY[[:space:]]*=[[:space:]]*//; 1s/^["'"'"']//; $s/["'"'"'][[:space:]]*$//')
           if [ -z "$KEY" ] || [ -z "$HOST" ]; then
             echo "::error::Add DEPLOY_SSH_KEY and DEPLOY_HOST in Settings → Secrets and variables → Actions"
             exit 1
@@ -80,7 +90,7 @@ jobs:
 
       - name: Seed mock personas and render prompts
         continue-on-error: true
-        if: ${{ inputs.eval }}
+        if: ${{ github.event_name == 'push' || inputs.eval }}
         run: |
           bash deploy/prompt.sh "$SERVER" seed > /dev/null
           for p in morning_system day_review_system weekly_system; do PROMPT=$p bash deploy/prompt.sh "$SERVER" eval; done

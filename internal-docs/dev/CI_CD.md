@@ -89,7 +89,7 @@ cd deploy/
 
 Requires: `~/.ssh/config` entry for server, `DEPLOY_HOST` env var, server has `/opt/companion/.env`.
 
-Or from GitHub: workflow **Deploy backend** (`.github/workflows/deploy-backend.yml`, manual run).
+Or from GitHub: workflow **Deploy backend** (`.github/workflows/deploy-backend.yml`) — automatic on push to main touching `backend/`, `deploy/` or the workflow, or manual.
 It needs the secrets `DEPLOY_SSH_KEY` and `DEPLOY_HOST`; `DEPLOY_KNOWN_HOSTS` is optional. See `deploy/README.md`.
 `deploy.sh` dumps the DB before pending migrations.
 
