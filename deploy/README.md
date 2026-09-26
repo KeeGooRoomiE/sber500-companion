@@ -35,10 +35,30 @@ Re-deploy = step 4 again.
 | `companion.service` | systemd unit (installed by `deploy.sh`) |
 | `Caddyfile` | Reference config; `setup.sh` writes the same one for your domain |
 
+## Updating a running server (release checklist)
+
+`deploy.sh` is safe to re-run: it applies only migrations missing from `schema_migrations`, each
+in its own transaction. All migrations only **add** tables/columns (`IF NOT EXISTS`) — an older
+app build keeps working against a newer server, so the server can go out before the APK.
+
+1. Backup first (the nightly dump may be up to a day old):
+   `ssh root@SERVER 'sudo -u postgres pg_dump companion | gzip > /var/backups/companion/pre-deploy-$(date +%F-%H%M).sql.gz'`
+2. `bash deploy/deploy.sh SERVER`: watch the `applying 0xx_…` lines and `healthy`.
+3. Check what is applied:
+   `ssh root@SERVER 'set -a; . /opt/companion/.env; psql "$DATABASE_URL" -c "table schema_migrations"'`
+4. Built-in prompts only apply when no DB version is active (`prompt.sh list` → `active_version: 0`).
+   If an older version is active, `prompt.sh reset` (per prompt) or push a new one.
+5. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
+6. Publish the APK after the server is up.
+
+Rollback: the previous binary is not kept. Check out the previous tag and run `deploy.sh`; new tables
+stay and are harmless. Restore the dump only if data itself is broken.
+
 ## Prompts
 
-The morning system prompt is versioned in the DB and edited through a **local-only** admin port
-(127.0.0.1:9090, never proxied). `deploy/prompt.sh` runs curl on the server over ssh:
+Three prompts are versioned in the DB: `morning_system` (default), `day_review_system` and
+`weekly_system` (pick one with `PROMPT=…`). They are edited through a **local-only** admin port
+(127.0.0.1:9090, never proxied); `deploy/prompt.sh` runs curl on the server over ssh:
 
 ```bash
 bash deploy/prompt.sh SERVER list                                  # versions + which is active
@@ -49,7 +69,48 @@ bash deploy/prompt.sh SERVER activate 7                            # roll back /
 bash deploy/prompt.sh SERVER reset                                 # back to the built-in prompt
 ```
 
-Start from `backend/internal/llm/prompts/morning_system.md`. Each change is announced in Telegram
+### Testing a prompt on mock personas
+
+`backend/internal/mock/personas.json` holds 6 people. Each has a week of data ending yesterday and
+one situation to test:
+
+| Persona | Situation |
+|---|---|
+| `mock_week` | the documented mock week |
+| `mock_calls` | morning of calls |
+| `mock_nightowl` | night owl without a watch |
+| `mock_calm` | calm day |
+| `mock_remote` | Telegram used as a work app |
+| `mock_newbie` | day 0 |
+
+They are excluded from metrics, call_log counts and the scheduler.
+
+```bash
+bash deploy/prompt.sh SERVER seed                       # (re)create them; dates shift to "yesterday"
+bash deploy/prompt.sh SERVER eval                       # free: which signals each persona gets
+bash deploy/prompt.sh SERVER eval --llm                 # active prompt, 6 model calls (under 1 ₽)
+bash deploy/prompt.sh SERVER eval draft.md --llm        # the draft on the same people, compare
+PROMPT=weekly_system bash deploy/prompt.sh SERVER eval --llm --prompt   # also print what the model got
+bash deploy/prompt.sh SERVER purge                      # remove them
+```
+
+The report shows the answer, its length, a safety flag and «на самом деле»: what really happened
+that day, which the model never sees. Re-seed each day you test, because the dates are relative.
+Edit personas in `gen_personas.py` next to the JSON and re-run it.
+
+### Did the change help?
+
+The app asks «Совпало с днём?» under the forecast (after 14:00) and «Похоже на правду?» under reviews.
+Each verdict stores the prompt version it rated:
+
+```bash
+bash deploy/prompt.sh SERVER accuracy 14    # hits / misses / % per prompt and version, 14 days
+```
+
+Public metrics show `forecast_accuracy_pct` and `forecast_feedback_rate_pct` (30 days). Compare
+versions after 20+ verdicts each; below that the percentage is noise.
+
+Start from the files in `backend/internal/llm/prompts/`. Each change is announced in Telegram
 if `TG_BOT_TOKEN` / `TG_CHAT_ID` are set in `.env`. Answers with links or phone numbers are never shown.
 
 ## Environment variables
