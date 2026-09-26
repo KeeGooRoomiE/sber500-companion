@@ -22,11 +22,11 @@ func NewClient() *Client {
 	cfg := openai.DefaultConfig(os.Getenv("LLM_API_KEY"))
 	cfg.BaseURL = os.Getenv("LLM_BASE_URL")
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = "https://api.cloud.ru/v1"
+		cfg.BaseURL = "https://shared1.multitool.works:4000/v1"
 	}
 	model := os.Getenv("LLM_MODEL")
 	if model == "" {
-		model = "GigaChat-3-Pro"
+		model = "gigachat-3-pro"
 	}
 	return &Client{ai: openai.NewClientWithConfig(cfg), model: model}
 }
