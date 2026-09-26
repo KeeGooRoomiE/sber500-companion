@@ -103,3 +103,19 @@ func (r *UserRepo) FCMToken(ctx context.Context, userID string) (*string, error)
 	err := r.db.QueryRow(ctx, `SELECT fcm_token FROM users WHERE id = $1`, userID).Scan(&token)
 	return token, err
 }
+
+// SetProfile replaces the user's profile answers.
+func (r *UserRepo) SetProfile(ctx context.Context, userID string, profile map[string]string) error {
+	_, err := r.db.Exec(ctx, `UPDATE users SET profile = $2 WHERE id = $1`, userID, profile)
+	return err
+}
+
+// Profile returns the user's profile answers (empty map if none).
+func (r *UserRepo) Profile(ctx context.Context, userID string) (map[string]string, error) {
+	p := map[string]string{}
+	err := r.db.QueryRow(ctx, `SELECT profile FROM users WHERE id = $1`, userID).Scan(&p)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return map[string]string{}, nil
+	}
+	return p, err
+}

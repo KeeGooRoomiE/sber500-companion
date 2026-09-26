@@ -27,7 +27,9 @@ import ru.keegoo.companion.domain.forecast.buildLocalForecast
 import ru.keegoo.companion.domain.forecast.formatMinutes
 import ru.keegoo.companion.domain.model.DayFeel
 import ru.keegoo.companion.domain.profile.ProfileIds
+import ru.keegoo.companion.domain.profile.LocalOnlyProfileIds
 import ru.keegoo.companion.domain.profile.ProfileQuestions
+import kotlinx.coroutines.flow.onEach
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -75,11 +77,14 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            context.profileAnswers().collect { answers ->
+            context.profileAnswers()
+                // Send to the server (everything except the name) after the person stops tapping.
+                .onEach { answers -> syncProfile(answers) }
+                .collect { answers ->
                 _state.update {
                     it.copy(
                         name = answers[ProfileIds.NAME]?.takeIf(String::isNotBlank),
-                        unansweredQuestions = ProfileQuestions.count { q -> q.id !in answers && !q.onlyOnWifi },
+                        unansweredQuestions = ProfileQuestions.count { q -> q.id !in answers },
                     )
                 }
             }
@@ -104,6 +109,19 @@ class HomeViewModel @Inject constructor(
                     .onSuccess { resp -> _state.update { it.copy(forecast = resp.message) } }
                 // Silently ignore failures — local forecast stays visible.
             }
+        }
+    }
+
+    private var profileJob: Job? = null
+    private var lastSentProfile: Map<String, String>? = null
+
+    private fun syncProfile(answers: Map<String, String>) {
+        val forServer = answers - LocalOnlyProfileIds
+        if (forServer == lastSentProfile) return
+        profileJob?.cancel()
+        profileJob = viewModelScope.launch {
+            delay(1_000)
+            if (repository.putProfile(forServer).isSuccess) lastSentProfile = forServer
         }
     }
 

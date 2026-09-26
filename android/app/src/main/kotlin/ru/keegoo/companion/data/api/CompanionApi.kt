@@ -3,6 +3,8 @@ package ru.keegoo.companion.data.api
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
@@ -13,6 +15,9 @@ interface CompanionApi {
 
     @POST("api/v1/checkin")
     suspend fun postCheckIn(@Body body: CheckInRequest)
+
+    @PUT("api/v1/profile")
+    suspend fun putProfile(@Body body: ProfileRequest)
 
     @POST("api/v1/ping")
     suspend fun ping()

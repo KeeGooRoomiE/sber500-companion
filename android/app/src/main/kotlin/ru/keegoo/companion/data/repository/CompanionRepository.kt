@@ -6,6 +6,7 @@ import ru.keegoo.companion.data.api.model.AppUsageDto
 import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
+import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.domain.model.DailySnapshot
 import ru.keegoo.companion.domain.model.DayFeel
 import java.time.format.DateTimeFormatter
@@ -50,6 +51,11 @@ class CompanionRepository @Inject constructor(
                 tags     = tags,
             )
         )
+    }
+
+    /** Profile answers → server (forecast context). The caller strips local-only answers (name). */
+    suspend fun putProfile(answers: Map<String, String>): Result<Unit> = runCatching {
+        api.putProfile(ProfileRequest(answers))
     }
 
     /** "The app is open" — counts the person as active today (DAU). Fire and forget. */

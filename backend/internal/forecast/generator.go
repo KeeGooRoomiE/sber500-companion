@@ -51,6 +51,7 @@ type Generator struct {
 	daily    *repo.DailyRepo
 	checkin  *repo.CheckInRepo
 	morning  *repo.MorningRepo
+	users    *repo.UserRepo
 	llm      *llm.Client
 	callLog  *analytics.Logger
 	prompts  *prompts.Store
@@ -65,7 +66,7 @@ func NewGenerator(db *pgxpool.Pool, daily *repo.DailyRepo, checkin *repo.CheckIn
 	if err != nil || dailyCap <= 0 {
 		dailyCap = 300
 	}
-	return &Generator{db: db, daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
+	return &Generator{db: db, users: repo.NewUserRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
 }
 
 // Ensure returns the message for (user, date), generating it if missing.
@@ -112,11 +113,15 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	if err != nil {
 		return nil, err
 	}
+	profile, err := g.users.Profile(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	lctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 	start := time.Now()
-	result, err := g.llm.GenerateMorning(lctx, system, days, last, !delivered)
+	result, err := g.llm.GenerateMorning(lctx, system, llm.MorningInput{Days: days, Last: last, First: !delivered, Profile: profile})
 	if err == nil && !SafeOutput(result.Message) {
 		// A tampered prompt or a model slip must not put links/phones in front of users
 		slog.Error("forecast: unsafe model output rejected", "user", userID, "prompt_version", promptVersion)

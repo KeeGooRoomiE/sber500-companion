@@ -38,6 +38,7 @@ type Server struct {
 	store   *prompts.Store
 	daily   *repo.DailyRepo
 	checkin *repo.CheckInRepo
+	users   *repo.UserRepo
 	llm     *llm.Client
 	callLog *analytics.Logger
 	notify  *telegram
@@ -48,6 +49,7 @@ func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog 
 		token:   os.Getenv("ADMIN_TOKEN"),
 		store:   store,
 		daily:   repo.NewDailyRepo(db),
+		users:   repo.NewUserRepo(db),
 		checkin: repo.NewCheckInRepo(db),
 		llm:     llmClient,
 		callLog: callLog,
@@ -238,12 +240,18 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	resp := previewResponse{System: system, User: llm.BuildMorningPrompt(days, last, false)}
+	profile, err := s.users.Profile(r.Context(), req.UserID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	input := llm.MorningInput{Days: days, Last: last, Profile: profile}
+	resp := previewResponse{System: system, User: llm.BuildMorningPrompt(input)}
 	if req.CallLLM {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 		start := time.Now()
-		res, err := s.llm.GenerateMorning(ctx, system, days, last, false)
+		res, err := s.llm.GenerateMorning(ctx, system, input)
 		event := analytics.CallEvent{
 			UserID: "admin", Timestamp: start, CallType: analytics.CallTypeLLM,
 			Component: analytics.ComponentLLMMorning, Trigger: analytics.TriggerUserAction,

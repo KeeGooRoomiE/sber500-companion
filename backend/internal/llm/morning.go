@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,15 +48,20 @@ var DefaultMorningSystem string
 // Model is the configured model name (stored with each message for cost accounting).
 func (c *Client) Model() string { return c.model }
 
-// BuildMorningPrompt renders the user message for the given days and last check-in.
-// first=true marks the user's very first message: a short retrospective of their week.
-func BuildMorningPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string {
-	return buildPrompt(days, last, first)
+// MorningInput is everything the morning prompt is built from.
+type MorningInput struct {
+	Days    []*repo.DailyData // oldest first, up to yesterday
+	Last    *repo.CheckIn     // latest check-in, may be nil
+	First   bool              // very first message: a short retrospective of the person's week
+	Profile map[string]string // answers from «Расскажи о себе» (no name)
 }
 
+// BuildMorningPrompt renders the user message.
+func BuildMorningPrompt(in MorningInput) string { return buildPrompt(in) }
+
 // GenerateMorning calls the model with the given system prompt and the user's data.
-func (c *Client) GenerateMorning(ctx context.Context, system string, days []*repo.DailyData, last *repo.CheckIn, first bool) (*GenerateResult, error) {
-	prompt := buildPrompt(days, last, first)
+func (c *Client) GenerateMorning(ctx context.Context, system string, in MorningInput) (*GenerateResult, error) {
+	prompt := buildPrompt(in)
 
 	start := time.Now()
 	resp, err := c.ai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
@@ -148,8 +154,10 @@ func parseHHMM(s string) time.Time {
 	return t
 }
 
-func buildPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string {
+func buildPrompt(in MorningInput) string {
+	days, last, first := in.Days, in.Last, in.First
 	var b strings.Builder
+	workApps := profileContext(&b, in.Profile)
 
 	// compute personal weekly averages
 	var sumScreen, sumSleep, sumSteps, sumUnlocks int
@@ -256,11 +264,11 @@ func buildPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string 
 		}
 		if len(apps) > 0 {
 			top := apps[0]
-			name := resolveAppName(top.Package)
+			name := resolveAppName(top.Package) + workMark(workApps, top.Package)
 			parts = append(parts, fmt.Sprintf("топ: %s %dм", name, top.Minutes))
 			if len(apps) > 1 {
 				top2 := apps[1]
-				name2 := resolveAppName(top2.Package)
+				name2 := resolveAppName(top2.Package) + workMark(workApps, top2.Package)
 				parts = append(parts, fmt.Sprintf("%s %dм", name2, top2.Minutes))
 			}
 		}
@@ -296,4 +304,55 @@ func buildPrompt(days []*repo.DailyData, last *repo.CheckIn, first bool) string 
 		b.WriteString("\nСоставь утренний прогноз на сегодня.")
 	}
 	return b.String()
+}
+
+// profileLines maps profile answers to plain context lines for the model.
+var profileLines = []struct{ key, label string }{
+	{"work_place", "Работает/учится"},
+	{"bedtime", "Обычно ложится"},
+	{"wake", "Обычно встаёт"},
+	{"wearable", "Часы или браслет"},
+	{"triggers", "Что чаще выбивает из колеи"},
+	{"goal", "Что хочет изменить"},
+	{"tone", "Как с ним говорить"},
+}
+
+// profileContext writes the «Контекст о человеке» block and returns the set of work apps.
+func profileContext(b *strings.Builder, p map[string]string) map[string]bool {
+	work := map[string]bool{}
+	for _, pkg := range strings.Split(p["work_apps"], ",") {
+		if pkg = strings.TrimSpace(pkg); pkg != "" {
+			work[pkg] = true
+		}
+	}
+	var lines []string
+	for _, l := range profileLines {
+		if v := strings.TrimSpace(p[l.key]); v != "" {
+			lines = append(lines, fmt.Sprintf("  %s: %s", l.label, v))
+		}
+	}
+	if len(work) > 0 {
+		names := make([]string, 0, len(work))
+		for pkg := range work {
+			names = append(names, resolveAppName(pkg))
+		}
+		sort.Strings(names)
+		lines = append(lines, "  Рабочие приложения: "+strings.Join(names, ", "))
+	}
+	if strings.HasPrefix(p["wearable"], "Нет") {
+		lines = append(lines, "  Часов нет — сон может быть оценкой по паузе экрана, говори о нём осторожно")
+	}
+	if len(lines) > 0 {
+		b.WriteString("Контекст о человеке (со слов):\n")
+		b.WriteString(strings.Join(lines, "\n"))
+		b.WriteString("\n\n")
+	}
+	return work
+}
+
+func workMark(work map[string]bool, pkg string) string {
+	if work[pkg] {
+		return " (рабочее)"
+	}
+	return ""
 }

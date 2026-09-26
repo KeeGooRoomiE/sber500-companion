@@ -18,6 +18,8 @@ enum class SleepSource { HealthConnect, PhoneFree }
 
 data class TopApp(val label: String, val minutes: Int, val usualMinutes: Int?)
 
+data class AppOption(val packageName: String, val label: String)
+
 /**
  * What Home shows today, read on the device (no backend, no LLM).
  * "Usual" values are averages over the previous days *up to the same clock time*,
@@ -101,6 +103,29 @@ class TodayRepository @Inject constructor(
             weekUnlocks = pastFull.map { it?.unlocks } + todayUsage?.unlocks,
             weekSleep = sleepByNight.map { it?.first },
         )
+    }
+
+    /**
+     * The person's most used apps over the last 7 days (label + package), launchers and this app
+     * excluded — the options for «Какие из твоих приложений — рабочие?».
+     */
+    suspend fun weekTopApps(limit: Int = 10): List<AppOption> = withContext(Dispatchers.IO) {
+        if (!usage.hasPermission()) return@withContext emptyList()
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val totals = mutableMapOf<String, Int>()
+        for (back in 6 downTo 0) {
+            val d = today.minusDays(back.toLong())
+            val end = if (back == 0) System.currentTimeMillis() else d.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            usage.collect(d.atStartOfDay(zone).toInstant().toEpochMilli(), end)?.topApps?.forEach {
+                totals[it.packageName] = (totals[it.packageName] ?: 0) + it.minutes
+            }
+        }
+        totals.entries
+            .filter { (pkg, _) -> pkg != context.packageName && "launcher" !in pkg && pkg != "com.miui.home" }
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { AppOption(it.key, context.appLabel(it.key)) }
     }
 
     /** Sleep for the night that ends on [morningOf]: Health Connect first, else the longest screen-off stretch. */

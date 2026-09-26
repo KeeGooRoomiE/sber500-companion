@@ -33,3 +33,6 @@ data class MorningMessageResponse(
     val date: String,
     val message: String,
 )
+
+/** Profile answers used as forecast context; the name is never included. */
+data class ProfileRequest(val answers: Map<String, String>)

@@ -1,8 +1,5 @@
 package ru.keegoo.companion.ui.profile
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -38,7 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -50,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,7 +66,11 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.data.local.AppOption
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveProfileAnswer
 import ru.keegoo.companion.domain.profile.ProfileIds
@@ -83,15 +85,13 @@ import ru.keegoo.companion.ui.motion.OrbMode
 import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
 
-private fun Context.isOnWifi(): Boolean {
-    val cm = getSystemService(ConnectivityManager::class.java) ?: return false
-    val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-    return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-}
+/** How long an answered one-time question stays on screen (with «Учту ✓») before folding away. */
+private const val FOLD_AWAY_MS = 5_000L
 
 /**
- * «Расскажи о себе» — opened by tapping the orb. An accordion of short questions:
- * answering one folds it and opens the next unanswered. Everything stays on the phone.
+ * «Расскажи о себе» — opened by tapping the orb. An accordion of short questions; answering one
+ * opens the next. One-time questions fold away 5 s after the answer and don't come back
+ * (except through «Изменить прошлые ответы»).
  */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class)
 @Composable
@@ -99,24 +99,35 @@ fun ProfileScreen(
     sharedScope: SharedTransitionScope,
     animatedScope: AnimatedVisibilityScope,
     onBack: () -> Unit,
+    vm: ProfileViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val answersFlow = remember { context.profileAnswers() }
     val loaded by answersFlow.collectAsState(initial = null)
     val answers = loaded.orEmpty()
-    val onWifi = remember { context.isOnWifi() }
-    val questions = remember(onWifi) { ProfileQuestions.filter { !it.onlyOnWifi || onWifi } }
+    val topApps by vm.topApps.collectAsStateWithLifecycle()
+
+    // Work-apps question makes sense only when we can see the person's apps
+    val questions = remember(topApps) {
+        ProfileQuestions.filter { it.id != ProfileIds.WORK_APPS || topApps.isNotEmpty() }
+    }
 
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
-    var initialized by rememberSaveable { mutableStateOf(false) }
+    var showPast by rememberSaveable { mutableStateOf(false) }
+    // One-time questions already answered when the screen opened — hidden from the start
+    var doneAtOpen by remember { mutableStateOf<Set<String>?>(null) }
+    // Answered during this visit: stay for FOLD_AWAY_MS, then fold away
+    val foldedNow = remember { mutableStateListOf<String>() }
+
     LaunchedEffect(loaded) {
-        // Open the first unanswered question once answers have loaded
-        if (!initialized && loaded != null) {
+        if (doneAtOpen == null && loaded != null) {
+            doneAtOpen = questions.filter { it.oneTime && it.id in answers }.map { it.id }.toSet()
             expanded = questions.firstOrNull { it.id !in answers }?.id
-            initialized = true
         }
     }
+
+    fun visible(q: ProfileQuestion) = showPast || (q.id !in doneAtOpen.orEmpty() && q.id !in foldedNow)
 
     fun answer(q: ProfileQuestion, value: String) {
         scope.launch {
@@ -125,9 +136,13 @@ fun ProfileScreen(
                 ProfileIds.MORNING_TIME -> parseTime(value)?.let { NotificationScheduler.reschedule(context, ReminderKind.Morning, it) }
                 ProfileIds.EVENING_TIME -> parseTime(value)?.let { NotificationScheduler.reschedule(context, ReminderKind.Evening, it) }
             }
+            if (q.oneTime && !showPast) {
+                delay(FOLD_AWAY_MS)
+                foldedNow += q.id
+            }
         }
         val idx = questions.indexOf(q)
-        expanded = questions.drop(idx + 1).firstOrNull { it.id !in answers }?.id
+        expanded = questions.drop(idx + 1).firstOrNull { it.id !in answers && visible(it) }?.id
     }
 
     val answered = questions.count { it.id in answers }
@@ -136,6 +151,7 @@ fun ProfileScreen(
         spring(dampingRatio = .8f, stiffness = 200f),
         label = "progress",
     )
+    val hiddenCount = questions.count { !visible(it) }
     val bars = WindowInsets.systemBars.asPaddingValues()
 
     LazyColumn(
@@ -181,7 +197,7 @@ fun ProfileScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Пара коротких вопросов — так я точнее разберу твои дни. Ответы хранятся только на телефоне.",
+                    text = "Пара коротких вопросов — так я точнее разберу твои дни. Имя остаётся на телефоне.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -191,7 +207,8 @@ fun ProfileScreen(
                 Spacer(Modifier.height(6.dp))
             }
         }
-        itemsIndexed(questions, key = { _, q -> q.id }) { i, q ->
+        items(questions, key = { it.id }) { q ->
+            val i = questions.indexOf(q)
             val rise = with(animatedScope) {
                 Modifier.animateEnterExit(
                     enter = fadeIn(tween(300, delayMillis = 150 + i * 40)) +
@@ -199,16 +216,45 @@ fun ProfileScreen(
                     exit = fadeOut(tween(100)),
                 )
             }
-            QuestionCard(
-                modifier = rise,
-                question = q,
-                answer = answers[q.id],
-                expanded = expanded == q.id,
-                onToggle = { expanded = if (expanded == q.id) null else q.id },
-                onAnswer = { answer(q, it) },
-            )
+            // A plain function call: inside LazyItemScope a scoped AnimatedVisibility overload would not apply
+            FoldAway(visible = visible(q)) {
+                QuestionCard(
+                    modifier = rise,
+                    question = q,
+                    answer = answers[q.id],
+                    appOptions = topApps,
+                    justAnswered = q.oneTime && q.id in answers && q.id !in doneAtOpen.orEmpty() && !showPast,
+                    expanded = expanded == q.id,
+                    onToggle = { expanded = if (expanded == q.id) null else q.id },
+                    onAnswer = { answer(q, it) },
+                )
+            }
+        }
+        if (hiddenCount > 0 || showPast) {
+            item(key = "past") {
+                Text(
+                    text = if (showPast) "Скрыть прошлые ответы" else "Изменить прошлые ответы ($hiddenCount)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(AppShapes.chip)
+                        .clickable { showPast = !showPast }
+                        .padding(vertical = 12.dp),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun FoldAway(visible: Boolean, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(spring(dampingRatio = 1f, stiffness = 300f)) + fadeIn(),
+        exit = fadeOut(tween(600)) + shrinkVertically(tween(700, delayMillis = 200)),
+    ) { content() }
 }
 
 @Composable
@@ -235,12 +281,23 @@ private fun ProgressLine(progress: Float, label: String) {
     }
 }
 
+/** Human-readable answer: work apps are stored as package names. */
+private fun displayAnswer(question: ProfileQuestion, answer: String?, apps: List<AppOption>): String? {
+    if (answer == null || question.id != ProfileIds.WORK_APPS) return answer
+    val labels = apps.associate { it.packageName to it.label }
+    return answer.split(",").filter { it.isNotBlank() }
+        .joinToString(", ") { labels[it] ?: it.substringAfterLast('.') }
+        .ifBlank { "Нет рабочих" }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun QuestionCard(
     modifier: Modifier,
     question: ProfileQuestion,
     answer: String?,
+    appOptions: List<AppOption>,
+    justAnswered: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     onAnswer: (String) -> Unit,
@@ -268,10 +325,16 @@ private fun QuestionCard(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(question.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                val shown = displayAnswer(question, answer, appOptions)
                 Text(
-                    text = answer ?: "Не отвечено",
+                    text = when {
+                        justAnswered -> "Учту ✓  $shown"
+                        shown != null -> shown
+                        else -> "Не отвечено"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (answer != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
                 )
             }
             Text(
@@ -292,31 +355,10 @@ private fun QuestionCard(
                 question.hint?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (question.freeText) {
-                    var text by rememberSaveable(question.id) { mutableStateOf(answer.orEmpty()) }
-                    val submit = {
-                        if (text.isNotBlank()) {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            onAnswer(text.trim())
-                        }
-                    }
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it.take(30) },
-                        singleLine = true,
-                        placeholder = { Text("Например, Саша") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { submit() }),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Button(
-                        onClick = { submit() },
-                        enabled = text.isNotBlank(),
-                        shape = AppShapes.button,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    ) { Text("Готово") }
-                } else {
-                    FlowRow(
+                when {
+                    question.freeText -> FreeTextAnswer(question, answer, onAnswer)
+                    question.multi -> MultiAnswer(question, answer, appOptions, onAnswer)
+                    else -> FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -335,6 +377,72 @@ private fun QuestionCard(
             }
         }
     }
+}
+
+@Composable
+private fun FreeTextAnswer(question: ProfileQuestion, answer: String?, onAnswer: (String) -> Unit) {
+    val view = LocalView.current
+    var text by rememberSaveable(question.id) { mutableStateOf(answer.orEmpty()) }
+    val submit = {
+        if (text.isNotBlank()) {
+            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            onAnswer(text.trim())
+        }
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it.take(30) },
+        singleLine = true,
+        placeholder = { Text("Например, Саша") },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { submit() }),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    DoneButton(enabled = text.isNotBlank(), onClick = { submit() })
+}
+
+/** Several options + «Готово». Work apps are the person's own apps; stored as package names. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MultiAnswer(question: ProfileQuestion, answer: String?, apps: List<AppOption>, onAnswer: (String) -> Unit) {
+    val view = LocalView.current
+    val isApps = question.id == ProfileIds.WORK_APPS
+    // (value stored, label shown)
+    val options = if (isApps) apps.map { it.packageName to it.label } else question.options.map { it to it }
+    val separator = if (isApps) "," else ", "
+    val picked = remember(question.id) {
+        mutableStateListOf<String>().apply { answer?.split(separator)?.filter { it.isNotBlank() }?.let { addAll(it) } }
+    }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { (value, label) ->
+            AnswerChip(
+                text = label,
+                on = value in picked,
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    if (value in picked) picked -= value else picked += value
+                },
+            )
+        }
+    }
+    DoneButton(
+        enabled = picked.isNotEmpty() || isApps,
+        label = if (isApps && picked.isEmpty()) "Рабочих нет" else "Готово",
+        onClick = { onAnswer(picked.joinToString(separator).ifEmpty { if (isApps) "," else "" }) },
+    )
+}
+
+@Composable
+private fun DoneButton(enabled: Boolean, label: String = "Готово", onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = AppShapes.button,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+    ) { Text(label) }
 }
 
 @Composable
