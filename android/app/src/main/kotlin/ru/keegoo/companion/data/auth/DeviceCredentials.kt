@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.Settings
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,8 +19,12 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private data class RegisterRequest(val device_key: String?)
-private data class RegisterResponse(val user_id: String, val token: String, val returning: Boolean = false)
+private data class RegisterRequest(@SerializedName("device_key") val device_key: String?)
+private data class RegisterResponse(
+    @SerializedName("user_id") val user_id: String,
+    @SerializedName("token") val token: String,
+    @SerializedName("returning") val returning: Boolean = false,
+)
 
 /**
  * Server-issued identity: POST /api/v1/register returns a random user id and a secret token.
