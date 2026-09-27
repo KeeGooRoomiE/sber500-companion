@@ -70,12 +70,23 @@ object NotificationScheduler {
         schedule(context, ReminderKind.Evening, parseTime(answers[ProfileIds.EVENING_TIME]) ?: DefaultEveningTime)
     }
 
-    /** Morning mode from the profile answer: at the first unlock (default) or at a fixed time. */
+    /**
+     * Morning mode from the profile answer: at the first unlock (default) or at a fixed time.
+     *
+     * In watch mode this deliberately does not jump to tomorrow when the morning is still
+     * going: an alarm firing starts the process, so Application.onCreate — and this — race
+     * with the receiver that is handling that very alarm. Arming "look again shortly" makes
+     * both outcomes the same, instead of one of them cancelling today's watch.
+     */
     fun applyMorning(context: Context, answer: String?) {
-        val fixed = parseTime(answer)
-        // In watch mode the first alarm of the day is at WATCH_FROM; the receiver re-arms itself
-        // every WATCH_STEP_MIN until it sees an unlock.
-        schedule(context, ReminderKind.Morning, fixed ?: WATCH_FROM)
+        parseTime(answer)?.let { return schedule(context, ReminderKind.Morning, it) }
+        val now = LocalDateTime.now()
+        val next = when {
+            now.toLocalTime() < WATCH_FROM -> now.toLocalDate().atTime(WATCH_FROM)
+            now.toLocalTime() <= WATCH_UNTIL -> now.plusMinutes(WATCH_STEP_MIN)
+            else -> tomorrowAt(WATCH_FROM)
+        }
+        scheduleAt(context, ReminderKind.Morning, next)
     }
 
     /** Called when the person picks a new time in the profile. */
