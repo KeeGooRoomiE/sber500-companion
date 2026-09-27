@@ -12,6 +12,8 @@ android/.idea/
 # Go
 backend/bin/
 backend/*.exe
+# deploy.sh builds the server binary here before scp'ing it (~16 MB)
+/build/
 
 # Env
 .env

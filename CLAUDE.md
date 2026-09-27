@@ -10,10 +10,10 @@ Competition: Sber500 x DISRUPT â€” target nomination **"User Experience"** (5Mâ‚
 
 ## Critical dates
 
-| Date | Event |
-|------|-------|
+| Date       | Event                            |
+| ---------- | -------------------------------- |
 | 2026-10-06 | MVP v0 must be publicly deployed |
-| 2026-10-15 | Stage 1 deadline |
+| 2026-10-15 | Stage 1 deadline                 |
 
 ## Stack summary
 
