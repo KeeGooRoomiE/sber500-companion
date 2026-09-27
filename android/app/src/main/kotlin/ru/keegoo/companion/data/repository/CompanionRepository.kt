@@ -7,6 +7,7 @@ import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
+import ru.keegoo.companion.data.api.model.PushTokenRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.ExploreRequest
@@ -89,6 +90,11 @@ class CompanionRepository @Inject constructor(
     suspend fun exploreAsk(id: String): Result<ExploreResponse> = runCatching { api.postExplore(ExploreRequest(id)) }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
+
+    /** Hand the server this phone's push token so it can reach the app when it is closed. */
+    suspend fun setPushToken(token: String): Result<Unit> = runCatching {
+        api.postPushToken(PushTokenRequest(token))
+    }
 
     /** «Совпало / Не совсем»; a second call changes the answer. */
     suspend fun feedback(kind: String, date: String, hit: Boolean): Result<Unit> = runCatching {

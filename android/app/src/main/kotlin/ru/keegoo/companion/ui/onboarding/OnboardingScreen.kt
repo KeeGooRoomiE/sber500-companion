@@ -75,7 +75,9 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import kotlinx.coroutines.delay
 import ru.keegoo.companion.work.DailyCollectWorker
+import ru.keegoo.companion.data.collector.batteryOptimizationIntent
 import ru.keegoo.companion.data.collector.hasUsageAccess
+import ru.keegoo.companion.data.collector.isIgnoringBatteryOptimizations
 import ru.keegoo.companion.ui.motion.BackdropScene
 import ru.keegoo.companion.ui.motion.CardBoundsTransform
 import ru.keegoo.companion.ui.motion.CompanionOrb
@@ -112,7 +114,7 @@ private val steps = listOf(
     ),
     Step(
         "Уведомления",
-        "Утренний прогноз и вечерний чек-ин придут как пуши. Ответить можно прямо из уведомления.",
+        "Утренний прогноз и вечерний чек-ин придут как пуши. Ответить можно прямо из уведомления.\nСистема спросит ещё и про работу в фоне — без неё Android усыпляет приложение, и прогноз не придёт.",
         "Разрешить и начать", OrbMode.Ping,
     ),
     Step(
@@ -182,9 +184,24 @@ fun OnboardingScreen(
         }
     }
 
+    // Permission to post notifications is not enough: Android throttles a rarely-opened app
+    // into running background work about once a day, and several vendors stop it outright, so
+    // the reminder would simply never be posted. Ask right after the notification dialog, while
+    // the reason is still on screen. Either answer moves on — push covers a "no".
+    val batteryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ -> step = LAST_STEP }
+
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> step = LAST_STEP }
+    ) { _ ->
+        if (context.isIgnoringBatteryOptimizations()) {
+            step = LAST_STEP
+        } else {
+            runCatching { batteryLauncher.launch(batteryOptimizationIntent(context.packageName)) }
+                .onFailure { step = LAST_STEP }
+        }
+    }
 
     // «Смотрю твои данные» — a short thinking moment, then the orb flies into Home.
     LaunchedEffect(step) {

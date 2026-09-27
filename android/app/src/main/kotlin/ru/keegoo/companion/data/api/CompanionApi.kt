@@ -16,6 +16,7 @@ import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
+import ru.keegoo.companion.data.api.model.PushTokenRequest
 
 interface CompanionApi {
     @POST("api/v1/data/passive")
@@ -32,6 +33,9 @@ interface CompanionApi {
 
     @POST("api/v1/ping")
     suspend fun ping()
+
+    @POST("api/v1/push-token")
+    suspend fun postPushToken(@Body body: PushTokenRequest)
 
     @GET("api/v1/history")
     suspend fun getHistory(): HistoryResponse

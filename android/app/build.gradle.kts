@@ -6,6 +6,14 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Push needs a Firebase config file, which is not in the repo (it is per-project, and CI
+// builds must keep working before Firebase is set up). The google-services plugin fails the
+// build when the file is absent, so it is applied only when the file is there. The Firebase
+// library itself is always compiled in; without the config it simply never initialises and
+// the app falls back to local notifications only.
+val hasFirebase = file("google-services.json").exists()
+if (hasFirebase) apply(plugin = "com.google.gms.google-services")
+
 // One signing key for every published APK. Android installs an update only over an app signed
 // with the same key; CI used to make a fresh debug key per run, so each release forced people to
 // uninstall (losing local data). CI writes the key from the COMPANION_KEYSTORE_B64 secret;
@@ -20,8 +28,8 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 15
-        versionName = "0.9.0"
+        versionCode = 16
+        versionName = "0.9.1"
     }
 
     signingConfigs {
@@ -42,6 +50,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            buildConfigField("boolean", "PUSH_ENABLED", "$hasFirebase")
         }
         release {
             // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
@@ -52,6 +61,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
             buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            buildConfigField("boolean", "PUSH_ENABLED", "$hasFirebase")
             if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
     }
@@ -102,6 +112,9 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
     implementation(libs.appmetrica.sdk)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

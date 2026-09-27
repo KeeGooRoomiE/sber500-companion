@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Without this the OS throttles the daily collector and the morning reminder into
+         silence: App Standby drops a rarely-opened app to roughly one job a day. Asking is
+         the only way a WorkManager schedule holds on most phones. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- UsageStats — выдаётся через настройки системы, не диалог -->
     <uses-permission
@@ -54,6 +58,20 @@
                 <action android:name="ru.keegoo.companion.ACTION_CHECKIN" />
             </intent-filter>
         </receiver>
+
+        <!-- Push: the backstop for the morning forecast when the OS throttles local work.
+             Inert without google-services.json — Firebase never initialises. -->
+        <service
+            android:name=".notifications.CompanionMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ch_morning" />
 
         <!-- Health Connect intent filter -->
         <activity-alias

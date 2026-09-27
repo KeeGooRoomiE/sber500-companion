@@ -33,6 +33,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/push"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
@@ -48,9 +49,10 @@ type Server struct {
 	feedback *repo.FeedbackRepo
 	devIDs   []string
 	notify   *telegram
+	pusher   *push.Sender
 }
 
-func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog *analytics.Logger, devIDs []string) *Server {
+func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog *analytics.Logger, devIDs []string, pusher *push.Sender) *Server {
 	return &Server{
 		token:    os.Getenv("ADMIN_TOKEN"),
 		store:    store,
@@ -62,6 +64,7 @@ func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog 
 		feedback: repo.NewFeedbackRepo(db),
 		devIDs:   devIDs,
 		notify:   newTelegram(),
+		pusher:   pusher,
 	}
 }
 
@@ -92,6 +95,7 @@ func (s *Server) Start(ctx context.Context) {
 	r.Post("/admin/mock/purge", s.purgeMock)
 	r.Get("/admin/accuracy", s.accuracy)
 	r.Post("/admin/reset-errors", s.resetErrors)
+	r.Post("/admin/push", s.pushSend)
 
 	srv := &http.Server{Addr: addr, Handler: r, ReadTimeout: 10 * time.Second, WriteTimeout: 150 * time.Second} // eval runs several LLM calls
 	go func() {
@@ -487,6 +491,92 @@ func (s *Server) resetErrors(w http.ResponseWriter, r *http.Request) {
 	}
 	s.announce("Счётчик ошибок сброшен")
 	writeJSON(w, http.StatusOK, map[string]string{"status": "reset", "ts": clock.Now().Format(time.RFC3339)})
+}
+
+type pushRequest struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	// Type reaches the app as data.type: morning | day_review | update | custom.
+	Type string `json:"type"`
+	// UserIDs limits the send; empty means everyone who has a token.
+	UserIDs []string `json:"user_ids"`
+	// DryRun resolves the audience and returns it without sending anything.
+	DryRun bool `json:"dry_run"`
+}
+
+type pushResult struct {
+	Audience int               `json:"audience"`
+	Sent     int               `json:"sent"`
+	Dropped  int               `json:"dropped"` // token was dead; cleared from the database
+	Failed   int               `json:"failed"`
+	DryRun   bool              `json:"dry_run,omitempty"`
+	UserIDs  []string          `json:"user_ids,omitempty"` // dry run only
+	Errors   map[string]string `json:"errors,omitempty"`
+}
+
+// pushSend delivers one notification by hand — to everyone, or to the user_ids given.
+//
+// Manual sends exist because the distribution channel is an APK link, not a store: there is
+// no other way to reach people who already installed the app. Every send is announced in
+// Telegram, and a dry run shows the audience first.
+func (s *Server) pushSend(w http.ResponseWriter, r *http.Request) {
+	var req pushRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return
+	}
+	req.Title, req.Body = strings.TrimSpace(req.Title), strings.TrimSpace(req.Body)
+	if req.Title == "" || req.Body == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "title and body are required"})
+		return
+	}
+	if req.Type == "" {
+		req.Type = "custom"
+	}
+	if !s.pusher.Enabled() && !req.DryRun {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": push.ErrDisabled.Error()})
+		return
+	}
+
+	targets, err := s.users.PushTargets(r.Context(), req.UserIDs)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+
+	out := pushResult{Audience: len(targets), DryRun: req.DryRun}
+	if req.DryRun {
+		for _, t := range targets {
+			out.UserIDs = append(out.UserIDs, t.UserID)
+		}
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	msg := push.Message{Title: req.Title, Body: req.Body, Type: req.Type}
+	for _, t := range targets {
+		err := s.pusher.Send(r.Context(), t.Token, msg)
+		switch {
+		case err == nil:
+			out.Sent++
+		case errors.Is(err, push.ErrUnregistered):
+			// The app is gone from that phone: keep the user, drop the dead token.
+			out.Dropped++
+			if clearErr := s.users.ClearFCMToken(r.Context(), t.UserID); clearErr != nil {
+				slog.Warn("push: clear dead token", "user", t.UserID, "err", clearErr)
+			}
+		default:
+			out.Failed++
+			if out.Errors == nil {
+				out.Errors = map[string]string{}
+			}
+			out.Errors[t.UserID] = err.Error()
+		}
+	}
+
+	s.announce(fmt.Sprintf("Пуш «%s» — отправлен %d из %d (мёртвых токенов %d, ошибок %d)",
+		req.Title, out.Sent, out.Audience, out.Dropped, out.Failed))
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) announce(text string) {

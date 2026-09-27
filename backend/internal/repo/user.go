@@ -126,6 +126,53 @@ func (r *UserRepo) FCMToken(ctx context.Context, userID string) (*string, error)
 	return token, err
 }
 
+// SetFCMToken stores the phone's push token. Called by the app, so the user already exists.
+func (r *UserRepo) SetFCMToken(ctx context.Context, userID, token string) error {
+	_, err := r.db.Exec(ctx, `UPDATE users SET fcm_token = $2 WHERE id = $1`, userID, token)
+	return err
+}
+
+// ClearFCMToken drops a token FCM told us is dead (app uninstalled).
+func (r *UserRepo) ClearFCMToken(ctx context.Context, userID string) error {
+	_, err := r.db.Exec(ctx, `UPDATE users SET fcm_token = NULL WHERE id = $1`, userID)
+	return err
+}
+
+// PushTarget is one phone a notification can reach.
+type PushTarget struct {
+	UserID string
+	Token  string
+}
+
+// PushTargets lists everyone who can receive a push. With userIDs it is limited to those
+// users; empty means everyone. Users without a token are skipped — they simply cannot be
+// reached, which the caller reports as "skipped" rather than an error.
+func (r *UserRepo) PushTargets(ctx context.Context, userIDs []string) ([]PushTarget, error) {
+	query := `SELECT id, fcm_token FROM users WHERE fcm_token IS NOT NULL AND fcm_token <> ''`
+	args := []any{}
+	if len(userIDs) > 0 {
+		query += ` AND id = ANY($1)`
+		args = append(args, userIDs)
+	}
+	query += ` ORDER BY id`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []PushTarget
+	for rows.Next() {
+		var t PushTarget
+		if err := rows.Scan(&t.UserID, &t.Token); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // SetProfile replaces the user's profile answers.
 func (r *UserRepo) SetProfile(ctx context.Context, userID string, profile map[string]string) error {
 	_, err := r.db.Exec(ctx, `UPDATE users SET profile = $2 WHERE id = $1`, userID, profile)

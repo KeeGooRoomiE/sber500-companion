@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import ru.keegoo.companion.ui.MainActivity
@@ -12,6 +13,7 @@ import java.time.LocalDate
 
 const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
+const val CHANNEL_UPDATE   = "ch_update"
 
 const val EXTRA_FEEL = "feel"
 const val EXTRA_NOTIF_SOURCE = "notif_source"
@@ -19,6 +21,7 @@ const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
+const val NOTIF_ID_UPDATE  = 1003
 
 data class NotificationCopy(val title: String, val body: String)
 
@@ -62,6 +65,41 @@ fun createNotificationChannels(context: Context) {
             description = "Быстрая оценка дня"
         }
     )
+    nm.createNotificationChannel(
+        // LOW: the app is distributed as an APK link, so this is the only way to tell people a
+        // new build exists — but it is never urgent enough to make a sound.
+        NotificationChannel(CHANNEL_UPDATE, "Обновления приложения", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Вышла новая версия"
+        }
+    )
+}
+
+/**
+ * «Меня можно обновить» as a notification. The in-app toast only shows while the app is open;
+ * with an APK link as the distribution channel that is not enough to get people onto a build
+ * that fixes something.
+ */
+fun showUpdateNotification(context: Context, title: String, body: String, url: String? = null) {
+    val intent = if (url.isNullOrBlank()) {
+        openAppIntent(context, "update")
+    } else {
+        PendingIntent.getActivity(
+            context, "update".hashCode(),
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+    val notif = NotificationCompat.Builder(context, CHANNEL_UPDATE)
+        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+        .setContentTitle(title)
+        .setContentText(body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setContentIntent(intent)
+        .setAutoCancel(true)
+        .build()
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_UPDATE, notif) }
 }
 
 private fun openAppIntent(context: Context, source: String): PendingIntent = PendingIntent.getActivity(

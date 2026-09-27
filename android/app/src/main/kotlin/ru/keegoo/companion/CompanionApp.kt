@@ -8,8 +8,10 @@ import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
 import io.appmetrica.analytics.AppMetrica
 import io.appmetrica.analytics.AppMetricaConfig
+import ru.keegoo.companion.notifications.Push
 import ru.keegoo.companion.notifications.createNotificationChannels
 import ru.keegoo.companion.work.DailyCollectWorker
+import ru.keegoo.companion.work.UpdateCheckWorker
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,10 @@ class CompanionApp : Application(), Configuration.Provider {
         }
         createNotificationChannels(this)
         DailyCollectWorker.schedule(this)
+        UpdateCheckWorker.schedule(this)
+        // Tokens rotate, so this runs on every start — it is one cheap call and the server
+        // cannot reach the phone at all without a fresh one.
+        Push.syncToken(this)
         appScope.launch { NotificationScheduler.ensureScheduled(this@CompanionApp) }
         if (BuildConfig.DEBUG) {
             // Debug: collect once on launch so /data/passive can be checked without waiting 12 h.

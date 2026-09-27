@@ -85,3 +85,6 @@ data class ReviewResponse(
 )
 
 data class EventRequest(val type: String)
+
+/** The phone's FCM registration token, so the server can reach it when the app is closed. */
+data class PushTokenRequest(@SerializedName("token") val token: String)

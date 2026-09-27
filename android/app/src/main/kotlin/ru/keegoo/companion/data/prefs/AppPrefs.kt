@@ -47,6 +47,17 @@ suspend fun Context.dismissUpdate(version: String) {
     }
 }
 
+// The update notification already went out for this version — the background check runs twice
+// a day, and the same version must not be announced again and again.
+private val KEY_UPDATE_NOTIFIED_VERSION = stringPreferencesKey("update_notified_version")
+
+suspend fun Context.wasUpdateNotified(version: String): Boolean =
+    appPrefs.data.first()[KEY_UPDATE_NOTIFIED_VERSION] == version
+
+suspend fun Context.markUpdateNotified(version: String) {
+    appPrefs.edit { it[KEY_UPDATE_NOTIFIED_VERSION] = version }
+}
+
 suspend fun Context.isMorningDeliveredToday(): Boolean =
     appPrefs.data.first()[KEY_MORNING_DELIVERED] == LocalDate.now().toString()
 
