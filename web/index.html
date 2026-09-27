@@ -241,7 +241,9 @@
     }
 
     .phone {
-      width: 240px;
+      width: 260px;
+      max-width: 72vw;
+      height: auto;
       filter: drop-shadow(var(--shadow-lg));
       transform: rotateX(4deg);
     }
@@ -562,35 +564,9 @@
 
 <!-- PHONE MOCKUP -->
 <div class="phone-wrap reveal" style="--reveal-delay: 0.1s">
-  <svg class="phone" viewBox="0 0 240 480" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="236" height="476" rx="36" fill="white" stroke="#E4E4E7" stroke-width="2"/>
-    <rect x="80" y="8" width="80" height="20" rx="10" fill="#F4F4F5"/>
-    <rect x="12" y="40" width="216" height="392" rx="24" fill="#F7F6FF"/>
-    <rect x="24" y="60" width="192" height="160" rx="16" fill="white"/>
-    <rect x="40" y="76" width="60" height="8" rx="4" fill="#E4E4E7"/>
-    <rect x="40" y="96" width="160" height="8" rx="4" fill="#18181B"/>
-    <rect x="40" y="110" width="140" height="8" rx="4" fill="#18181B"/>
-    <rect x="40" y="124" width="100" height="8" rx="4" fill="#6B5CE7" opacity="0.7"/>
-    <rect x="40" y="146" width="160" height="1" rx="0.5" fill="#F4F4F5"/>
-    <rect x="40" y="158" width="50" height="18" rx="9" fill="#EDE9FF"/>
-    <rect x="96" y="158" width="56" height="18" rx="9" fill="#EDE9FF"/>
-    <rect x="40" y="182" width="176" height="8" rx="4" fill="#A1A1AA"/>
-    <rect x="24" y="236" width="192" height="80" rx="16" fill="white"/>
-    <rect x="40" y="252" width="80" height="8" rx="4" fill="#18181B"/>
-    <rect x="40" y="268" width="120" height="8" rx="4" fill="#A1A1AA"/>
-    <rect x="40" y="288" width="48" height="18" rx="9" fill="#6B5CE7"/>
-    <rect x="96" y="288" width="48" height="18" rx="9" fill="#F4F4F5"/>
-    <rect x="152" y="288" width="48" height="18" rx="9" fill="#F4F4F5"/>
-    <rect x="24" y="332" width="88" height="88" rx="16" fill="white"/>
-    <rect x="124" y="332" width="88" height="88" rx="16" fill="white"/>
-    <rect x="40" y="350" width="28" height="28" rx="8" fill="#EDE9FF"/>
-    <rect x="40" y="384" width="56" height="7" rx="3.5" fill="#18181B"/>
-    <rect x="40" y="397" width="40" height="7" rx="3.5" fill="#A1A1AA"/>
-    <rect x="140" y="350" width="28" height="28" rx="8" fill="#EDE9FF"/>
-    <rect x="140" y="384" width="56" height="7" rx="3.5" fill="#18181B"/>
-    <rect x="140" y="397" width="36" height="7" rx="3.5" fill="#A1A1AA"/>
-    <rect x="88" y="448" width="64" height="4" rx="2" fill="#D4D4D8"/>
-  </svg>
+  <!-- Home screen on mock data: web/screens/build.py → render.cjs -->
+  <img class="phone" src="screens/home-phone.png" width="436" height="938"
+       alt="Главный экран Companion: утренний прогноз, экран, сон и разблокировки, день по часам и вечерний чек-ин" />
 </div>
 
 <!-- FEATURES -->

@@ -13,7 +13,7 @@ import math, os
 # ── Mock data (a calm-ish late morning of a made-up person) ─────────────────
 MOCK = {
     "clock": "11:24",
-    "greeting": "Доброе утро,<br>Саша",
+    "greeting": "Доброе утро",
     "forecast": ("Вчера было плотное утро: 51 разблокировка до полудня при обычных 15. "
                  "После таких дней у тебя обычно ровнее вечер, а фокус скорее придёт ближе к обеду."),
     # (label, value text, level) — level colours as HealthLevel on the light theme
@@ -201,10 +201,10 @@ def build():
   /* Framed variant: ?frame=1 */
   .phone {{ display: none; }}
   body.framed {{ padding: 40px; }}
-  body.framed .phone {{ display: block; position: relative; width: {W + 28}px; height: {H + 28}px; border-radius: 58px; padding: 14px;
+  body.framed .phone {{ display: block; position: relative; width: {W + 24}px; height: {H + 24}px; border-radius: 36px; padding: 12px;
                         background: linear-gradient(145deg, #2a2733, #121016); box-shadow: 0 0 0 2px #3a3644 inset, 0 30px 60px rgba(40,28,90,.28); }}
-  body.framed .screen {{ border-radius: 44px; }}
-  body.framed .camera {{ position: absolute; top: 12px; left: 50%; width: 11px; height: 11px; margin-left: -5.5px; border-radius: 50%;
+  body.framed .screen {{ border-radius: 24px; }}
+  body.framed .camera {{ position: absolute; top: 10px; left: 50%; width: 11px; height: 11px; margin-left: -5.5px; border-radius: 50%;
                          background: #0c0b10; box-shadow: 0 0 0 1.5px #1d1b24; z-index: 3; }}
 </style>
 </head>
