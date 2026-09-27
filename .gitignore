@@ -27,3 +27,5 @@ Thumbs.db
 # IDE
 .idea/
 *.iml
+# Obsidian vault settings — workspace.json rewrites on every pane move
+.obsidian/
