@@ -10,6 +10,10 @@
          silence: App Standby drops a rarely-opened app to roughly one job a day. Asking is
          the only way a WorkManager schedule holds on most phones. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Reminders run on *AndAllowWhileIdle alarms, the documented way past Doze. Exact ones
+         need this from Android 12; when it is not granted the inexact variant still fires,
+         just with looser timing. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- UsageStats — выдаётся через настройки системы, не диалог -->
     <uses-permission
@@ -56,6 +60,24 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="ru.keegoo.companion.ACTION_CHECKIN" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Daily reminders (AlarmManager one-shots; each fire arms the next) -->
+        <receiver
+            android:name=".notifications.ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ru.keegoo.companion.ACTION_REMIND" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Alarms are dropped on reboot and have to be armed again -->
+        <receiver
+            android:name=".notifications.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
