@@ -13,6 +13,7 @@ import java.time.LocalDate
 
 const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
+const val CHANNEL_REVIEW   = "ch_review"
 const val CHANNEL_UPDATE   = "ch_update"
 
 const val EXTRA_FEEL = "feel"
@@ -22,6 +23,7 @@ const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
 const val NOTIF_ID_UPDATE  = 1003
+const val NOTIF_ID_REVIEW  = 1004
 
 data class NotificationCopy(val title: String, val body: String)
 
@@ -63,6 +65,11 @@ fun createNotificationChannels(context: Context) {
     nm.createNotificationChannel(
         NotificationChannel(CHANNEL_CHECKIN, "Вечерний чек-ин", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Быстрая оценка дня"
+        }
+    )
+    nm.createNotificationChannel(
+        NotificationChannel(CHANNEL_REVIEW, "Разбор дня", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Объяснение прошедшего дня сразу после чек-ина"
         }
     )
     nm.createNotificationChannel(
@@ -122,6 +129,25 @@ fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCo
         .build()
 
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif) }
+}
+
+/**
+ * The «разбор дня» itself, delivered right after the check-in. The full LLM text (3–4 sentences,
+ * ≤500 chars) rides in BigTextStyle, so the person reads the explanation without opening the app;
+ * a tap opens Home for the «Совпало / Не совсем» feedback.
+ */
+fun showReviewNotification(context: Context, text: String) {
+    val notif = NotificationCompat.Builder(context, CHANNEL_REVIEW)
+        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setContentTitle("Разбор дня")
+        .setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(openAppIntent(context, "review"))
+        .setAutoCancel(true)
+        .build()
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_REVIEW, notif) }
 }
 
 fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {

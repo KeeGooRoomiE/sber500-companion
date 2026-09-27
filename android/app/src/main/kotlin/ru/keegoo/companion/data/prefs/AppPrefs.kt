@@ -65,6 +65,15 @@ suspend fun Context.markMorningDelivered() {
     appPrefs.edit { it[KEY_MORNING_DELIVERED] = LocalDate.now().toString() }
 }
 
+private val KEY_REVIEW_NOTIFIED = stringPreferencesKey("review_notified_date")
+
+suspend fun Context.wasReviewNotifiedToday(): Boolean =
+    appPrefs.data.first()[KEY_REVIEW_NOTIFIED] == LocalDate.now().toString()
+
+suspend fun Context.markReviewNotified() {
+    appPrefs.edit { it[KEY_REVIEW_NOTIFIED] = LocalDate.now().toString() }
+}
+
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false
 
 suspend fun Context.isBackfilled(): Boolean = appPrefs.data.first()[KEY_BACKFILLED] ?: false

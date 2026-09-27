@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.domain.model.DayFeel
+import ru.keegoo.companion.work.ReviewNotificationWorker
 import java.time.LocalDate
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -55,6 +56,9 @@ class CheckInReceiver : BroadcastReceiver() {
                 context.saveCheckIn(feel, emptySet())
                 repo.postCheckIn(LocalDate.now(), feel)
             } finally {
+                // The «разбор дня» follows the check-in; the LLM call is too slow for a
+                // BroadcastReceiver, so a worker does it (and posts today's snapshot first).
+                ReviewNotificationWorker.enqueue(context)
                 pending.finish()
             }
         }

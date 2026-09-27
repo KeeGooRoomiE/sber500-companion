@@ -22,6 +22,7 @@ import ru.keegoo.companion.data.collector.hasUsageAccess
 import ru.keegoo.companion.data.prefs.clearCheckIn
 import ru.keegoo.companion.data.prefs.isBackfilled
 import ru.keegoo.companion.work.DailyCollectWorker
+import ru.keegoo.companion.work.ReviewNotificationWorker
 import ru.keegoo.companion.data.prefs.profileAnswers
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
@@ -373,6 +374,8 @@ class HomeViewModel @Inject constructor(
             val tags = _state.value.tags
             context.saveCheckIn(feel, tags)
             repository.postCheckIn(LocalDate.now(), feel, CheckInTags.filter { it in tags })
+            // Same «разбор дня» push as the notification check-in; the worker dedups per day.
+            ReviewNotificationWorker.enqueue(context)
         }
     }
 }
