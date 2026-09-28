@@ -326,7 +326,8 @@ fun HomeScreen(
             exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { it / 4 },
         ) {
             shownReview?.let {
-                ReviewSheet(modifier = Modifier, review = it, onClose = vm::closeReview, onRate = vm::rateReview)
+                ReviewSheet(modifier = Modifier, review = it, onClose = vm::closeReview,
+                    onRate = vm::rateReview, onFollowup = vm::askFollowup)
             }
         }
 

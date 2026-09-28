@@ -6,6 +6,8 @@ import ru.keegoo.companion.data.api.model.AppUsageDto
 import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
+import ru.keegoo.companion.data.api.model.FollowupRequest
+import ru.keegoo.companion.data.api.model.FollowupResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.PushTokenRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
@@ -88,6 +90,10 @@ class CompanionRepository @Inject constructor(
     suspend fun exploreState(): Result<ExploreResponse> = runCatching { api.getExplore() }
 
     suspend fun exploreAsk(id: String): Result<ExploreResponse> = runCatching { api.postExplore(ExploreRequest(id)) }
+
+    /** One follow-up chip under an insight; repeat taps are served from the server cache. */
+    suspend fun followup(kind: String, date: String?, questionId: String): Result<FollowupResponse> =
+        runCatching { api.postFollowup(FollowupRequest(kind, date, questionId)) }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 

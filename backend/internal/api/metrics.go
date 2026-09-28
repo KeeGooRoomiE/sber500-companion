@@ -67,8 +67,8 @@ type MetricsResponse struct {
 
 	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
-	MorningDeliveredToday int      `json:"morning_delivered_today"`
-	CallsPerDAU           *float64 `json:"calls_per_dau"`
+	MorningDeliveredToday int            `json:"morning_delivered_today"`
+	CallsPerDAU           *float64       `json:"calls_per_dau"`
 
 	// «Совпало / Не совсем» under the morning forecast, last 30 days.
 	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.

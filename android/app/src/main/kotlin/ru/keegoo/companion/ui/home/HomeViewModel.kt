@@ -28,6 +28,7 @@ import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.prefs.todayCheckIn
 import ru.keegoo.companion.data.api.model.ExploreAnswer
 import ru.keegoo.companion.data.api.model.ExploreQuestion
+import ru.keegoo.companion.data.api.model.FollowupQuestionDto
 import ru.keegoo.companion.data.api.model.HistoryItem
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.SignalDto
@@ -111,7 +112,16 @@ data class ReviewUi(
     val date: String? = null,
     /** «Похоже на правду?»: null, "hit" or "miss". */
     val feedback: String? = null,
+    /** Chips not tapped yet. The catalogue comes from the server, never from the app. */
+    val followups: List<FollowupQuestionDto> = emptyList(),
+    /** Answered chips, in the order they were tapped — the thread under the insight. */
+    val answers: List<FollowupAnswerUi> = emptyList(),
+    /** Question id currently being answered; the chip shows a spinner. */
+    val followupLoading: String? = null,
 )
+
+/** One tapped chip and what came back. */
+data class FollowupAnswerUi(val questionId: String, val label: String, val text: String)
 
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
 
@@ -241,9 +251,43 @@ class HomeViewModel @Inject constructor(
                             current.copy(
                                 loading = false, text = r.text, signals = r.signals.orEmpty(),
                                 date = r.date, feedback = r.feedback?.takeIf(String::isNotBlank),
+                                followups = r.followups.orEmpty(),
                             )
                         },
                         onFailure = { e -> current.copy(loading = false, error = reviewErrorText(e)) },
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * A follow-up chip under the open review. One tap = one LLM call, and the server caches the
+     * answer per (insight, date, question), so tapping the same chip again costs nothing.
+     */
+    fun askFollowup(questionId: String) {
+        val review = _state.value.review ?: return
+        val date = review.date ?: return
+        if (review.followupLoading != null) return
+        val chip = review.followups.firstOrNull { it.id == questionId } ?: return
+        val kind = if (review.kind == ReviewKind.Week) "week" else "day"
+
+        _state.update { it.copy(review = it.review?.copy(followupLoading = questionId)) }
+        viewModelScope.launch {
+            val result = repository.followup(kind, date, questionId)
+            _state.update { s ->
+                val cur = s.review ?: return@update s
+                s.copy(
+                    review = result.fold(
+                        onSuccess = { r ->
+                            cur.copy(
+                                followupLoading = null,
+                                followups = cur.followups.filterNot { it.id == questionId },
+                                answers = cur.answers + FollowupAnswerUi(questionId, chip.label, r.text),
+                            )
+                        },
+                        // Keep the chip on failure so the tap can be retried.
+                        onFailure = { cur.copy(followupLoading = null) },
                     )
                 )
             }

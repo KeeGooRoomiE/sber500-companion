@@ -44,6 +44,8 @@ data class MorningMessageResponse(
     val signals: List<SignalDto>? = null,
     /** "" | "hit" | "miss" — the person's «Совпало / Не совсем» for this forecast. */
     val feedback: String? = null,
+    /** Follow-up chips the server will answer for this insight. */
+    val followups: List<FollowupQuestionDto>? = null,
 )
 
 /** One thing that stood out yesterday, computed on the server from the data (evidence for the forecast). */
@@ -82,6 +84,29 @@ data class ReviewResponse(
     val text: String,
     val signals: List<SignalDto>? = null,
     val feedback: String? = null,
+    val followups: List<FollowupQuestionDto>? = null,
+)
+
+/**
+ * One follow-up chip under an insight. The catalogue lives on the server so the two cannot
+ * drift: the app only ever sends back an id it was given.
+ */
+data class FollowupQuestionDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("label") val label: String,
+)
+
+data class FollowupRequest(
+    @SerializedName("kind") val kind: String,          // "morning" | "day" | "week"
+    @SerializedName("date") val date: String?,
+    @SerializedName("question_id") val questionId: String,
+)
+
+data class FollowupResponse(
+    @SerializedName("kind") val kind: String,
+    @SerializedName("date") val date: String,
+    @SerializedName("question_id") val questionId: String,
+    @SerializedName("text") val text: String,
 )
 
 data class EventRequest(val type: String)

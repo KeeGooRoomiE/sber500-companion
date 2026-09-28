@@ -241,10 +241,11 @@ func (h *Handler) MorningMessage(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("morning feedback", "err", err)
 	}
 	writeJSON(w, http.StatusOK, MorningMessageResponse{
-		Date:     msg.Date.Format("2006-01-02"),
-		Message:  msg.Message,
-		Signals:  sig,
-		Feedback: verdict,
+		Date:      msg.Date.Format("2006-01-02"),
+		Message:   msg.Message,
+		Signals:   sig,
+		Feedback:  verdict,
+		Followups: forecast.FollowupsFor("morning"),
 	})
 }
 

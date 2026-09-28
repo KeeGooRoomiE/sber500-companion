@@ -3,6 +3,7 @@ package api
 import (
 	"time"
 
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
 
@@ -60,10 +61,11 @@ type FeedbackRequest struct {
 // --- responses ---
 
 type MorningMessageResponse struct {
-	Date     string           `json:"date"`
-	Message  string           `json:"message"`
-	Signals  []signals.Signal `json:"signals"`  // evidence for «Почему такой прогноз»
-	Feedback string           `json:"feedback"` // "" | "hit" | "miss"
+	Date      string                      `json:"date"`
+	Message   string                      `json:"message"`
+	Signals   []signals.Signal            `json:"signals"`  // evidence for «Почему такой прогноз»
+	Feedback  string                      `json:"feedback"` // "" | "hit" | "miss"
+	Followups []forecast.FollowupQuestion `json:"followups"`
 }
 
 type ErrorResponse struct {

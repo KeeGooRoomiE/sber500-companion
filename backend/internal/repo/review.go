@@ -38,6 +38,18 @@ func (r *ReviewRepo) Get(ctx context.Context, userID, kind string, date time.Tim
 	return v, err
 }
 
+// CountKindPrefixToday counts what this user generated today whose kind starts with prefix.
+// Follow-ups use it: they are keyed by the insight's date, not today's, so a person could
+// otherwise walk back through a month of past days and run up a call per question per day.
+func (r *ReviewRepo) CountKindPrefixToday(ctx context.Context, userID, prefix string) (int, error) {
+	var n int
+	err := r.db.QueryRow(ctx, `
+		SELECT count(*) FROM reviews
+		WHERE user_id = $1 AND kind LIKE $2 || '%' AND created_at >= date_trunc('day', NOW())
+	`, userID, prefix).Scan(&n)
+	return n, err
+}
+
 // Save inserts or refreshes the review for (user, kind, date).
 func (r *ReviewRepo) Save(ctx context.Context, v *Review) error {
 	_, err := r.db.Exec(ctx, `

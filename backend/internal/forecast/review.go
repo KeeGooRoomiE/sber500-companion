@@ -89,7 +89,7 @@ func (g *Generator) DayReview(ctx context.Context, userID string, date time.Time
 		return nil, nil, err
 	}
 	user := DayReviewPrompt(days, sig, checkins[date.Format("2006-01-02")], profile, date.Equal(today))
-	rv, err := g.complete(ctx, userID, prompts.DayReviewSystem, analytics.ComponentLLMDay, "day", date, user, DayReviewLimits)
+	rv, err := g.complete(ctx, userID, prompts.DayReviewSystem, analytics.ComponentLLMDay, analytics.TriggerUserAction, "day", date, user, DayReviewLimits)
 	return rv, sig, err
 }
 
@@ -118,12 +118,12 @@ func (g *Generator) WeeklyReview(ctx context.Context, userID string) (*repo.Revi
 		return nil, err
 	}
 	user := WeeklyPrompt(days, checkins, profile)
-	return g.complete(ctx, userID, prompts.WeeklySystem, analytics.ComponentLLMWeekly, "week", today, user, WeeklyLimits)
+	return g.complete(ctx, userID, prompts.WeeklySystem, analytics.ComponentLLMWeekly, analytics.TriggerUserAction, "week", today, user, WeeklyLimits)
 }
 
 // complete runs one on-demand LLM text: budget → prompt → call → safety → log → save.
 func (g *Generator) complete(ctx context.Context, userID, promptName string, component analytics.Component,
-	kind string, date time.Time, user string, lim Limits) (*repo.Review, error) {
+	trigger analytics.Trigger, kind string, date time.Time, user string, lim Limits) (*repo.Review, error) {
 	if ok, err := g.withinBudget(ctx); err != nil {
 		return nil, err
 	} else if !ok {
@@ -142,7 +142,7 @@ func (g *Generator) complete(ctx context.Context, userID, promptName string, com
 	}
 	event := analytics.CallEvent{
 		UserID: userID, Timestamp: start, CallType: analytics.CallTypeLLM, Component: component,
-		Trigger: analytics.TriggerUserAction, UserVisible: true, Result: "ok", LatencyMs: time.Since(start).Milliseconds(),
+		Trigger: trigger, UserVisible: true, Result: "ok", LatencyMs: time.Since(start).Milliseconds(),
 	}
 	if err != nil {
 		code := "llm_error"

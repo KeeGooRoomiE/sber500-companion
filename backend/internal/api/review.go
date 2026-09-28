@@ -55,6 +55,9 @@ type ReviewResponse struct {
 	Text     string           `json:"text"`
 	Signals  []signals.Signal `json:"signals"`
 	Feedback string           `json:"feedback"` // "" | "hit" | "miss"
+	// Follow-up chips for this insight. Sent by the server so the catalogue has one home
+	// and the app cannot drift out of sync with what the backend will actually answer.
+	Followups []forecast.FollowupQuestion `json:"followups"`
 }
 
 // DayReview explains one day on request («Разбор дня»).
@@ -85,7 +88,7 @@ func (h *Handler) DayReview(w http.ResponseWriter, r *http.Request) {
 		sig = []signals.Signal{}
 	}
 	verdict, _ := h.feedback.Get(r.Context(), uid, "day", date)
-	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "day", Date: date.Format("2006-01-02"), Text: rv.Text, Signals: sig, Feedback: verdict})
+	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "day", Date: date.Format("2006-01-02"), Text: rv.Text, Signals: sig, Feedback: verdict, Followups: forecast.FollowupsFor("day")})
 }
 
 // WeekReview sums up the last 7 days on request («Итоги недели»).
@@ -97,7 +100,7 @@ func (h *Handler) WeekReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	verdict, _ := h.feedback.Get(r.Context(), uid, "week", rv.Date)
-	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "week", Date: rv.Date.Format("2006-01-02"), Text: rv.Text, Signals: []signals.Signal{}, Feedback: verdict})
+	writeJSON(w, http.StatusOK, ReviewResponse{Kind: "week", Date: rv.Date.Format("2006-01-02"), Text: rv.Text, Signals: []signals.Signal{}, Feedback: verdict, Followups: forecast.FollowupsFor("week")})
 }
 
 // reviewError maps generator errors to responses; true if a response was written.

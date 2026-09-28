@@ -24,11 +24,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -255,7 +258,13 @@ private fun HistoryPanel(item: HistoryItem) {
 
 /** The sheet for «Разбор дня» and «Итоги недели»: shimmer while the model writes, then text + evidence. */
 @Composable
-internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Unit, onRate: (Boolean) -> Unit) {
+internal fun ReviewSheet(
+    modifier: Modifier,
+    review: ReviewUi,
+    onClose: () -> Unit,
+    onRate: (Boolean) -> Unit,
+    onFollowup: (String) -> Unit = {},
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -323,6 +332,31 @@ internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Un
                     }
                 }
             }
+            // Answered chips read as a thread under the insight, each with the question above it.
+            review.answers.forEach { a ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = a.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = a.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+
+            if (review.text != null && review.followups.isNotEmpty()) {
+                FollowupChips(
+                    chips = review.followups,
+                    loadingId = review.followupLoading,
+                    onTap = onFollowup,
+                )
+            }
+
             if (review.text != null && review.date != null) {
                 key(review.kind, review.date) {
                     FeedbackRow(
@@ -335,6 +369,58 @@ internal fun ReviewSheet(modifier: Modifier, review: ReviewUi, onClose: () -> Un
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Follow-up chips under an insight: «Почему ты так решил?» and friends.
+ *
+ * They hang off an insight that already exists, so unlike «Хочу ещё» they never have to say
+ * «мало данных» — the data behind the answer is there by construction. A tapped chip is
+ * removed and its answer appears above; a failed tap leaves the chip so it can be retried.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FollowupChips(
+    chips: List<FollowupQuestionDto>,
+    loadingId: String?,
+    onTap: (String) -> Unit,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 2.dp),
+    ) {
+        chips.forEach { chip ->
+            val busy = loadingId == chip.id
+            val anyBusy = loadingId != null
+            Row(
+                modifier = Modifier
+                    .clip(AppShapes.circle)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(enabled = !anyBusy) { onTap(chip.id) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    text = chip.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (anyBusy && !busy) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
             }
         }
     }

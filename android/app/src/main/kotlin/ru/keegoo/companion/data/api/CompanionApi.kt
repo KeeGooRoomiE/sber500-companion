@@ -9,6 +9,8 @@ import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.ExploreRequest
 import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
+import ru.keegoo.companion.data.api.model.FollowupRequest
+import ru.keegoo.companion.data.api.model.FollowupResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
@@ -33,6 +35,9 @@ interface CompanionApi {
 
     @POST("api/v1/ping")
     suspend fun ping()
+
+    @POST("api/v1/followup")
+    suspend fun postFollowup(@Body body: FollowupRequest): FollowupResponse
 
     @POST("api/v1/push-token")
     suspend fun postPushToken(@Body body: PushTokenRequest)

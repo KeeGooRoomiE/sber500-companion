@@ -23,6 +23,7 @@ const (
 	ComponentLLMWeekly          Component = "llm_weekly"
 	ComponentLLMDay             Component = "llm_day_review"
 	ComponentLLMExplore         Component = "llm_explore"
+	ComponentLLMFollowup        Component = "llm_followup"
 	ComponentUsageStats         Component = "usagestats"
 	ComponentHealthConn         Component = "health_connect"
 	ComponentCalendar           Component = "calendar"
