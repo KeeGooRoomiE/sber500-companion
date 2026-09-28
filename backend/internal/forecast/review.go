@@ -146,13 +146,21 @@ func (g *Generator) complete(ctx context.Context, userID, promptName string, com
 	}
 	if err != nil {
 		code := "llm_error"
+		// The client hung up — sheet closed, worker stopped — so the request context was
+		// cancelled and the call aborted. That is the server doing the right thing: it stops
+		// paying for an answer nobody will read. The call is still logged in full for the
+		// anti-fraud record, but it is not a service failure and must not read as one; the
+		// error rate counts rows whose result is "error".
+		result := "error"
 		switch {
+		case errors.Is(err, context.Canceled):
+			code, result = "client_gone", "canceled"
 		case errors.Is(err, context.DeadlineExceeded):
 			code = "timeout"
 		case errors.Is(err, ErrUnsafeOutput):
 			code = "unsafe_output"
 		}
-		event.Result, event.ErrorCode = "error", &code
+		event.Result, event.ErrorCode = result, &code
 		g.callLog.Log(ctx, event)
 		return nil, err
 	}
