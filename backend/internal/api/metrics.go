@@ -17,10 +17,32 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
 )
 
-// DAUPoint is one bar of the 7-day chart on web/metrics.html.
+// historyDays is how far back the daily charts on web/metrics.html reach. Three weeks plus
+// a day shows a trend rather than a week's noise, which is what the judges are looking at.
+const historyDays = 22
+
+// DAUPoint is one bar of the DAU chart on web/metrics.html.
 type DAUPoint struct {
 	Date string `json:"date"`
 	DAU  int    `json:"dau"`
+}
+
+// CheckinPoint is one bar of the check-in rate chart. Pct is null on days nobody was active,
+// because "0% of nobody" would draw as a real dip.
+type CheckinPoint struct {
+	Date string   `json:"date"`
+	Pct  *float64 `json:"pct"`
+}
+
+// Cohort is one weekly sign-up group and how much of it came back. A window is null until the
+// whole cohort is old enough to have had the chance — otherwise D7 of a two-day-old cohort
+// reads as a catastrophic drop instead of "too early to say".
+type Cohort struct {
+	Week   string   `json:"week"` // Monday of the sign-up week
+	Size   int      `json:"size"`
+	D1Pct  *float64 `json:"d1_pct"`
+	D7Pct  *float64 `json:"d7_pct"`
+	D14Pct *float64 `json:"d14_pct"`
 }
 
 // MetricsResponse matches the keys web/metrics.html renders. Null = not enough data yet.
@@ -34,6 +56,7 @@ type MetricsResponse struct {
 	DAUHistory     []DAUPoint `json:"dau_history"`
 	RetentionD1Pct *float64   `json:"retention_d1_pct"`
 	RetentionD7Pct *float64   `json:"retention_d7_pct"`
+	Cohorts        []Cohort   `json:"retention_cohorts"`
 
 	// Retention funnel — absolute counts for the visual funnel
 	FunnelTotal     int `json:"funnel_total"`
@@ -42,7 +65,8 @@ type MetricsResponse struct {
 	FunnelD7        int `json:"funnel_d7"`        // retained at D7
 	FunnelDAU       int `json:"funnel_dau"`       // active today
 
-	CheckinRatePct        *float64 `json:"checkin_rate_pct"`
+	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
+	CheckinHistory        []CheckinPoint `json:"checkin_history"`
 	MorningDeliveredToday int      `json:"morning_delivered_today"`
 	CallsPerDAU           *float64 `json:"calls_per_dau"`
 
@@ -142,7 +166,13 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	tz := clock.Location().String()
 	devs := m.devIDs
 
-	out := &MetricsResponse{UpdatedAt: now.Format(time.RFC3339), DAUHistory: []DAUPoint{}}
+	// Empty slices, not nil: the page maps over these, so they must serialise as [] not null.
+	out := &MetricsResponse{
+		UpdatedAt:      now.Format(time.RFC3339),
+		DAUHistory:     []DAUPoint{},
+		CheckinHistory: []CheckinPoint{},
+		Cohorts:        []Cohort{},
+	}
 
 	// Growth
 	if err := m.db.QueryRow(ctx, `
@@ -155,14 +185,13 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 
 	rows, err := m.db.Query(ctx, `
 		SELECT d::date, count(a.user_id)
-		FROM generate_series($2::date - 6, $2::date, interval '1 day') d
+		FROM generate_series($2::date - $3::int, $2::date, interval '1 day') d
 		LEFT JOIN user_activity a ON a.date = d::date AND NOT (a.user_id = ANY($1))
 		GROUP BY d ORDER BY d
-	`, devs, today)
+	`, devs, today, historyDays-1)
 	if err != nil {
 		return nil, err
 	}
-	sum := 0
 	for rows.Next() {
 		var d time.Time
 		var n int
@@ -171,15 +200,24 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 			return nil, err
 		}
 		out.DAUHistory = append(out.DAUHistory, DAUPoint{Date: d.Format("2006-01-02"), DAU: n})
-		sum += n
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(out.DAUHistory) > 0 {
-		out.DAUToday = out.DAUHistory[len(out.DAUHistory)-1].DAU
-		out.DAU7dAvg = round(float64(sum)/float64(len(out.DAUHistory)), 1)
+	if n := len(out.DAUHistory); n > 0 {
+		out.DAUToday = out.DAUHistory[n-1].DAU
+		// Average the last 7 points only — the history is longer than a week, and averaging
+		// all of it would quietly turn dau_7d_avg into something else.
+		week := out.DAUHistory
+		if n > 7 {
+			week = out.DAUHistory[n-7:]
+		}
+		sum := 0
+		for _, p := range week {
+			sum += p.DAU
+		}
+		out.DAU7dAvg = round(float64(sum)/float64(len(week)), 1)
 	}
 
 	// Retention D1: users who signed up 1–6 days ago and had any activity after registration day
@@ -241,6 +279,77 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
 	out.CallsPerDAU = ratio(float64(callsToday), out.DAUToday, 1)
+
+	// Check-in rate per day, over the same window as the DAU chart.
+	ciRows, err := m.db.Query(ctx, `
+		SELECT d::date,
+		       count(DISTINCT a.user_id) AS active,
+		       count(DISTINCT c.user_id) AS checked
+		FROM generate_series($2::date - $3::int, $2::date, interval '1 day') d
+		LEFT JOIN user_activity a ON a.date = d::date AND NOT (a.user_id = ANY($1))
+		LEFT JOIN checkins      c ON c.date = d::date AND NOT (c.user_id = ANY($1))
+		GROUP BY d ORDER BY d
+	`, devs, today, historyDays-1)
+	if err != nil {
+		return nil, err
+	}
+	for ciRows.Next() {
+		var d time.Time
+		var active, checked int
+		if err := ciRows.Scan(&d, &active, &checked); err != nil {
+			ciRows.Close()
+			return nil, err
+		}
+		out.CheckinHistory = append(out.CheckinHistory, CheckinPoint{
+			Date: d.Format("2006-01-02"), Pct: pct(checked, active),
+		})
+	}
+	ciRows.Close()
+	if err := ciRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Weekly sign-up cohorts and how much of each came back. Each window counts only the
+	// users old enough to have had the chance, so a fresh cohort shows «—», not 0%.
+	cohRows, err := m.db.Query(ctx, `
+		SELECT date_trunc('week', u.created_at AT TIME ZONE $2)::date AS week,
+		       count(*),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 1),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 1
+		                          AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id
+		                                      AND a.date > (u.created_at AT TIME ZONE $2)::date)),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 7),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 7
+		                          AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id
+		                                      AND a.date >= (u.created_at AT TIME ZONE $2)::date + 7)),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 14),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 14
+		                          AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id
+		                                      AND a.date >= (u.created_at AT TIME ZONE $2)::date + 14))
+		FROM users u
+		WHERE NOT (u.id = ANY($1))
+		  AND (u.created_at AT TIME ZONE $2)::date >= $3::date - 27
+		GROUP BY week ORDER BY week
+	`, devs, tz, today)
+	if err != nil {
+		return nil, err
+	}
+	for cohRows.Next() {
+		var week time.Time
+		var size, e1, r1, e7, r7, e14, r14 int
+		if err := cohRows.Scan(&week, &size, &e1, &r1, &e7, &r7, &e14, &r14); err != nil {
+			cohRows.Close()
+			return nil, err
+		}
+		out.Cohorts = append(out.Cohorts, Cohort{
+			Week: week.Format("2006-01-02"), Size: size,
+			D1Pct: pct(r1, e1), D7Pct: pct(r7, e7), D14Pct: pct(r14, e14),
+		})
+	}
+	cohRows.Close()
+	if err := cohRows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Forecast accuracy from «Совпало / Не совсем» (30 days, dev users excluded)
 	var hits, rated, delivered30 int
