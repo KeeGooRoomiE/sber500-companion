@@ -118,3 +118,39 @@ func TestPersonas(t *testing.T) {
 		}
 	}
 }
+
+// A fresh install: two plain days, no check-ins, nothing to compare against. Every comparison
+// generator bows out here, and before the fallback existed the panel came back empty — which
+// reads to the person as «пока мало данных», i.e. a broken feature.
+func TestFreshInstallStillOffersSomething(t *testing.T) {
+	start := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	in := Input{CheckIns: map[string]*repo.CheckIn{}, LabelOf: label, WorkApps: map[string]bool{}}
+	for i := 0; i < 2; i++ {
+		in.Days = append(in.Days, &repo.DailyData{
+			Date: start.AddDate(0, 0, i), ScreenMin: ip(210), Unlocks: ip(60), SleepMin: ip(430),
+		})
+	}
+
+	got := Build(in)
+	if len(got) == 0 {
+		t.Fatal("no questions on a fresh install — the panel would say «мало данных»")
+	}
+	if len(got[0].Facts) < 2 {
+		t.Errorf("fallback question carries too little: %+v", got[0].Facts)
+	}
+	// Find must be able to answer whatever Build offered.
+	if Find(in, got[0].ID) == nil {
+		t.Errorf("Build offered %q but Find cannot answer it", got[0].ID)
+	}
+}
+
+// One day with a single number is not enough to be worth asking about.
+func TestEmptyDayOffersNothing(t *testing.T) {
+	in := Input{
+		CheckIns: map[string]*repo.CheckIn{}, LabelOf: label, WorkApps: map[string]bool{},
+		Days: []*repo.DailyData{{Date: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), ScreenMin: ip(120)}},
+	}
+	if got := Build(in); len(got) != 0 {
+		t.Errorf("expected no questions for a near-empty day, got %d: %+v", len(got), got)
+	}
+}

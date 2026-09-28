@@ -38,7 +38,15 @@ type Input struct {
 	LabelOf  func(string) string
 }
 
+// minHistory is the least history a comparison question needs. It is deliberately low: the
+// panel saying «пока мало данных» on someone's third day is worse than a cautious answer, and
+// the prompt is told to hedge when a comparison rests on one or two days.
+const minHistory = 3
+
 // Build returns every question the data can answer, most interesting first.
+//
+// If none of the comparison questions qualify, [yesterdayByNumbers] steps in: it needs nothing
+// but one day with something in it, so a person with data always has something to ask.
 func Build(in Input) []Answerable {
 	if len(in.Days) == 0 {
 		return nil
@@ -49,7 +57,50 @@ func Build(in Input) []Answerable {
 			out = append(out, *a)
 		}
 	}
+	if len(out) == 0 {
+		if a := yesterdayByNumbers(in); a != nil && len(a.Facts) > 0 {
+			out = append(out, *a)
+		}
+	}
 	return out
+}
+
+// yesterdayByNumbers is the floor: no comparison, no baseline, just what the phone saw.
+// It exists so the panel is never empty for someone who has data — on a fresh install the
+// comparison questions cannot fire, and an empty panel reads as a broken feature.
+func yesterdayByNumbers(in Input) *Answerable {
+	d := in.Days[len(in.Days)-1]
+	a := &Answerable{Question: Question{ID: "yesterday_numbers", Text: "Что вообще было вчера?"}}
+	if d.ScreenMin != nil {
+		a.Facts = append(a.Facts, "Экран: "+signals.FormatMinutes(*d.ScreenMin))
+	}
+	if d.Unlocks != nil {
+		a.Facts = append(a.Facts, fmt.Sprintf("Разблокировок: %d", *d.Unlocks))
+	}
+	if d.SleepMin != nil {
+		a.Facts = append(a.Facts, "Сон: "+signals.FormatMinutes(*d.SleepMin))
+	}
+	if d.Steps != nil {
+		a.Facts = append(a.Facts, fmt.Sprintf("Шагов: %d", *d.Steps))
+	}
+	if len(d.TopApps) > 0 {
+		var apps []string
+		for i, x := range d.TopApps {
+			if i == 3 {
+				break
+			}
+			apps = append(apps, fmt.Sprintf("%s %s", in.LabelOf(x.Package), signals.FormatMinutes(x.Minutes)))
+		}
+		a.Facts = append(a.Facts, "Больше всего времени: "+strings.Join(apps, ", "))
+	}
+	if c := in.CheckIns[key(d.Date)]; c != nil {
+		a.Facts = append(a.Facts, "Вечером ты отметил: "+feelWord(c.DayFeel))
+	}
+	// One lonely number is not worth a question.
+	if len(a.Facts) < 2 {
+		return nil
+	}
+	return a
 }
 
 // Find returns the question with this id if the data can answer it.
@@ -66,7 +117,7 @@ func Find(in Input, id string) *Answerable {
 
 func similarDays(in Input) *Answerable {
 	days := in.Days
-	if len(days) < 5 {
+	if len(days) < minHistory {
 		return nil
 	}
 	sigOf := func(i int) []signals.Signal {
@@ -91,7 +142,7 @@ func similarDays(in Input) *Answerable {
 		shared []string
 	}
 	var found []match
-	for i := last - 1; i >= 3 && len(found) < 5; i-- {
+	for i := last - 1; i >= 1 && len(found) < 5; i-- {
 		var shared []string
 		for _, s := range sigOf(i) {
 			if t, ok := want[s.Key]; ok {
@@ -160,7 +211,7 @@ func similarDays(in Input) *Answerable {
 	if len(nextFeels) > 0 {
 		a.Facts = append(a.Facts, "Следующий день ты отмечал: "+feelCounts(nextFeels))
 	}
-	if len(found) < 2 {
+	if len(found) < 1 {
 		a.Facts = append(a.Facts, "Похожий день пока один — вывод осторожный")
 	}
 	return a
@@ -214,7 +265,7 @@ func bestDays(in Input) *Answerable {
 			}
 		}
 	}
-	if len(good) == 0 || len(bad) == 0 || len(good)+len(bad) < 3 {
+	if len(good) == 0 || len(bad) == 0 || len(good)+len(bad) < 2 {
 		return nil
 	}
 	a := &Answerable{Question: Question{ID: "best", Text: "Чем мои хорошие дни отличаются от тяжёлых?"}}
@@ -234,7 +285,7 @@ func phoneAndSleep(in Input) *Answerable {
 			nights = append(nights, night{lu, *in.Days[i+1].SleepMin})
 		}
 	}
-	if len(nights) < 5 {
+	if len(nights) < minHistory {
 		return nil
 	}
 	lasts := make([]int, len(nights))
@@ -251,7 +302,7 @@ func phoneAndSleep(in Input) *Answerable {
 			early = append(early, float64(n.sleep))
 		}
 	}
-	if len(late) < 2 || len(early) < 2 {
+	if len(late) < 1 || len(early) < 1 {
 		return nil
 	}
 	a := &Answerable{Question: Question{ID: "phone_sleep", Text: "Как телефон вечером влияет на мой сон?"}}
@@ -276,7 +327,7 @@ func movement(in Input) *Answerable {
 			steps = append(steps, *d.Steps)
 		}
 	}
-	if len(idx) < 5 {
+	if len(idx) < minHistory {
 		return nil
 	}
 	s := append([]int(nil), steps...)
@@ -290,7 +341,7 @@ func movement(in Input) *Answerable {
 			less = append(less, i)
 		}
 	}
-	if len(more) < 2 || len(less) < 2 {
+	if len(more) < 1 || len(less) < 1 {
 		return nil
 	}
 	a := &Answerable{Question: Question{ID: "movement", Text: "Что мне даёт движение?"}}
@@ -319,7 +370,7 @@ func workDays(in Input) *Answerable {
 			light = append(light, i)
 		}
 	}
-	if len(heavy) < 2 || len(light) < 2 {
+	if len(heavy) < 1 || len(light) < 1 {
 		return nil
 	}
 	a := &Answerable{Question: Question{ID: "work", Text: "Как работа в телефоне влияет на мои дни?"}}
