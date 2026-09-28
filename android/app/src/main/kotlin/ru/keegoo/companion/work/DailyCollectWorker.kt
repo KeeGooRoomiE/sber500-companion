@@ -94,6 +94,25 @@ class DailyCollectWorker @AssistedInject constructor(
             return info?.state == WorkInfo.State.SUCCEEDED
         }
 
+        /**
+         * Fire-and-forget collection, ridden in on a reminder alarm.
+         *
+         * [schedule] is a periodic WorkManager job, which is the mechanism measured doing
+         * nothing for 16 hours on a throttled phone. The forecast is generated on the server
+         * from these snapshots, so a silent collector means the notification still arrives but
+         * has nothing fresh behind it. The alarms are now the reliable wake-up, so the upload
+         * rides along with them; the periodic job stays as a second chance.
+         */
+        fun enqueueOnce(context: Context) {
+            val request = OneTimeWorkRequestBuilder<DailyCollectWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                NOW_WORK_NAME, ExistingWorkPolicy.KEEP, request,
+            )
+        }
+
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<DailyCollectWorker>(12, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())

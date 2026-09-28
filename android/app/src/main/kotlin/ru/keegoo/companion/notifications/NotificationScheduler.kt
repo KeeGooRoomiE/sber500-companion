@@ -11,12 +11,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.keegoo.companion.data.collector.firstUnlockBetween
 import ru.keegoo.companion.data.collector.hasUsageAccess
 import ru.keegoo.companion.data.prefs.isMorningDeliveredToday
 import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.todayCheckIn
+import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.domain.profile.DefaultEveningTime
 import ru.keegoo.companion.domain.profile.DefaultMorningTime
 import ru.keegoo.companion.domain.profile.ProfileIds
@@ -27,6 +29,9 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 private const val TAG = "Reminders"
+
+/** How long the alarm path waits for the server before falling back to the local forecast. */
+private const val SERVER_TEXT_BUDGET_MS = 7_000L
 
 enum class ReminderKind { Morning, Evening }
 
@@ -131,45 +136,51 @@ object NotificationScheduler {
         Log.d(TAG, "armed $kind for $at (exact=$exact)")
     }
 
+    /** What the morning alarm should do now: when to wake next, and whether to post. */
+    internal data class MorningPlan(val next: LocalDateTime, val post: Boolean)
+
     /**
-     * Decides what the morning alarm should do right now and re-arms it.
-     * Returns the moment of the next alarm.
+     * Decides the morning alarm's next move using only on-device data.
+     *
+     * Deliberately does no network: the caller arms [MorningPlan.next] before posting, so a slow
+     * request cannot cost the chain its next alarm (see [ReminderReceiver]).
      */
-    internal suspend fun handleMorning(context: Context): LocalDateTime {
+    internal suspend fun planMorning(context: Context): MorningPlan {
         val now = LocalDateTime.now()
         val answers = context.profileAnswersNow()
         val fixed = parseTime(answers[ProfileIds.MORNING_TIME])
 
         // Already seen today, in the app or from a push: nothing to do until tomorrow.
         if (context.isMorningDeliveredToday()) {
-            return tomorrowAt(fixed ?: WATCH_FROM)
+            return MorningPlan(tomorrowAt(fixed ?: WATCH_FROM), post = false)
         }
         if (fixed != null) {
-            postMorningForecast(context)
-            return tomorrowAt(fixed)
+            return MorningPlan(tomorrowAt(fixed), post = true)
         }
 
         // Watch mode. Without usage access there is no unlock to see, so behave like a fixed time.
         if (!context.hasUsageAccess()) {
             return if (now.toLocalTime() >= DefaultMorningTime) {
-                postMorningForecast(context)
-                tomorrowAt(WATCH_FROM)
+                MorningPlan(tomorrowAt(WATCH_FROM), post = true)
             } else {
-                now.toLocalDate().atTime(DefaultMorningTime)
+                MorningPlan(now.toLocalDate().atTime(DefaultMorningTime), post = false)
             }
         }
-        if (now.toLocalTime() < WATCH_FROM) return now.toLocalDate().atTime(WATCH_FROM)
-        if (now.toLocalTime() > WATCH_UNTIL) return tomorrowAt(WATCH_FROM)
+        if (now.toLocalTime() < WATCH_FROM) {
+            return MorningPlan(now.toLocalDate().atTime(WATCH_FROM), post = false)
+        }
+        if (now.toLocalTime() > WATCH_UNTIL) {
+            return MorningPlan(tomorrowAt(WATCH_FROM), post = false)
+        }
 
         val from = now.toLocalDate().atTime(WATCH_FROM).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val unlocked = context.firstUnlockBetween(from, System.currentTimeMillis()) != null
-        if (unlocked) {
-            postMorningForecast(context)
-            return tomorrowAt(WATCH_FROM)
+        if (context.firstUnlockBetween(from, System.currentTimeMillis()) != null) {
+            return MorningPlan(tomorrowAt(WATCH_FROM), post = true)
         }
         // Not up yet — look again shortly, unless that would run past the morning.
         val nextLook = now.plusMinutes(WATCH_STEP_MIN)
-        return if (nextLook.toLocalTime() > WATCH_UNTIL) tomorrowAt(WATCH_FROM) else nextLook
+        val next = if (nextLook.toLocalTime() > WATCH_UNTIL) tomorrowAt(WATCH_FROM) else nextLook
+        return MorningPlan(next, post = false)
     }
 
     private fun tomorrowAt(time: LocalTime): LocalDateTime =
@@ -186,10 +197,15 @@ suspend fun postMorningForecast(context: Context) {
     val repo = dagger.hilt.android.EntryPointAccessors
         .fromApplication(context.applicationContext, CheckInEntryPoint::class.java)
         .repository()
-    val llmText = repo.getMorning()
-        .getOrNull()
-        ?.takeIf { it.message.isNotBlank() }
-        ?.let { NotificationCopy("Прогноз на сегодня", it.message) }
+    // A BroadcastReceiver gets roughly ten seconds, while the API client allows 15 s to connect
+    // and 30 s to read. Waiting the full time risks the process dying with nothing shown, so the
+    // server text gets a short window and the local forecast goes out if it misses it.
+    val llmText = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
+        repo.getMorning()
+            .getOrNull()
+            ?.takeIf { it.message.isNotBlank() }
+            ?.let { NotificationCopy("Прогноз на сегодня", it.message) }
+    }
     showMorningNotification(context, llmText ?: MorningCopies.forToday())
     context.markMorningDelivered()
 }
@@ -205,15 +221,31 @@ class ReminderReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val next = when (kind) {
-                    ReminderKind.Morning -> NotificationScheduler.handleMorning(app)
+                // Arm the next alarm BEFORE any network work. goAsync() buys a receiver only
+                // about ten seconds, while fetching the forecast can take far longer than that
+                // (15 s connect + 30 s read). If the process is killed mid-request, the chain
+                // must already have its next link — otherwise the reminders stop for good until
+                // the app is opened or the phone reboots.
+                when (kind) {
+                    ReminderKind.Morning -> {
+                        val plan = NotificationScheduler.planMorning(app)
+                        NotificationScheduler.scheduleAt(app, kind, plan.next)
+                        if (plan.post) {
+                            // Catch-up upload: only on the day's single posting alarm, not on
+                            // every 15-minute watch step.
+                            DailyCollectWorker.enqueueOnce(app)
+                            postMorningForecast(app)
+                        }
+                    }
                     ReminderKind.Evening -> {
+                        NotificationScheduler.scheduleAt(app, kind, NotificationScheduler.nextEvening(app))
+                        // Today's data goes up now, so tomorrow's forecast has something to be
+                        // built from — the periodic collector cannot be relied on for that.
+                        DailyCollectWorker.enqueueOnce(app)
                         // Already answered today, in the app or from the notification.
                         if (app.todayCheckIn().first() == null) showCheckinNotification(app)
-                        NotificationScheduler.nextEvening(app)
                     }
                 }
-                NotificationScheduler.scheduleAt(app, kind, next)
             } catch (e: Exception) {
                 Log.w(TAG, "reminder $kind failed", e)
             } finally {
