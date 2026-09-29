@@ -69,6 +69,9 @@ type MetricsResponse struct {
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
 	MorningDeliveredToday int            `json:"morning_delivered_today"`
 	CallsPerDAU           *float64       `json:"calls_per_dau"`
+	// Averaged over the whole chart window, not just today: with a handful of users a
+	// single active person swings the daily figure, and this is a competition KPI.
+	CallsPerDAUAvg *float64 `json:"calls_per_dau_avg"`
 
 	// «Совпало / Не совсем» under the morning forecast, last 30 days.
 	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.
@@ -268,9 +271,9 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	if err := m.db.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM checkins WHERE date = $2 AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM morning_messages WHERE date = $2 AND sent_at IS NOT NULL AND NOT (user_id = ANY($1))),
-		       (SELECT count(*) FROM call_log WHERE ts >= $3),
-		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND ts >= $3),
-		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed')
+		       (SELECT count(*) FROM call_log WHERE ts >= $3 AND NOT (user_id = ANY($1))),
+		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND ts >= $3 AND NOT (user_id = ANY($1))),
+		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND NOT (user_id = ANY($1)))
 	`, devs, today, dayStart).Scan(
 		&checkinsToday, &out.MorningDeliveredToday, &callsToday,
 		&out.ScenarioCompletedToday, &out.ScenarioCompletedTotal,
@@ -279,6 +282,22 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
 	out.CallsPerDAU = ratio(float64(callsToday), out.DAUToday, 1)
+
+	// Calls per active user averaged over the chart window: total calls divided by the sum of
+	// daily DAU. Weighting by activity rather than averaging daily ratios keeps a quiet day
+	// with one user from counting as much as a busy one.
+	var callsWindow int
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(*) FROM call_log
+		WHERE ts >= $2::date - $3::int AND NOT (user_id = ANY($1))
+	`, devs, today, historyDays-1).Scan(&callsWindow); err != nil {
+		return nil, err
+	}
+	dauDays := 0
+	for _, p := range out.DAUHistory {
+		dauDays += p.DAU
+	}
+	out.CallsPerDAUAvg = ratio(float64(callsWindow), dauDays, 1)
 
 	// Check-in rate per day, over the same window as the DAU chart.
 	ciRows, err := m.db.Query(ctx, `

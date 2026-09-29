@@ -227,7 +227,11 @@
   // ─── KPI row ───────────────────────────────────────────────────────────────
   function renderKpis(d) {
     const dau   = d.dau_today ?? 0;
-    const calls = d.calls_per_dau;
+    // Averaged over the chart window. The daily figure swings wildly while the user count is
+    // small — one active person can double it — so the KPI is judged on the period.
+    const callsAvg = d.calls_per_dau_avg;
+    const callsToday = d.calls_per_dau;
+    const calls = callsAvg ?? callsToday;
     const llm   = d.llm_calls_total ?? 0;
 
     const cards = [
@@ -242,7 +246,12 @@
       {
         label: 'Calls / DAU',
         value: calls == null ? '—' : nf(calls, 1),
-        target: `цель ≥ ${KPI_CALLS_TARGET}`,
+        // Only claim a period average when one actually arrived: an older backend sends
+        // today's figure alone, and labelling that as the average would be a lie.
+        target: callsAvg == null
+          ? `цель ≥ ${KPI_CALLS_TARGET} · за сегодня`
+          : `цель ≥ ${KPI_CALLS_TARGET} · в среднем за период` +
+            (callsToday == null ? '' : ` (сегодня ${nf(callsToday, 1)})`),
         pct: calls == null ? 0 : Math.min(100, calls / KPI_CALLS_TARGET * 100),
         ok: calls != null && calls >= KPI_CALLS_TARGET,
         color: '#10B981',
