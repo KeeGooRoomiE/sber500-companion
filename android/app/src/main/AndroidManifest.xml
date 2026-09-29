@@ -5,7 +5,6 @@
     <!-- WorkManager network constraints -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Without this the OS throttles the daily collector and the morning reminder into
          silence: App Standby drops a rarely-opened app to roughly one job a day. Asking is
          the only way a WorkManager schedule holds on most phones. -->

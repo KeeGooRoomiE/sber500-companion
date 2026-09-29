@@ -349,6 +349,48 @@
     }
 
     /* ── HOW IT WORKS ── */
+
+    /* ── EXPLAIN (плоский разбор «как это устроено») ── */
+    .explain {
+      padding: 0 16px 120px;
+      max-width: 620px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    .explain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      margin-top: 36px;
+    }
+    .explain-item h3 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-bottom: 8px;
+    }
+    .explain-item p {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .explain-item p + p { margin-top: 10px; }
+    .explain-item em {
+      font-style: normal;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .explain-note {
+      margin-top: 36px;
+      padding: 18px 20px;
+      border-radius: 14px;
+      background: var(--primary-light);
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
     .how {
       padding: 0 16px 120px;
       max-width: 560px;
@@ -668,6 +710,45 @@
     </p>
     <p class="quote-meta">Пример еженедельной сводки · Паттерн обнаружен автоматически</p>
   </div>
+</section>
+
+<!-- EXPLAIN -->
+<section class="explain">
+  <p class="section-label reveal">Если коротко</p>
+  <h2 class="section-title reveal" style="--reveal-delay: 0.05s">Как это устроено</h2>
+  <p class="section-sub reveal" style="--reveal-delay: 0.1s">Без тайн: что берём, с чем сравниваем<br>и что уходит с телефона.</p>
+
+  <div class="explain-list">
+    <div class="explain-item reveal" style="--reveal-delay: 0s">
+      <h3>Откуда берутся данные</h3>
+      <p>Телефон и так всё это считает — мы просто смотрим на то, что уже записано: сколько времени горел экран, сколько раз ты его разблокировал, во сколько погас последний раз вечером и когда включился утром.</p>
+      <p>Шаги и сон приходят из Health Connect, если у тебя есть часы или браслет. Если их нет, сном считается самая длинная ночная пауза без экрана — <em>это оценка, и приложение честно её так и называет</em>.</p>
+    </div>
+
+    <div class="explain-item reveal" style="--reveal-delay: 0.08s">
+      <h3>Что значит «паттерн»</h3>
+      <p>Тебя сравнивают только с тобой. Не с нормой сна, не со средним по стране, не с рекомендациями ВОЗ — с твоими же последними неделями.</p>
+      <p>«Вчера экран погас на час позже обычного» имеет смысл, только если известно, что такое <em>твоё</em> обычное. Поэтому первые дни приложение мало что говорит: ему не с чем сравнивать. Дальше становится интереснее.</p>
+    </div>
+
+    <div class="explain-item reveal" style="--reveal-delay: 0.16s">
+      <h3>Кто придумывает фразы</h3>
+      <p>Все числа и сравнения считает сервер обычным кодом — сколько минут, на сколько больше обычного, в какие дни повторялось. Языковая модель получает уже готовые факты и только превращает их в человеческую фразу.</p>
+      <p><em>Она не придумывает цифры и не ставит диагнозов.</em> Под каждым разбором можно раскрыть «На чём основано» и увидеть те самые факты.</p>
+    </div>
+
+    <div class="explain-item reveal" style="--reveal-delay: 0.24s">
+      <h3>Что уходит с телефона</h3>
+      <p>Числа: минуты, количество разблокировок, время отхода ко сну, шаги. Плюс какими приложениями и сколько минут ты пользовался — по названию пакета, чтобы отличить работу от соцсетей.</p>
+      <p>Не уходит ничего из того, что <em>внутри</em>: ни переписки, ни содержимое экранов, ни геолокация — её приложение вообще не запрашивает. Аккаунт анонимный, без почты и телефона; постоянный идентификатор устройства хранится только как необратимый хеш.</p>
+    </div>
+  </div>
+
+  <p class="explain-note reveal" style="--reveal-delay: 0.3s">
+    Код открыт целиком — и приложение, и сервер, и эта страница.
+    Если что-то из написанного вызывает сомнение, это можно просто проверить:
+    <a href="https://github.com/KeeGooRoomiE/sber500-companion">github.com/KeeGooRoomiE/sber500-companion</a>
+  </p>
 </section>
 
 <!-- CTA BOTTOM -->
