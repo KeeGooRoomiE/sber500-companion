@@ -76,7 +76,19 @@
 постоянный идентификатор устройства хранится только как необратимый хеш.
 
 Полный список разрешений — в [AndroidManifest.xml](android/app/src/main/AndroidManifest.xml),
-их шесть, и каждое используется.
+и каждое используется.
+
+### Подробная архитектура
+
+Схемы потоков данных, устройство планировщика, слои Android-приложения и бэкенда, решения и
+причины, по которым они приняты:
+
+**→ [internal-docs/dev/ARCHITECTURE.md](internal-docs/dev/ARCHITECTURE.md)**
+
+Рядом лежат разборы отдельных частей: [доставка уведомлений](internal-docs/dev/NOTIFICATIONS.md)
+(почему будильники, а не WorkManager), [нагрузочное тестирование](internal-docs/dev/LOADTEST.md)
+(10 RPS на проде), [бюджет LLM](internal-docs/dev/LLM_BUDGET.md) и
+[как метрики считаются](internal-docs/dev/METRICS_MAPPING.md).
 
 ---
 

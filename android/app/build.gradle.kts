@@ -12,6 +12,17 @@ plugins {
 // without it (local builds) the usual per-machine debug key is used.
 val sharedKeystore = System.getenv("COMPANION_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
 
+// AppMetrica key never lives in the repo: CI passes it as an env var from a secret, local
+// builds read it from local.properties (gitignored). Absent key = SDK stays off, which is how
+// every build behaved until now.
+val appMetricaKey: String = System.getenv("APPMETRICA_KEY")
+    ?: rootProject.file("local.properties").takeIf { it.exists() }
+        ?.readLines()
+        ?.firstOrNull { it.startsWith("appmetrica.key=") }
+        ?.substringAfter('=')
+        ?.trim()
+    ?: ""
+
 android {
     namespace = "ru.keegoo.companion"
     compileSdk = 35
@@ -40,8 +51,7 @@ android {
             if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
             // 10.0.2.2 — localhost внутри Android-эмулятора
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
-            // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
-            buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
         }
         release {
             // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
@@ -50,8 +60,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
-            // TODO: вставить ключ из дашборда AppMetrica, когда будет получен
-            buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
             if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
     }

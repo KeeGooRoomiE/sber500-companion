@@ -34,7 +34,15 @@ class CompanionApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.APPMETRICA_KEY.isNotEmpty()) {
-            AppMetrica.activate(this, AppMetricaConfig.newConfigBuilder(BuildConfig.APPMETRICA_KEY).build())
+            // Location tracking is off on purpose: the privacy policy promises that no
+            // geolocation is collected in any form, and AppMetrica would otherwise do it by
+            // default. Turning it on again means changing that promise first.
+            AppMetrica.activate(
+                this,
+                AppMetricaConfig.newConfigBuilder(BuildConfig.APPMETRICA_KEY)
+                    .withLocationTracking(false)
+                    .build(),
+            )
         }
         createNotificationChannels(this)
         DailyCollectWorker.schedule(this)

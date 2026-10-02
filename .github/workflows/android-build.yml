@@ -62,6 +62,8 @@ jobs:
           echo "COMPANION_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Build debug APK
+        env:
+          APPMETRICA_KEY: ${{ secrets.APPMETRICA_KEY }}
         working-directory: android
         # Release too: it is what ships (signing, R8 settings) — debug alone hid the 0.6.1–0.7.0 bug
         run: gradle assembleDebug assembleRelease --no-daemon --stacktrace

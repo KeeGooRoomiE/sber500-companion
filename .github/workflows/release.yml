@@ -49,6 +49,8 @@ jobs:
           echo "COMPANION_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Build release APK
+        env:
+          APPMETRICA_KEY: ${{ secrets.APPMETRICA_KEY }}
         working-directory: android
         run: gradle assembleRelease --no-daemon --quiet
 
