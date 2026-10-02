@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.analytics.Events
 import ru.keegoo.companion.data.auth.DeviceCredentials
 import ru.keegoo.companion.data.local.SleepSource
+import ru.keegoo.companion.data.prefs.claimFirstForecast
 import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.saveProfileAnswer
@@ -173,6 +175,11 @@ class HomeViewModel @Inject constructor(
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()
             _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
+            // End of the onboarding funnel: the app has delivered what it promised. Reported on
+            // whichever text got there first — the local one usually wins by several seconds.
+            if (_state.value.forecast != null && context.claimFirstForecast()) {
+                Events.firstForecastShown(local = true)
+            }
             // Fetch LLM morning forecast in parallel; local forecast is already shown as fallback.
             viewModelScope.launch {
                 // Usage access granted later than onboarding (e.g. from the card's button):
@@ -187,7 +194,10 @@ class HomeViewModel @Inject constructor(
                 repository.getMorning()
                     .onSuccess { resp ->
                         // Seen in the app — the «first unlock» notification isn't needed today
-                        if (resp.message.isNotBlank()) context.markMorningDelivered()
+                        if (resp.message.isNotBlank()) {
+                            context.markMorningDelivered()
+                            if (context.claimFirstForecast()) Events.firstForecastShown(local = false)
+                        }
                         _state.update {
                             it.copy(
                                 forecast = resp.message,

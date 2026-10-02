@@ -76,6 +76,7 @@ import androidx.health.connect.client.records.StepsRecord
 import kotlinx.coroutines.delay
 import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.data.collector.batteryOptimizationIntent
+import ru.keegoo.companion.analytics.Events
 import ru.keegoo.companion.data.collector.hasUsageAccess
 import ru.keegoo.companion.data.collector.isIgnoringBatteryOptimizations
 import ru.keegoo.companion.ui.motion.BackdropScene
@@ -129,6 +130,9 @@ private val steps = listOf(
 
 private const val LAST_STEP = 3
 
+/** Stable slugs for the funnel: step indexes alone are unreadable in a report a year later. */
+private val stepNames = listOf("intro", "usage_access", "notifications", "collecting")
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(showBackground = true, showSystemUi = true, name = "Onboarding — step 1")
 @Composable
@@ -156,11 +160,23 @@ fun OnboardingScreen(
     var step by rememberSaveable { mutableIntStateOf(0) }
     var hcUnavailable by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(step) { backdrop.scene = BackdropScene.Onboarding(step) }
+    LaunchedEffect(step) {
+        backdrop.scene = BackdropScene.Onboarding(step)
+        Events.onboardingStep(step, stepNames.getOrElse(step) { "step_$step" })
+    }
 
     val healthLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
-    ) { _ -> step = 2 }
+    ) { granted ->
+        // Partly granted still counts as denied for the funnel: without both sleep and steps
+        // the data source is not what the step asked for.
+        Events.onboardingPermission(
+            "health",
+            if (granted.containsAll(HEALTH_PERMISSIONS)) Events.PermissionResult.Granted
+            else Events.PermissionResult.Denied,
+        )
+        step = 2
+    }
 
     fun requestHealth() {
         if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
@@ -168,6 +184,7 @@ fun OnboardingScreen(
             healthLauncher.launch(HEALTH_PERMISSIONS)
         } else {
             hcUnavailable = true
+            Events.onboardingPermission("health", Events.PermissionResult.Unavailable)
             step = 2
         }
     }
@@ -180,9 +197,11 @@ fun OnboardingScreen(
         ActivityResultContracts.StartActivityForResult()
     ) { _ ->
         if (context.hasUsageAccess()) {
+            Events.onboardingPermission("usage_access", Events.PermissionResult.Granted)
             usageBlocked = false
             requestHealth()
         } else {
+            // Not final yet: the «restricted settings» panel is about to offer another try.
             usageBlocked = true
         }
     }
@@ -193,16 +212,32 @@ fun OnboardingScreen(
     // the reason is still on screen. Either answer moves on — push covers a "no".
     val batteryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { _ -> step = LAST_STEP }
+    ) { _ ->
+        // The dialog reports nothing, so ask the system what it decided.
+        Events.onboardingPermission(
+            "battery",
+            if (context.isIgnoringBatteryOptimizations()) Events.PermissionResult.Granted
+            else Events.PermissionResult.Denied,
+        )
+        step = LAST_STEP
+    }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ ->
+    ) { granted ->
+        Events.onboardingPermission(
+            "notifications",
+            if (granted) Events.PermissionResult.Granted else Events.PermissionResult.Denied,
+        )
         if (context.isIgnoringBatteryOptimizations()) {
+            Events.onboardingPermission("battery", Events.PermissionResult.Granted)
             step = LAST_STEP
         } else {
             runCatching { batteryLauncher.launch(batteryOptimizationIntent(context.packageName)) }
-                .onFailure { step = LAST_STEP }
+                .onFailure {
+                    Events.onboardingPermission("battery", Events.PermissionResult.Unavailable)
+                    step = LAST_STEP
+                }
         }
     }
 
@@ -216,6 +251,7 @@ fun OnboardingScreen(
             DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 10_000)
             val minShow = if (still) 600L else 1800L
             delay((minShow - (System.currentTimeMillis() - started)).coerceAtLeast(0))
+            Events.onboardingFinished()
             onFinish()
         }
     }
@@ -312,7 +348,11 @@ fun OnboardingScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .8f),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { usageBlocked = false; requestHealth() }
+                            .clickable {
+                                Events.onboardingPermission("usage_access", Events.PermissionResult.Skipped)
+                                usageBlocked = false
+                                requestHealth()
+                            }
                             .padding(vertical = 4.dp),
                     )
                 }
@@ -371,6 +411,10 @@ fun OnboardingScreen(
                         when (step) {
                             0 -> step = 1
                             1 -> if (context.hasUsageAccess()) {
+                                // Already granted — a reinstall, or it was given earlier. The
+                                // launcher never runs, so the funnel has to be told here or this
+                                // person silently disappears from the step.
+                                Events.onboardingPermission("usage_access", Events.PermissionResult.Granted)
                                 usageBlocked = false
                                 requestHealth()
                             } else {
@@ -381,6 +425,8 @@ fun OnboardingScreen(
                                     try {
                                         usageLauncher.launch(context.usageAccessIntent(direct = false))
                                     } catch (_: ActivityNotFoundException) {
+                                        // No settings screen to send them to at all.
+                                        Events.onboardingPermission("usage_access", Events.PermissionResult.Unavailable)
                                         requestHealth()
                                     }
                                 }

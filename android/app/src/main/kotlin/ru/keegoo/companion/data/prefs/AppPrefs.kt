@@ -58,6 +58,16 @@ suspend fun Context.markUpdateNotified(version: String) {
     appPrefs.edit { it[KEY_UPDATE_NOTIFIED_VERSION] = version }
 }
 
+// The first forecast this install ever showed — reported to analytics once, never again.
+private val KEY_FIRST_FORECAST_REPORTED = stringPreferencesKey("first_forecast_reported")
+
+/** True the first time it is called for this install; false ever after. */
+suspend fun Context.claimFirstForecast(): Boolean {
+    if (appPrefs.data.first()[KEY_FIRST_FORECAST_REPORTED] != null) return false
+    appPrefs.edit { it[KEY_FIRST_FORECAST_REPORTED] = LocalDate.now().toString() }
+    return true
+}
+
 suspend fun Context.isMorningDeliveredToday(): Boolean =
     appPrefs.data.first()[KEY_MORNING_DELIVERED] == LocalDate.now().toString()
 
