@@ -186,7 +186,10 @@ fun HomeScreen(
         else -> listOf(HomeBlock.Morning)
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
-    val entries = statEntries(state)
+    // A tile with nothing in it is just a dash taking up space — most often sleep, when Health
+    // Connect was never connected. Dropping it is the honest version: the offer to connect
+    // lives in «Расскажи о себе», not as a prompt over the forecast.
+    val entries = statEntries(state).filter { it.value != null }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -699,7 +702,7 @@ private fun MorningCard(
                     }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                Text("Хочу ещё ✦", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text("Спросить о себе", style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
 

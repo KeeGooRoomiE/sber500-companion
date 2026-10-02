@@ -54,7 +54,7 @@ import kotlinx.coroutines.delay
 import ru.keegoo.companion.ui.motion.CardBoundsTransform
 import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
-import ru.keegoo.companion.ui.theme.HealthLevel
+import ru.keegoo.companion.ui.theme.StatLevel
 import ru.keegoo.companion.ui.theme.color
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -65,25 +65,33 @@ internal data class StatEntry(
     val label: String,
     val value: Int?,
     val isTime: Boolean,
-    val warnAbove: Int? = null,
-    val warnBelow: Int? = null,
+    /** The person's previous days for this stat, oldest first, today excluded. */
+    val past: List<Int> = emptyList(),
 )
 
 internal fun statEntries(s: HomeUiState) = listOf(
-    StatEntry(StatKind.Screen, "Экран", s.screenMin, isTime = true, warnAbove = 300),
-    StatEntry(StatKind.Sleep, s.sleepLabel, s.sleepMin, isTime = true, warnBelow = 420),
-    StatEntry(StatKind.Unlocks, "Разблок.", s.unlocks, isTime = false, warnAbove = 80),
+    StatEntry(StatKind.Screen, "Экран", s.screenMin, isTime = true, past = s.pastOf(StatKind.Screen)),
+    StatEntry(StatKind.Sleep, s.sleepLabel, s.sleepMin, isTime = true, past = s.pastOf(StatKind.Sleep)),
+    StatEntry(StatKind.Unlocks, "Разблок.", s.unlocks, isTime = false, past = s.pastOf(StatKind.Unlocks)),
 )
 
-private fun StatEntry.level(v: Int? = value): HealthLevel? {
+/** The week behind today for one tile: the last entry is today, so it is dropped. */
+private fun HomeUiState.pastOf(kind: StatKind): List<Int> =
+    details[kind]?.week.orEmpty().dropLast(1).filterNotNull()
+
+/**
+ * Whether this number stands out from the person's own recent days.
+ *
+ * Needs at least three days behind it, otherwise there is no «usual» to be unlike and
+ * everything would look remarkable on day two. The band is the mean plus a quarter of it,
+ * which is loose on purpose: a tile that lights up most days says nothing.
+ */
+private fun StatEntry.level(v: Int? = value): StatLevel? {
     if (v == null) return null
-    return when {
-        warnAbove != null && v > (warnAbove * 1.3f).toInt() -> HealthLevel.Bad
-        warnAbove != null && v > warnAbove -> HealthLevel.Warn
-        warnBelow != null && v < (warnBelow * 0.7f).toInt() -> HealthLevel.Bad
-        warnBelow != null && v < warnBelow -> HealthLevel.Warn
-        else -> HealthLevel.Good
-    }
+    if (past.size < 3) return null
+    val usual = past.average()
+    if (usual <= 0.0) return null
+    return if (kotlin.math.abs(v - usual) >= usual * 0.25) StatLevel.Standout else StatLevel.Usual
 }
 
 private fun formatValue(v: Int, isTime: Boolean): String =

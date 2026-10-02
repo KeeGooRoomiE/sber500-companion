@@ -209,8 +209,12 @@ fun ProfileScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
-                ProgressLine(progress = progress, label = "$answered из ${questions.size}")
-                Spacer(Modifier.height(6.dp))
+                // Gone once everything is answered: a full bar still asks for something, and
+                // there is nothing left to do.
+                if (answered < questions.size) {
+                    ProgressLine(progress = progress, label = "$answered из ${questions.size}")
+                    Spacer(Modifier.height(6.dp))
+                }
             }
         }
 

@@ -70,7 +70,7 @@ internal fun ExploreSheet(modifier: Modifier, explore: ExploreUi, onAsk: (Explor
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Хочу ещё", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text("Спросить о себе", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                 if (!explore.loading && explore.error == null) {
                     Text(
                         text = if (explore.left > 0) "Осталось вопросов на сегодня: ${explore.left}" else "На сегодня всё — завтра будут новые",

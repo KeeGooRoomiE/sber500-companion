@@ -160,8 +160,10 @@ internal fun DayTimelineCard(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Разбор вчера", Modifier.weight(1f), filled = true, onClick = onReviewYesterday)
-            PillButton("Разбор сегодня", Modifier.weight(1f), filled = false, onClick = onReviewToday)
+            // Today carries the accent: the app is «скачал и забыл», and what just happened
+            // is the more interesting of the two. It was the other way round.
+            PillButton("Разбор вчера", Modifier.weight(1f), filled = false, onClick = onReviewYesterday)
+            PillButton("Разбор сегодня", Modifier.weight(1f), filled = true, onClick = onReviewToday)
         }
     }
 }

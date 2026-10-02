@@ -39,6 +39,32 @@ val HealthBad    = Color(0xFFB22020)
 val HealthBadBg  = Color(0xFFFDEAEA)
 
 // ── Health level → color, readable in both themes ────────────────────────────
+/**
+ * How a number sits against this person's own recent days.
+ *
+ * Deliberately not good/bad. The thresholds here used to be absolute — screen over five hours
+ * was red, sleep under seven was amber — which is the «норма здорового человека» the forecast
+ * prompt is explicitly forbidden to use. The text said «семь часов это твоя норма» while the
+ * number beside it glowed red for being above someone else's five.
+ *
+ * It also claimed to know what is good, and the product does not: sleeping longer than usual
+ * can mean rest or exhaustion, and the prompt already says «мало шагов — просто факт, не
+ * упрёк». So colour now marks only whether something stands out from the person's own usual.
+ *
+ * The three feeling colours are a separate matter and stay: there the person judged the day
+ * themselves, which is their call to make and ours to show.
+ */
+enum class StatLevel { Usual, Standout }
+
+@Composable
+fun StatLevel.color(): Color {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return when (this) {
+        StatLevel.Usual -> MaterialTheme.colorScheme.onSurface
+        StatLevel.Standout -> if (dark) Color(0xFFB9A7FF) else Primary
+    }
+}
+
 enum class HealthLevel { Good, Warn, Bad }
 
 @Composable
