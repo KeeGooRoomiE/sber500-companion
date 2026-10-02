@@ -98,7 +98,7 @@ File: `notifications/NotificationHelper.kt`
 - `POST /api/v1/checkin` — `CheckInRequest`
 - `GET /api/v1/morning` — `MorningMessageResponse`
 
-`PassiveDataRequest` fields: date, screen_min, unlocks, first_unlock, last_unlock, top_apps[], sleep_min, bedtime, wakeup, **steps**, battery_morning, fcm_token (reserved, null)
+`PassiveDataRequest` fields: date, screen_min, unlocks, first_unlock, last_unlock, top_apps[], sleep_min, bedtime, wakeup, **steps**, battery_morning, hourly_unlocks/screen/steps
 
 **X-User-ID**: OkHttp interceptor добавляет SHA256(ANDROID_ID+"sber500-companion-v1") в каждый запрос
 
@@ -111,7 +111,8 @@ File: `notifications/NotificationHelper.kt`
 
 1. **AppMetrica**: добавить ключ (ждём аккаунт) — `meta-data` в AndroidManifest + `AppMetrica.activate()` в CompanionApp
 2. **Glance widget** — виджет на рабочий стол (утренний прогноз)
-3. **FCM** — push-уведомления с сервера (сейчас локальный `NotificationScheduler`)
+3. ~~FCM~~ — удалён 2026-10-02. Доставка уведомлений — `NotificationScheduler`
+   на AlarmManager, см. NOTIFICATIONS.md
 4. План по экранам — в [HOME_UX.md](HOME_UX.md#план)
 
 ## Hilt setup

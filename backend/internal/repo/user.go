@@ -18,7 +18,6 @@ type User struct {
 	ID        string
 	CreatedAt time.Time
 	LastSeen  time.Time
-	FCMToken  *string
 }
 
 type UserRepo struct{ db *pgxpool.Pool }
@@ -88,18 +87,6 @@ func randomString(n int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// Upsert creates a user on first call, updates last_seen on subsequent calls.
-func (r *UserRepo) Upsert(ctx context.Context, id string, fcmToken *string) error {
-	_, err := r.db.Exec(ctx, `
-		INSERT INTO users (id, fcm_token)
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE
-		  SET last_seen  = NOW(),
-		      fcm_token  = COALESCE($2, users.fcm_token)
-	`, id, fcmToken)
-	return err
-}
-
 func (r *UserRepo) ActiveSince(ctx context.Context, since time.Time) ([]string, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id FROM users WHERE last_seen >= $1
@@ -118,59 +105,6 @@ func (r *UserRepo) ActiveSince(ctx context.Context, since time.Time) ([]string, 
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
-}
-
-func (r *UserRepo) FCMToken(ctx context.Context, userID string) (*string, error) {
-	var token *string
-	err := r.db.QueryRow(ctx, `SELECT fcm_token FROM users WHERE id = $1`, userID).Scan(&token)
-	return token, err
-}
-
-// SetFCMToken stores the phone's push token. Called by the app, so the user already exists.
-func (r *UserRepo) SetFCMToken(ctx context.Context, userID, token string) error {
-	_, err := r.db.Exec(ctx, `UPDATE users SET fcm_token = $2 WHERE id = $1`, userID, token)
-	return err
-}
-
-// ClearFCMToken drops a token FCM told us is dead (app uninstalled).
-func (r *UserRepo) ClearFCMToken(ctx context.Context, userID string) error {
-	_, err := r.db.Exec(ctx, `UPDATE users SET fcm_token = NULL WHERE id = $1`, userID)
-	return err
-}
-
-// PushTarget is one phone a notification can reach.
-type PushTarget struct {
-	UserID string
-	Token  string
-}
-
-// PushTargets lists everyone who can receive a push. With userIDs it is limited to those
-// users; empty means everyone. Users without a token are skipped — they simply cannot be
-// reached, which the caller reports as "skipped" rather than an error.
-func (r *UserRepo) PushTargets(ctx context.Context, userIDs []string) ([]PushTarget, error) {
-	query := `SELECT id, fcm_token FROM users WHERE fcm_token IS NOT NULL AND fcm_token <> ''`
-	args := []any{}
-	if len(userIDs) > 0 {
-		query += ` AND id = ANY($1)`
-		args = append(args, userIDs)
-	}
-	query += ` ORDER BY id`
-
-	rows, err := r.db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []PushTarget
-	for rows.Next() {
-		var t PushTarget
-		if err := rows.Scan(&t.UserID, &t.Token); err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
 }
 
 // SetProfile replaces the user's profile answers.

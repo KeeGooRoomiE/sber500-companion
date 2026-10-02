@@ -23,7 +23,6 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
-	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/push"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
 )
@@ -85,10 +84,7 @@ func main() {
 	sched := scheduler.New(morningRepo, generator)
 	sched.Start(ctx)
 	go heartbeat(ctx, repo.NewActivityRepo(db))
-	// nil when FCM_CREDENTIALS_FILE is unset — the admin push endpoint then answers 503
-	// and everything else runs untouched.
-	pusher := push.New(ctx)
-	admin.New(db, promptStore, llmClient, callLog, devUserIDs, pusher).Start(ctx)
+	admin.New(db, promptStore, llmClient, callLog, devUserIDs).Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {

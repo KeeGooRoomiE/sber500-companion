@@ -38,27 +38,6 @@ func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// PushToken stores the phone's FCM token. The app sends it on every start: tokens rotate,
-// and the daily-snapshot call that used to carry it needs background work, which is exactly
-// what may never run on a throttled device.
-func (h *Handler) PushToken(w http.ResponseWriter, r *http.Request) {
-	var req PushTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" {
-		writeError(w, http.StatusBadRequest, "token required")
-		return
-	}
-	if len(req.Token) > 4096 {
-		writeError(w, http.StatusBadRequest, "token too long")
-		return
-	}
-	if err := h.users.SetFCMToken(r.Context(), userIDFrom(r), req.Token); err != nil {
-		slog.Error("set fcm token", "err", err)
-		writeError(w, http.StatusInternalServerError, "db error")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // PassiveData accepts daily snapshot from Android.
 func (h *Handler) PassiveData(w http.ResponseWriter, r *http.Request) {
 	var req PassiveDataRequest
@@ -74,13 +53,6 @@ func (h *Handler) PassiveData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uid := userIDFrom(r)
-
-	// Update FCM token if provided.
-	if req.FCMToken != nil {
-		if err := h.users.Upsert(r.Context(), uid, req.FCMToken); err != nil {
-			slog.Error("upsert fcm token", "err", err)
-		}
-	}
 
 	apps := make([]repo.AppUsage, 0, len(req.TopApps))
 	for _, a := range req.TopApps {

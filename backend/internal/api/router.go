@@ -62,7 +62,6 @@ func Mount(r chi.Router, d Deps) {
 				return userIDFrom(r), nil
 			}), httprate.WithLimitHandler(rateLimited)))
 			r.Post("/data/passive", h.PassiveData)
-			r.Post("/push-token", h.PushToken)
 			r.Post("/checkin", h.Checkin)
 			r.Get("/morning", h.MorningMessage)
 			r.Post("/ping", h.Ping)

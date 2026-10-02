@@ -20,6 +20,21 @@
         tools:ignore="ProtectedPermissions"
         xmlns:tools="http://schemas.android.com/tools" />
 
+    <!-- Health Connect, read only. These must be declared here: the platform grants nothing it
+         was not told about, so without them the runtime request silently never succeeds and
+         sleep quietly falls back to «longest gap without the screen». -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <!-- The daily collector reads these from a worker, not from the open app. Android 14+ gates
+         that behind its own permission, separate from the read ones. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+
+    <!-- Package visibility (Android 11+): without this the client cannot even see whether
+         Health Connect is installed, so getSdkStatus reports it missing. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application
         android:name=".CompanionApp"
         android:allowBackup="false"
@@ -80,27 +95,20 @@
             </intent-filter>
         </receiver>
 
-        <!-- Push: the backstop for the morning forecast when the OS throttles local work.
-             Inert without google-services.json — Firebase never initialises. -->
-        <service
-            android:name=".notifications.CompanionMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="ch_morning" />
-
         <!-- Health Connect intent filter -->
         <activity-alias
             android:name=".ui.HealthConnectActivity"
             android:exported="true"
             android:targetActivity=".ui.MainActivity">
+            <!-- Android 13 and below: Health Connect is an app and asks for the rationale here. -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+            <!-- Android 14+: Health Connect lives in the platform and links to the rationale
+                 from system settings through this filter instead. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
 

@@ -92,7 +92,6 @@
   "wakeup": "05:32",
   "steps": 6240,
   "battery_morning": 87,
-  "fcm_token": null
 }
 ```
 
@@ -116,4 +115,4 @@
 |------|--------|
 | `first_unlock` / `last_unlock` | Собирается в domain model, передаётся в DTO, но **отсутствует в `daily_data` миграции** — добавить в `002_add_unlock_times.sql` |
 | `steps` | Собирается, но domain model `SleepSnapshot` не включает steps — лежит inline в Worker |
-| `fcm_token` | Поле в DTO зарезервировано, логика FCM не реализована |
+| ~~`fcm_token`~~ | Удалено 2026-10-02 вместе с FCM |

@@ -160,6 +160,7 @@ Environment file: `/opt/companion/.env` on server (gitignored, never committed).
 1. Implement handler stubs (currently placeholders)
 2. LLM morning generation cron (4:10 daily)
 3. Retrofit-compatible DTOs aligned with Android models
-4. Push notification trigger (FCM — needs Firebase project)
+4. ~~Push notification trigger (FCM)~~ — удалён 2026-10-02: Google-зависимость
+   не нужна в RuStore, доставка живёт на AlarmManager. См. NOTIFICATIONS.md
 5. 10 RPS stress test (wrk or k6)
 6. Metrics endpoint or Prometheus scrape for DAU/TPM

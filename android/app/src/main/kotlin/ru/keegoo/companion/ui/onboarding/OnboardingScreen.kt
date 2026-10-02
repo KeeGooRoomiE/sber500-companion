@@ -97,6 +97,9 @@ import ru.keegoo.companion.ui.permissions.usageAccessIntent
 private val HEALTH_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(SleepSessionRecord::class),
     HealthPermission.getReadPermission(StepsRecord::class),
+    // The collector reads sleep and steps from a worker, not from the open app. Without this
+    // Android 14+ returns nothing to background reads even when the two above are granted.
+    HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
 )
 
 private data class Step(val title: String, val body: String, val cta: String, val orb: OrbMode)

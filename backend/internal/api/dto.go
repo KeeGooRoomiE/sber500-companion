@@ -21,14 +21,9 @@ type PassiveDataRequest struct {
 	LastUnlock     *string       `json:"last_unlock"`
 	TopApps        []AppUsageDTO `json:"top_apps"`
 	BatteryMorning *int          `json:"battery_morning"`
-	FCMToken       *string       `json:"fcm_token"`
 	HourlyUnlocks  []int         `json:"hourly_unlocks"` // 24 values, local hours
 	HourlyScreen   []int         `json:"hourly_screen"`  // minutes per local hour
 	HourlySteps    []int         `json:"hourly_steps"`   // Health Connect steps per local hour
-}
-
-type PushTokenRequest struct {
-	Token string `json:"token"`
 }
 
 type AppUsageDTO struct {
