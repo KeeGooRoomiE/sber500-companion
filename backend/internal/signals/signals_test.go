@@ -206,3 +206,22 @@ func TestLateNightRun(t *testing.T) {
 		}
 	})
 }
+
+// A day with almost no screen time is missing data, not a calm day — someone who installed
+// in the evening had «экран 0 м» as their only signal, which reads as a claim about them.
+func TestEmptyDayIsNotCalm(t *testing.T) {
+	base := func(n int) *repo.DailyData { return day(n, hours(3, 3), 60, 450, "22:30") }
+	days := []*repo.DailyData{base(1), base(2), base(3), base(4)}
+	days = append(days, day(5, hours(0, 0), 0, 450, "22:30"))
+	days[len(days)-1].ScreenMin = ip(0)
+
+	if s := find(ForLastDay(days, nil, func(p string) string { return p }), "calm_screen"); s != nil {
+		t.Errorf("an empty day was reported as calm: %s", s.Detail)
+	}
+
+	// A genuinely quiet day still counts.
+	days[len(days)-1].ScreenMin = ip(60)
+	if s := find(ForLastDay(days, nil, func(p string) string { return p }), "calm_screen"); s == nil {
+		t.Error("a real quiet day should still be reported")
+	}
+}

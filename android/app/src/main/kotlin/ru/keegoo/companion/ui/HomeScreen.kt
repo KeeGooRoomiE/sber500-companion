@@ -87,6 +87,12 @@ import ru.keegoo.companion.domain.profile.Depth
 import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.ui.home.CheckInSection
+import ru.keegoo.companion.ui.home.CheckInTags
+import ru.keegoo.companion.ui.home.InsightUi
+import ru.keegoo.companion.ui.home.Insights
+import ru.keegoo.companion.ui.home.DailyQuestionBanner
+import ru.keegoo.companion.ui.home.MiddayCard
+import ru.keegoo.companion.ui.home.insightKey
 import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
 import ru.keegoo.companion.ui.permissions.appInfoIntent
 import ru.keegoo.companion.ui.permissions.usageAccessIntent
@@ -113,9 +119,10 @@ import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
 import ru.keegoo.companion.ui.theme.Primary
 import java.time.LocalDate
+import java.util.Locale
 import java.time.LocalTime
 
-private enum class HomeBlock { Morning, Stats, Timeline, CheckIn }
+private enum class HomeBlock { Morning, Midday, Stats, Timeline, CheckIn }
 
 // M3 "emphasized decelerate" — for things arriving on screen
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
@@ -177,13 +184,19 @@ fun HomeScreen(
     // fix that — less of it does. The check-in stays in both modes, since without it there is
     // nothing to build a week out of, and notifications are untouched either way.
     val detailed = state.depth == Depth.Full
-    val blocks = when {
+    val baseBlocks = when {
         evening && detailed -> listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
         evening -> listOf(HomeBlock.CheckIn, HomeBlock.Morning)
         askCheckIn && detailed -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
         askCheckIn -> listOf(HomeBlock.Morning, HomeBlock.CheckIn)
         detailed -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
         else -> listOf(HomeBlock.Morning)
+    }
+    // «Как идёт день» sits straight under the forecast it follows on from, and only exists in
+    // the afternoon window the view model asks for it in.
+    val midday = state.insights[insightKey(Insights.MIDDAY)]
+    val blocks = if (midday == null || midday.failed) baseBlocks else {
+        baseBlocks.toMutableList().apply { add(indexOf(HomeBlock.Morning) + 1, HomeBlock.Midday) }
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
     // A tile with nothing in it is just a dash taking up space — most often sleep, when Health
@@ -213,6 +226,7 @@ fun HomeScreen(
             items(blocks, key = { it.name }) { block ->
                 // Blocks below the hero card rise in one after another once the orb has landed.
                 val enterDelay = when (block) {
+                    HomeBlock.Midday -> 200
                     HomeBlock.Stats -> 220
                     HomeBlock.Timeline -> 260
                     else -> 300
@@ -227,36 +241,46 @@ fun HomeScreen(
                 Box(Modifier.animateItem()) {
                     when (block) {
                         HomeBlock.Morning -> with(sharedScope) {
-                            MorningCard(
-                                modifier = Modifier.sharedBounds(
-                                    rememberSharedContentState(SharedKeys.HERO_CARD),
-                                    animatedVisibilityScope = animatedScope,
-                                    boundsTransform = CardBoundsTransform,
-                                    resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                                    clipInOverlayDuringTransition = OverlayClip(AppShapes.cardHero),
-                                ),
-                                state = state,
-                                onRate = vm::rateMorning,
-                                onMore = vm::openExplore,
-                                onOpenUsageAccess = {
-                                    try {
-                                        context.startActivity(context.usageAccessIntent(direct = true))
-                                    } catch (_: ActivityNotFoundException) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                // Right above the forecast it follows into on a tap — same spot
+                                // regardless of whether CheckIn sits before or after Morning.
+                                state.dailyQuestion?.let { DailyQuestionBanner(modifier = rise, onClick = onOpenProfile) }
+                                MorningCard(
+                                    modifier = Modifier.sharedBounds(
+                                        rememberSharedContentState(SharedKeys.HERO_CARD),
+                                        animatedVisibilityScope = animatedScope,
+                                        boundsTransform = CardBoundsTransform,
+                                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                                        clipInOverlayDuringTransition = OverlayClip(AppShapes.cardHero),
+                                    ),
+                                    state = state,
+                                    onRate = vm::rateMorning,
+                                    onMore = vm::openExplore,
+                                    onOpenUsageAccess = {
                                         try {
-                                            context.startActivity(context.usageAccessIntent(direct = false))
+                                            context.startActivity(context.usageAccessIntent(direct = true))
                                         } catch (_: ActivityNotFoundException) {
-                                            // some OEM builds hide this screen; nothing else to open
+                                            try {
+                                                context.startActivity(context.usageAccessIntent(direct = false))
+                                            } catch (_: ActivityNotFoundException) {
+                                                // some OEM builds hide this screen; nothing else to open
+                                            }
                                         }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
                         }
+                        HomeBlock.Midday -> MiddayCard(modifier = rise, insight = midday ?: InsightUi())
                         HomeBlock.Stats -> StatsRow(
                             modifier = rise,
                             sharedScope = sharedScope,
                             entries = entries,
                             openStat = openStat,
-                            onOpen = { kind -> lastStat = kind; openStat = kind },
+                            onOpen = { kind ->
+                                lastStat = kind
+                                openStat = kind
+                                vm.loadInsight(Insights.STAT, kind.name.lowercase(Locale.ROOT))
+                            },
                         )
                         HomeBlock.Timeline -> DayTimelineCard(
                             modifier = rise,
@@ -269,6 +293,8 @@ fun HomeScreen(
                             selected = state.checkedIn,
                             tags = state.tags,
                             highlighted = evening,
+                            insight = CheckInTags.firstOrNull { it in state.tags }
+                                ?.let { state.insights[insightKey(Insights.TAG, it)] },
                             onSelect = vm::onCheckIn,
                             onToggleTag = vm::onToggleTag,
                         )
@@ -279,7 +305,9 @@ fun HomeScreen(
                 HistorySection(
                     modifier = Modifier.animateItem(),
                     history = state.history,
+                    insights = state.insights,
                     onWeekly = vm::openWeekReview,
+                    onOpenPast = { date -> vm.loadInsight(Insights.RETRO, date) },
                 )
             }
         }
@@ -317,6 +345,7 @@ fun HomeScreen(
                     ),
                     entry = entry,
                     detail = state.details[lastStat],
+                    insight = state.insights[insightKey(Insights.STAT, lastStat.name.lowercase(Locale.ROOT))],
                     onClose = { openStat = null },
                 )
             }

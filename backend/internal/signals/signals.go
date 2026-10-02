@@ -26,6 +26,9 @@ type Signal struct {
 
 const maxSignals = 4
 
+// minMeaningfulScreen: below this the day has no data worth describing rather than a quiet one.
+const minMeaningfulScreen = 15
+
 // Apps that are almost always work, in addition to the person's own «рабочие» picks.
 var knownWorkApps = map[string]string{
 	"com.slack":                        "Slack",
@@ -183,7 +186,10 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	}
 	if d.ScreenMin != nil {
 		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
-		if n >= 2 && usual >= 60 && float64(*d.ScreenMin) <= usual*0.7 {
+		// A near-empty day is missing data, not a calm one. Someone who installed yesterday
+		// evening had «экран 0 м — обычно 3 ч 34 м» as their only signal, which reads as an
+		// observation about them and is an artefact of the day not having happened.
+		if n >= 2 && usual >= 60 && *d.ScreenMin >= minMeaningfulScreen && float64(*d.ScreenMin) <= usual*0.7 {
 			add(Signal{Key: "calm_screen", Title: "Спокойный по экрану день", Detail: fmt.Sprintf("экран %s — обычно %s", minutes(*d.ScreenMin), minutes(round(usual))), Positive: true, strength: usual / math.Max(float64(*d.ScreenMin), 1)})
 		}
 	}

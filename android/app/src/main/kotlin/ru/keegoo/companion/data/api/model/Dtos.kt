@@ -113,3 +113,23 @@ data class EventRequest(val type: String)
 
 /** Sent with every ping: the server cannot otherwise tell which build a phone is on. */
 data class PingRequest(@SerializedName("app_version") val appVersion: String)
+
+/**
+ * One line about a single slice of the person's own data: how today is going, one tile, a past
+ * forecast, a tag from the check-in, or a question generated for them.
+ *
+ * One request shape for all five on purpose — they differ only in which facts the server puts
+ * in, and five endpoints would have meant five places for the cache and the budget to drift.
+ */
+data class InsightRequest(
+    @SerializedName("kind") val kind: String,  // midday | stat | retro | tag | question
+    @SerializedName("arg") val arg: String,    // tile name, date, tag, or "1".."3" for question slot
+)
+
+data class InsightResponse(
+    @SerializedName("kind") val kind: String,
+    @SerializedName("arg") val arg: String,
+    @SerializedName("text") val text: String,
+    /** Answer options for kind=question, when the model produced a real choice. */
+    @SerializedName("options") val options: List<String>? = null,
+)

@@ -219,7 +219,13 @@ private fun StatTile(modifier: Modifier, entry: StatEntry, displayValue: Int) {
 private val RuLocale = Locale("ru")
 
 @Composable
-internal fun StatSheet(modifier: Modifier, entry: StatEntry, detail: StatDetail?, onClose: () -> Unit) {
+internal fun StatSheet(
+    modifier: Modifier,
+    entry: StatEntry,
+    detail: StatDetail?,
+    insight: InsightUi?,
+    onClose: () -> Unit,
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -282,6 +288,8 @@ internal fun StatSheet(modifier: Modifier, entry: StatEntry, detail: StatDetail?
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // The note above is the same sentence every day; this is about these numbers.
+        InsightLine(insight, label = "Что это значит")
     }
 }
 

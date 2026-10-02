@@ -196,7 +196,13 @@ internal fun PillButton(text: String, modifier: Modifier = Modifier, filled: Boo
 
 /** Past forecasts as small panels (tap to read in full) + «Итоги недели». */
 @Composable
-internal fun HistorySection(modifier: Modifier, history: List<HistoryItem>, onWeekly: () -> Unit) {
+internal fun HistorySection(
+    modifier: Modifier,
+    history: List<HistoryItem>,
+    insights: Map<String, InsightUi>,
+    onWeekly: () -> Unit,
+    onOpenPast: (String) -> Unit,
+) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -216,13 +222,16 @@ internal fun HistorySection(modifier: Modifier, history: List<HistoryItem>, onWe
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        past.forEach { HistoryPanel(it) }
+        past.forEach { HistoryPanel(it, insights[insightKey(Insights.RETRO, it.date)], onOpenPast) }
     }
 }
 
 @Composable
-private fun HistoryPanel(item: HistoryItem) {
+private fun HistoryPanel(item: HistoryItem, insight: InsightUi?, onOpen: (String) -> Unit) {
     var open by rememberSaveable(item.date) { mutableStateOf(false) }
+    // Only when the panel is actually unfolded: a week of history on screen would otherwise be
+    // a week of calls for text nobody asked to see.
+    LaunchedEffect(open) { if (open) onOpen(item.date) }
     val date = runCatching { LocalDate.parse(item.date).format(DayLabel).replaceFirstChar { it.titlecase(Ru) } }
         .getOrDefault(item.date)
     Column(
@@ -255,6 +264,7 @@ private fun HistoryPanel(item: HistoryItem) {
             maxLines = if (open) Int.MAX_VALUE else 2,
             overflow = TextOverflow.Ellipsis,
         )
+        if (open) InsightLine(insight, modifier = Modifier.padding(top = 6.dp), label = "Как вышло")
     }
 }
 

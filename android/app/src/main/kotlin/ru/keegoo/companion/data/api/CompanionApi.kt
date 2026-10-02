@@ -12,6 +12,8 @@ import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.FollowupRequest
 import ru.keegoo.companion.data.api.model.FollowupResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
+import ru.keegoo.companion.data.api.model.InsightRequest
+import ru.keegoo.companion.data.api.model.InsightResponse
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.data.api.model.CheckInRequest
@@ -38,6 +40,9 @@ interface CompanionApi {
 
     @POST("api/v1/followup")
     suspend fun postFollowup(@Body body: FollowupRequest): FollowupResponse
+
+    @POST("api/v1/insight")
+    suspend fun postInsight(@Body body: InsightRequest): InsightResponse
 
     @GET("api/v1/history")
     suspend fun getHistory(): HistoryResponse

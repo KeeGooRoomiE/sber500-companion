@@ -21,20 +21,27 @@ var ErrBadInsight = errors.New("unknown insight")
 // InsightLimits: one line, not a review. These sit inside screens that already have text.
 var InsightLimits = Limits{Tokens: 160, Chars: 300}
 
+// ProfileLimits: «Твой профиль» sits between question cards, not under its own heading —
+// tighter than the generic insight line on purpose.
+var ProfileLimits = Limits{Tokens: 120, Chars: 200}
+
 // InsightDailyLimit caps new insights per person per day.
 //
 // Generous because these are tied to gestures the person already makes — opening the app after
 // lunch, tapping a tile — rather than to a prompt to engage. The cap exists so a loop in the
-// app cannot spend the budget, not to ration the feature.
-const InsightDailyLimit = 25
+// app cannot spend the budget, not to ration the feature. The LLM budget is nowhere near
+// a constraint — 22 ₽ of 50 000 after a week — so the cap is a runaway guard, nothing more.
+const InsightDailyLimit = 50
 
 // Insight kinds.
 const (
-	InsightMidday   = "midday"   // how today is going so far
-	InsightStat     = "stat"     // one tile: screen | sleep | unlocks
-	InsightRetro    = "retro"    // did a past forecast hold up
-	InsightTag      = "tag"      // what days with this tag look like
-	InsightQuestion = "question" // a question for the person, generated from their data
+	InsightMidday         = "midday"          // how today is going so far
+	InsightStat           = "stat"            // one tile: screen | sleep | unlocks
+	InsightRetro          = "retro"           // did a past forecast hold up
+	InsightTag            = "tag"             // what days with this tag look like
+	InsightQuestion       = "question"        // a question for the person, generated from their data
+	InsightProfile        = "profile"         // «Твой профиль» — how the model reads this person
+	InsightProfileClarify = "profile_clarify" // a question to correct/extend «Твой профиль»
 )
 
 // Insight answers one slice of the person's data.
@@ -85,17 +92,33 @@ func (g *Generator) Insight(ctx context.Context, userID, kind, arg string) (*rep
 		return nil, ErrNoData
 	}
 
+	limits := InsightLimits
+	if kind == InsightProfile {
+		limits = ProfileLimits
+	}
 	user := llm.BuildInsight(task, facts, profile)
 	return g.complete(ctx, userID, prompts.InsightSystem, analytics.ComponentLLMInsight,
-		analytics.TriggerUserAction, cacheKind, today, user, InsightLimits)
+		analytics.TriggerUserAction, cacheKind, today, user, limits)
 }
 
 // insightCacheKind validates the kind and builds its cache key in one place, so an unknown
 // argument can never reach the model under a key that looks valid.
 func insightCacheKind(kind, arg string) (string, error) {
 	switch kind {
-	case InsightMidday, InsightQuestion:
+	case InsightMidday:
 		return "in:" + kind, nil
+	case InsightQuestion:
+		// Up to 3 fresh questions a day — tied to the person actually answering one (the app
+		// asks for the next slot only after that), not a standing invitation to call 3 times
+		// regardless. "" is slot 1, for callers written before slots existed.
+		switch arg {
+		case "":
+			arg = "1"
+		case "1", "2", "3":
+		default:
+			return "", ErrBadInsight
+		}
+		return "in:question:" + arg, nil
 	case InsightStat:
 		if arg != "screen" && arg != "sleep" && arg != "unlocks" {
 			return "", ErrBadInsight
@@ -111,6 +134,21 @@ func insightCacheKind(kind, arg string) (string, error) {
 			return "", ErrBadInsight
 		}
 		return "in:retro:" + arg, nil
+	case InsightProfile:
+		// Slot "1" is the one the screen loads on open, cached for the day like everything
+		// else. Slot "2" exists only for the moment right after «Уточнить» is answered — a
+		// second, separate cache slot is what lets that one call produce a different text the
+		// same day instead of just replaying slot 1's cached result back.
+		switch arg {
+		case "":
+			arg = "1"
+		case "1", "2":
+		default:
+			return "", ErrBadInsight
+		}
+		return "in:profile:" + arg, nil
+	case InsightProfileClarify:
+		return "in:profile_clarify", nil
 	}
 	return "", ErrBadInsight
 }
@@ -200,6 +238,12 @@ func (g *Generator) insightPrompt(
 		return facts, fmt.Sprintf("Скажи, чем у этого человека отличаются дни с отметкой «%s» от остальных.", arg), nil
 
 	case InsightQuestion:
+		// Already has as many generated answers as the profile keeps (api.PutProfile drops the
+		// rest on arrival) — asking again would spend a call on a question that can only be
+		// thrown away, for someone who, by now, has run out of new ground for this kind anyway.
+		if llm.CountGenAnswers(profile) >= llm.MaxGenAnswers {
+			return nil, "", ErrNoData
+		}
 		facts := statFacts(days, "screen")
 		if len(last.TopApps) > 0 {
 			var apps []string
@@ -211,14 +255,39 @@ func (g *Generator) insightPrompt(
 			}
 			facts = append(facts, "Больше всего времени за последний день: "+strings.Join(apps, ", "))
 		}
-		if len(profile) > 0 {
-			var known []string
-			for k := range profile {
-				known = append(known, k)
-			}
-			facts = append(facts, "Уже известно про человека (ключи): "+strings.Join(known, ", "))
+		task := "Задай человеку один короткий вопрос о нём самом с вариантами ответа, ответ на который помог бы точнее объяснять его дни. Отталкивайся от того, что видно в данных."
+		if known := llm.KnownProfileFacts(profile); len(known) > 0 {
+			facts = append(facts, "Уже известно про человека: "+strings.Join(known, "; "))
+			task += " Не повторяй и не переформулируй то, что уже известно про человека — спроси о другой стороне его дней."
 		}
-		return facts, "Задай человеку один короткий вопрос о нём самом, ответ на который помог бы точнее объяснять его дни. Отталкивайся от того, что видно в данных. Только сам вопрос.", nil
+		return facts, task, nil
+
+	case InsightProfile:
+		facts := statFacts(days, "screen")
+		facts = append(facts, statFacts(days, "sleep")...)
+		facts = append(facts, statFacts(days, "unlocks")...)
+		if sig := signals.ForLastDay(days, WorkApps(profile), llm.AppLabel); len(sig) > 0 {
+			for _, s := range sig {
+				facts = append(facts, s.Title+": "+s.Detail)
+			}
+		}
+		if known := llm.KnownProfileFacts(profile); len(known) > 0 {
+			facts = append(facts, "Уже известно про человека: "+strings.Join(known, "; "))
+		}
+		return facts, "Опиши этого человека одним-двумя предложениями, глядя на данные и на то, что уже известно о нём — как ты его видишь. Будь конкретен, не используй общие фразы вроде «активный пользователь».", nil
+
+	case InsightProfileClarify:
+		// Clarifies slot 1 specifically — the one the person actually saw, not whatever slot 2
+		// happens to hold from an earlier clarification today.
+		base, err := g.reviews.Get(ctx, userID, "in:profile:1", today)
+		if err != nil {
+			return nil, "", err
+		}
+		if base == nil || strings.TrimSpace(base.Text) == "" {
+			return nil, "", ErrNoData
+		}
+		facts := []string{"Текущее описание этого человека: «" + base.Text + "»"}
+		return facts, "Задай человеку один короткий вопрос с вариантами ответа, который помог бы поправить или дополнить это описание. Не повторяй его буквально — спроси о конкретной стороне его дней, способной его изменить.", nil
 	}
 	return nil, "", ErrBadInsight
 }
@@ -319,4 +388,91 @@ func feelWord(feel string) string {
 		return "тяжело"
 	}
 	return feel
+}
+
+// maxQuestionOptions: the UI shows chips, not a menu — more than three stops being "a question"
+// and starts being a form.
+const maxQuestionOptions = 3
+
+// ParseQuestionAnswer splits a generated question's raw text into the question itself and its
+// answer options.
+//
+// The system prompt asks for two lines — question, then "Варианты: А | Б" — but in practice
+// the model almost always runs them together on one line, with the label sitting after a dash
+// or a question mark rather than after a newline. So this looks for the label anywhere in the
+// text; failing that, for a colon followed by a "|"-separated list, which is what the model
+// falls back to when it drops the label. If neither shows up, options comes back empty and the
+// caller shows a free-text question instead — the text is still shown either way.
+func ParseQuestionAnswer(raw string) (question string, options []string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	lower := strings.ToLower(raw)
+	if idx := strings.Index(lower, "варианты"); idx >= 0 {
+		head := lastSentence(strings.TrimRight(strings.TrimSpace(raw[:idx]), " -–—:·"))
+		if _, list, ok := strings.Cut(raw[idx:], ":"); ok {
+			if opts := splitQuestionOptions(list); len(opts) >= 2 {
+				return head, opts
+			}
+		}
+		// The label is there but nothing usable follows it — drop it rather than show it.
+		raw = strings.TrimSpace(raw[:idx])
+	}
+	// No label: a colon followed somewhere by a "|" list is the shape the model uses instead.
+	if colon := strings.LastIndex(raw, ":"); colon >= 0 && strings.Contains(raw[colon:], "|") {
+		head := lastSentence(strings.TrimSpace(raw[:colon]))
+		if opts := splitQuestionOptions(raw[colon+1:]); len(opts) >= 2 {
+			return head, opts
+		}
+	}
+	// Neither label nor colon: the plain two-line shape the prompt actually asks for —
+	// question, newline, bare "А | Б" list.
+	if nl := strings.Index(raw, "\n"); nl >= 0 {
+		if rest := strings.TrimSpace(raw[nl+1:]); strings.Contains(rest, "|") {
+			if opts := splitQuestionOptions(rest); len(opts) >= 2 {
+				return lastSentence(strings.TrimSpace(raw[:nl])), opts
+			}
+		}
+	}
+	// Last resort: no label, no colon, no newline — just "...вопрос? | А | Б" on one line. Cut
+	// at the nearest sentence end before the first "|", which is what is left once the model
+	// has dropped every other separator it was asked for.
+	if pipe := strings.Index(raw, "|"); pipe >= 0 {
+		cut := -1
+		for _, ch := range []byte{'?', '!', '.'} {
+			if i := strings.LastIndexByte(raw[:pipe], ch); i > cut {
+				cut = i
+			}
+		}
+		if cut >= 0 {
+			if opts := splitQuestionOptions(raw[cut+1:]); len(opts) >= 2 {
+				return lastSentence(strings.TrimSpace(raw[:cut+1])), opts
+			}
+		}
+	}
+	return lastSentence(raw), nil
+}
+
+// lastSentence drops a stray lead-in before the actual question — the system prompt says
+// "only the question" but the model sometimes adds one anyway. A genuine single-sentence
+// question (the common case) passes through unchanged.
+func lastSentence(s string) string {
+	parts := strings.Split(strings.TrimSpace(s), ". ")
+	return strings.TrimSpace(parts[len(parts)-1])
+}
+
+func splitQuestionOptions(s string) []string {
+	var out []string
+	for _, opt := range strings.Split(s, "|") {
+		opt = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(opt), "?!.,;:"))
+		if opt == "" {
+			continue
+		}
+		out = append(out, opt)
+		if len(out) == maxQuestionOptions {
+			break
+		}
+	}
+	return out
 }

@@ -86,6 +86,46 @@ suspend fun Context.markReviewNotified() {
     appPrefs.edit { it[KEY_REVIEW_NOTIFIED] = LocalDate.now().toString() }
 }
 
+/**
+ * «Уточнить» under «Твой профиль» — answering it once a day regenerates the profile text with
+ * the new fact folded in. Resets at midnight like the other day-scoped flags here.
+ */
+private val KEY_PROFILE_CLARIFIED = stringPreferencesKey("profile_clarified_date")
+
+suspend fun Context.wasProfileClarifiedToday(): Boolean =
+    appPrefs.data.first()[KEY_PROFILE_CLARIFIED] == LocalDate.now().toString()
+
+suspend fun Context.markProfileClarified() {
+    appPrefs.edit { it[KEY_PROFILE_CLARIFIED] = LocalDate.now().toString() }
+}
+
+/** Fresh generated questions in one day — tied to actually answering one, not to how many
+ *  times the screen is opened. The server mirrors the same number (3 cache slots a day). */
+const val MaxGenQuestionSlotsPerDay = 3
+
+private val KEY_GEN_SLOT_DATE = stringPreferencesKey("gen_question_slot_date")
+private val KEY_GEN_SLOT = androidx.datastore.preferences.core.intPreferencesKey("gen_question_slot")
+
+/** Which slot (1..3) to ask the server for today. Resets to 1 on a new day. */
+suspend fun Context.genQuestionSlotToday(): Int {
+    val p = appPrefs.data.first()
+    return if (p[KEY_GEN_SLOT_DATE] == LocalDate.now().toString()) (p[KEY_GEN_SLOT] ?: 1) else 1
+}
+
+/**
+ * Moves to the next slot and returns it — called only once the question in the current slot
+ * has an answer, so a day with no engagement spends exactly one call, same as before slots
+ * existed.
+ */
+suspend fun Context.advanceGenQuestionSlot(): Int {
+    val next = genQuestionSlotToday() + 1
+    appPrefs.edit {
+        it[KEY_GEN_SLOT_DATE] = LocalDate.now().toString()
+        it[KEY_GEN_SLOT] = next
+    }
+    return next
+}
+
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false
 
 suspend fun Context.isBackfilled(): Boolean = appPrefs.data.first()[KEY_BACKFILLED] ?: false

@@ -17,6 +17,8 @@ import ru.keegoo.companion.data.api.model.ExploreRequest
 import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.VersionResponse
+import ru.keegoo.companion.data.api.model.InsightRequest
+import ru.keegoo.companion.data.api.model.InsightResponse
 import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.domain.model.DailySnapshot
@@ -96,6 +98,13 @@ class CompanionRepository @Inject constructor(
     /** One follow-up chip under an insight; repeat taps are served from the server cache. */
     suspend fun followup(kind: String, date: String?, questionId: String): Result<FollowupResponse> =
         runCatching { api.postFollowup(FollowupRequest(kind, date, questionId)) }
+
+    /**
+     * One line about one slice of the data. The server caches it per (kind, argument, day), so
+     * re-opening the same screen costs nothing and only a new slice costs a call.
+     */
+    suspend fun insight(kind: String, arg: String = ""): Result<InsightResponse> =
+        runCatching { api.postInsight(InsightRequest(kind, arg)) }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 

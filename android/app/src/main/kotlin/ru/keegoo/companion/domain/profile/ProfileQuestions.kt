@@ -39,8 +39,42 @@ object ProfileIds {
     const val GOAL = "goal"
 }
 
+/**
+ * A question the model generated from this person's own data. Its id is a hash of the text,
+ * because the question does not exist until it is asked — the server checks the shape of the
+ * key instead of an allowlist, and caps how many such answers it keeps.
+ */
+const val GenQuestionPrefix = "gen_"
+
+/**
+ * The text of that question, kept on the phone under the matching hash so the answered card can
+ * still be rendered. Never sent on its own: the sent value is «вопрос — ответ» in one string,
+ * since the server only ever sees the hash.
+ */
+const val GenQuestionTextPrefix = "genq_"
+
+/** A stable id for a generated question — the same text always gets the same key. */
+fun genQuestionId(text: String): String = GenQuestionPrefix + text.hashCode().toUInt().toString(36)
+
 /** Stays on the phone; everything else is sent to the server as forecast context. */
 val LocalOnlyProfileIds = setOf(ProfileIds.NAME)
+
+/**
+ * The local answer map, shaped the way the server expects it.
+ *
+ * A generated question's key is only a hash, so its text travels inside the value instead —
+ * otherwise the server would store an answer to a question it can never read back. Shared by
+ * every caller that writes to the profile, so this rule lives in exactly one place.
+ */
+fun composeProfileForServer(answers: Map<String, String>): Map<String, String> =
+    (answers - LocalOnlyProfileIds)
+        .filterKeys { !it.startsWith(GenQuestionTextPrefix) }
+        .mapValues { (id, answer) ->
+            if (!id.startsWith(GenQuestionPrefix)) answer else {
+                val question = answers[GenQuestionTextPrefix + id.removePrefix(GenQuestionPrefix)]
+                if (question.isNullOrBlank()) answer else "«$question» — $answer"
+            }
+        }
 
 /** Morning forecast option: sent right after the first unlock of the morning, not at a fixed time. */
 const val MorningOnWake = "Когда возьму телефон"

@@ -44,12 +44,41 @@ import ru.keegoo.companion.domain.model.DayFeel
 import ru.keegoo.companion.domain.profile.Depth
 import ru.keegoo.companion.domain.profile.ProfileIds
 import ru.keegoo.companion.domain.profile.LocalOnlyProfileIds
+import ru.keegoo.companion.domain.profile.composeProfileForServer
 import ru.keegoo.companion.domain.profile.ProfileQuestions
+import ru.keegoo.companion.domain.profile.genQuestionId
 import kotlinx.coroutines.flow.onEach
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
 enum class StatKind { Screen, Sleep, Unlocks }
+
+/** Insight kinds, as the server names them. */
+object Insights {
+    const val MIDDAY = "midday"
+    const val STAT = "stat"
+    const val RETRO = "retro"
+    const val TAG = "tag"
+    const val QUESTION = "question"
+    const val PROFILE = "profile"
+    const val PROFILE_CLARIFY = "profile_clarify"
+}
+
+/** The key one insight is held under, mirroring the server's cache key. */
+internal fun insightKey(kind: String, arg: String = ""): String =
+    if (arg.isEmpty()) kind else "$kind:$arg"
+
+/**
+ * One line about one slice of the data: waiting, written, or not available.
+ *
+ * [failed] covers both the error and «not enough data» — in both cases the line simply does not
+ * appear. These sit inside screens that already say something without them, so a visible error
+ * would be worse than silence.
+ */
+data class InsightUi(val text: String? = null, val failed: Boolean = false) {
+    val loading: Boolean get() = text == null && !failed
+}
 
 /** 7 values, oldest first; the last one is today / last night. Null = no data that day. */
 data class StatDetail(val week: List<Int?>, val note: String?)
@@ -89,6 +118,15 @@ data class HomeUiState(
     val review: ReviewUi? = null,
     /** The open «Хочу ещё» sheet, if any. */
     val explore: ExploreUi? = null,
+    /** Lines about single slices of the data, by [insightKey]. */
+    val insights: Map<String, InsightUi> = emptyMap(),
+    /**
+     * Today's generated question, when it has arrived and has not been answered yet — drives
+     * the banner above the forecast. Separate from [insights]: this one has to disappear the
+     * moment the question is answered (anywhere — Home or the orb), not just once the call
+     * that fetched it succeeds.
+     */
+    val dailyQuestion: String? = null,
 )
 
 /** One question in «Хочу ещё»: waiting for the answer, answered, or failed. */
@@ -134,6 +172,10 @@ data class ReviewUi(
 /** One tapped chip and what came back. */
 data class FollowupAnswerUi(val questionId: String, val label: String, val text: String)
 
+/** The window «как идёт день» makes sense in: after lunch, before the evening check-in. */
+private const val MIDDAY_FROM = 12
+private const val MIDDAY_UNTIL = 18
+
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
 
 @HiltViewModel
@@ -149,6 +191,8 @@ class HomeViewModel @Inject constructor(
 
     private var checkInJob: Job? = null
     private var refreshJob: Job? = null
+    /** Raw text of today's slot-1 question, independent of whether it is still unanswered. */
+    private var dailyQuestionText: String? = null
 
     init {
         refresh()
@@ -167,10 +211,28 @@ class HomeViewModel @Inject constructor(
                         name = answers[ProfileIds.NAME]?.takeIf(String::isNotBlank),
                         unansweredQuestions = ProfileQuestions.count { q -> q.id !in answers },
                         depth = Depth.from(answers[ProfileIds.DEPTH]),
+                        // Re-checked on every profile change: answering it in the orb clears
+                        // the banner here without a second call.
+                        dailyQuestion = dailyQuestionText?.takeIf { q -> genQuestionId(q) !in answers },
                     )
                 }
             }
         }
+        viewModelScope.launch { loadDailyQuestion() }
+    }
+
+    /**
+     * Idea 1: one extra, visible, opt-in-looking call a day — a banner above the forecast that
+     * leads straight into the same generated question the orb already asks. Slot "1" always,
+     * so it shares the one call a day with the orb flow rather than spending a second one: the
+     * first screen to ask (Home or Profile) pays for it, the other reads the cache.
+     */
+    private suspend fun loadDailyQuestion() {
+        val text = repository.insight(Insights.QUESTION, "1").getOrNull()?.text?.trim()
+        if (text.isNullOrEmpty()) return
+        dailyQuestionText = text
+        val answers = context.profileAnswersNow()
+        _state.update { it.copy(dailyQuestion = text.takeIf { q -> genQuestionId(q) !in answers }) }
     }
 
     /** Re-read today's data — on start and every time Home comes back to the foreground. */
@@ -180,6 +242,7 @@ class HomeViewModel @Inject constructor(
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()
             _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
+            viewModelScope.launch { loadMiddayIfDue() }
             // End of the onboarding funnel: the app has delivered what it promised. Reported on
             // whichever text got there first — the local one usually wins by several seconds.
             if (_state.value.forecast != null && context.claimFirstForecast()) {
@@ -220,6 +283,44 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ask for one line about one slice of the data. Idempotent per key for the lifetime of the
+     * screen: the server caches it for the day anyway, and this keeps a re-composition or a
+     * second tap from spending a call.
+     */
+    fun loadInsight(kind: String, arg: String = "") {
+        val key = insightKey(kind, arg)
+        if (key in _state.value.insights) return
+        _state.update { it.copy(insights = it.insights + (key to InsightUi())) }
+        viewModelScope.launch {
+            val result = repository.insight(kind, arg)
+            val ui = result.fold(
+                onSuccess = { r ->
+                    val text = r.text.trim()
+                    if (text.isEmpty()) InsightUi(failed = true) else InsightUi(text = text)
+                },
+                onFailure = { InsightUi(failed = true) },
+            )
+            _state.update { it.copy(insights = it.insights + (key to ui)) }
+        }
+    }
+
+    /**
+     * «Как идёт день» — only in the afternoon, and only once there is something of today to
+     * compare. In the morning the forecast has just been read and there is nothing new to say;
+     * in the evening the check-in and the day review take over.
+     */
+    private suspend fun loadMiddayIfDue() {
+        val hour = LocalTime.now().hour
+        if (hour !in MIDDAY_FROM until MIDDAY_UNTIL) return
+        if (_state.value.screenMin == null) return
+        if (_state.value.insights.containsKey(insightKey(Insights.MIDDAY))) return
+        // Today's row on the server is whatever the morning alarm uploaded, so without this the
+        // «как идёт день» line would describe the morning. Send today first, then ask.
+        DailyCollectWorker.runNowAndWait(context, pastDays = 1, timeoutMs = 12_000)
+        loadInsight(Insights.MIDDAY)
+    }
+
     private suspend fun restoreProfile() {
         val remote = repository.getProfile().getOrNull() ?: return
         val local = context.profileAnswersNow()
@@ -232,7 +333,7 @@ class HomeViewModel @Inject constructor(
     private var lastSentProfile: Map<String, String>? = null
 
     private fun syncProfile(answers: Map<String, String>) {
-        val forServer = answers - LocalOnlyProfileIds
+        val forServer = composeProfileForServer(answers)
         if (forServer == lastSentProfile) return
         profileJob?.cancel()
         profileJob = viewModelScope.launch {
@@ -442,6 +543,9 @@ class HomeViewModel @Inject constructor(
             val tags = _state.value.tags
             context.saveCheckIn(feel, tags)
             repository.postCheckIn(checkInDay(), feel, CheckInTags.filter { it in tags })
+            // «Что у тебя за такие дни» — about the first tag of the check-in. The server needs a
+            // couple of days with the tag and a couple without, so early on this stays silent.
+            CheckInTags.firstOrNull { it in tags }?.let { loadInsight(Insights.TAG, it) }
             // Same «разбор дня» push as the notification check-in; the worker dedups per day.
             ReviewNotificationWorker.enqueue(context)
         }

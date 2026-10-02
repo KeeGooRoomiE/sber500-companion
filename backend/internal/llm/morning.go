@@ -370,6 +370,17 @@ func buildPrompt(in MorningInput) string {
 	return b.String()
 }
 
+// GenAnswerPrefix marks an answer to a question the model itself generated for this person —
+// in storage, in the allowlist check, and here in the prompt. It cannot be a fixed key because
+// the question does not exist until it has been asked.
+const GenAnswerPrefix = "gen_"
+
+// MaxGenAnswers caps how many generated answers a profile keeps. Shared between the storage
+// allowlist (internal/api) and the generator (internal/forecast), which stops asking once a
+// profile already holds this many — otherwise a call would fire for a question whose answer
+// was always going to be dropped on arrival.
+const MaxGenAnswers = 20
+
 // profileLines maps profile answers to plain context lines for the model.
 var profileLines = []struct{ key, label string }{
 	{"work_place", "Работает/учится"},
@@ -381,6 +392,41 @@ var profileLines = []struct{ key, label string }{
 	{"tone", "Как с ним говорить"},
 }
 
+// KnownProfileFacts turns the fixed answers and the generated ones into plain lines — what
+// this person has actually told the app, not just which keys are filled in. Used both for the
+// prompt context block and to keep a newly generated question from repeating a covered topic.
+func KnownProfileFacts(p map[string]string) []string {
+	var lines []string
+	for _, l := range profileLines {
+		if v := strings.TrimSpace(p[l.key]); v != "" {
+			lines = append(lines, l.label+": "+v)
+		}
+	}
+	// Answers to questions the model itself generated. The key is a hash — only the value
+	// carries meaning, so the app stores it as «вопрос — ответ» and it goes in verbatim.
+	var gen []string
+	for k, v := range p {
+		if strings.HasPrefix(k, GenAnswerPrefix) {
+			if v = strings.TrimSpace(v); v != "" {
+				gen = append(gen, v)
+			}
+		}
+	}
+	sort.Strings(gen)
+	return append(lines, gen...)
+}
+
+// CountGenAnswers: how many generated questions this profile already has an answer for.
+func CountGenAnswers(p map[string]string) int {
+	n := 0
+	for k := range p {
+		if strings.HasPrefix(k, GenAnswerPrefix) {
+			n++
+		}
+	}
+	return n
+}
+
 // profileContext writes the «Контекст о человеке» block and returns the set of work apps.
 func profileContext(b *strings.Builder, p map[string]string) map[string]bool {
 	work := map[string]bool{}
@@ -390,10 +436,8 @@ func profileContext(b *strings.Builder, p map[string]string) map[string]bool {
 		}
 	}
 	var lines []string
-	for _, l := range profileLines {
-		if v := strings.TrimSpace(p[l.key]); v != "" {
-			lines = append(lines, fmt.Sprintf("  %s: %s", l.label, v))
-		}
+	for _, f := range KnownProfileFacts(p) {
+		lines = append(lines, "  "+f)
 	}
 	if len(work) > 0 {
 		names := make([]string, 0, len(work))

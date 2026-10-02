@@ -74,6 +74,7 @@ internal fun CheckInSection(
     selected: DayFeel?,
     tags: Set<String>,
     highlighted: Boolean,
+    insight: InsightUi?,
     onSelect: (DayFeel) -> Unit,
     onToggleTag: (String) -> Unit,
 ) {
@@ -106,7 +107,7 @@ internal fun CheckInSection(
             label = "checkinFold",
         ) { folded ->
             if (folded && selected != null) {
-                CheckInSummary(selected, tags, onEdit = { collapsed = false })
+                CheckInSummary(selected, tags, insight, onEdit = { collapsed = false })
             } else {
                 CheckInForm(
                     selected = selected,
@@ -120,8 +121,9 @@ internal fun CheckInSection(
 }
 
 @Composable
-private fun CheckInSummary(selected: DayFeel, tags: Set<String>, onEdit: () -> Unit) {
+private fun CheckInSummary(selected: DayFeel, tags: Set<String>, insight: InsightUi?, onEdit: () -> Unit) {
     val option = FeelOptions.first { it.feel == selected }
+    Column(Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -151,6 +153,14 @@ private fun CheckInSummary(selected: DayFeel, tags: Set<String>, onEdit: () -> U
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
+    }
+    // What the person's own days with this tag look like. Needs a few such days behind it, so
+    // for the first week there is nothing here and the card stays the single line it was.
+    InsightLine(
+        insight,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+        label = CheckInTags.firstOrNull { it in tags }?.let { "Дни с отметкой «$it»" },
+    )
     }
 }
 

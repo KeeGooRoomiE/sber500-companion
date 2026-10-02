@@ -9,9 +9,11 @@ import (
 )
 
 type InsightRequest struct {
-	// midday | stat | retro | tag | question
+	// midday | stat | retro | tag | question | profile | profile_clarify
 	Kind string `json:"kind"`
-	// What the kind is about: the tile name, the date, the tag. Empty for midday and question.
+	// What the kind is about: the tile name, the date, the tag, the slot "1".."3" for question
+	// (up to 3 fresh ones a day) or "1"/"2" for profile (base, then after «Уточнить»). Empty
+	// for midday and profile_clarify, and for question/profile means "1".
 	Arg string `json:"arg"`
 }
 
@@ -19,6 +21,9 @@ type InsightResponse struct {
 	Kind string `json:"kind"`
 	Arg  string `json:"arg"`
 	Text string `json:"text"`
+	// Answer options for kind=question, when the model produced a real choice — nil falls back
+	// to a free-text answer on the client.
+	Options []string `json:"options,omitempty"`
 }
 
 // Insight answers one slice of the person's own data — the midday read, a tile, a past
@@ -48,5 +53,9 @@ func (h *Handler) Insight(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.touch(r, uid)
-	writeJSON(w, http.StatusOK, InsightResponse{Kind: req.Kind, Arg: req.Arg, Text: rv.Text})
+	resp := InsightResponse{Kind: req.Kind, Arg: req.Arg, Text: rv.Text}
+	if req.Kind == forecast.InsightQuestion || req.Kind == forecast.InsightProfileClarify {
+		resp.Text, resp.Options = forecast.ParseQuestionAnswer(rv.Text)
+	}
+	writeJSON(w, http.StatusOK, resp)
 }

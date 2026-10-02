@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 )
 
 // profileLimits lists the answers the server accepts and their max length.
@@ -25,13 +27,9 @@ var profileLimits = map[string]int{
 	"depth": 100,
 }
 
-// genAnswerPrefix marks answers to questions the model generated for this person. They cannot
-// be in the allowlist above because the questions do not exist until they are asked.
-const genAnswerPrefix = "gen_"
-
-// maxGenAnswers caps how many generated answers are kept, so the profile cannot grow without
-// bound and quietly inflate every prompt built from it.
-const maxGenAnswers = 20
+// genAnswerPrefix and maxGenAnswers live in internal/llm (llm.GenAnswerPrefix / llm.MaxGenAnswers):
+// the generator checks the same cap before spending a call, so one definition keeps them from
+// drifting apart.
 
 type ProfileRequest struct {
 	Answers map[string]string `json:"answers"`
@@ -71,7 +69,7 @@ func (h *Handler) PutProfile(w http.ResponseWriter, r *http.Request) {
 			// allowlist because the questions do not exist until they are asked, so the key
 			// shape is checked instead — and capped, or the profile would grow without bound
 			// and quietly inflate every prompt built from it.
-			if !strings.HasPrefix(k, genAnswerPrefix) || len(k) > 64 || gen >= maxGenAnswers {
+			if !strings.HasPrefix(k, llm.GenAnswerPrefix) || len(k) > 64 || gen >= llm.MaxGenAnswers {
 				continue
 			}
 			gen++
