@@ -35,6 +35,7 @@ object ProfileIds {
     const val MORNING_TIME = "morning_time"
     const val EVENING_TIME = "evening_time"
     const val TONE = "tone"
+    const val DEPTH = "depth"
     const val GOAL = "goal"
 }
 
@@ -84,6 +85,11 @@ val ProfileQuestions = listOf(
         timePick = true, defaultTime = DefaultEveningTime,
     ),
     ProfileQuestion(
+        ProfileIds.DEPTH, "Сколько показывать?",
+        "Можно поменять в любой момент",
+        listOf("Подробно — цифры и графики", "Коротко — только прогноз"),
+    ),
+    ProfileQuestion(
         ProfileIds.TONE, "Как тебе удобнее, чтобы я говорил?",
         "Меняется только подача — факты и осторожность выводов одинаковые",
         listOf("Мягко, с поддержкой", "Спокойно, без лишнего", "Коротко и прямо"),
@@ -96,4 +102,28 @@ fun parseTime(value: String?): LocalTime? = value?.let {
         val (h, m) = it.split(":").map(String::toInt)
         LocalTime.of(h, m)
     }.getOrNull()
+}
+
+/**
+ * How much Home shows. Separate from tone: that one is how the app talks, this is how much it
+ * puts on screen. Notifications are not affected — all three still arrive in either mode.
+ */
+enum class Depth {
+    /** Everything: forecast, tiles, timeline. */
+    Full,
+
+    /** Forecast and the evening question only — no tiles, no charts. */
+    Short;
+
+    companion object {
+        /**
+         * Matched by keyword rather than exact label, like the tone: what is stored is the
+         * button text, and button text gets edited. Anything unknown means Full, which is also
+         * what an unanswered question means — nothing is ever hidden by accident.
+         */
+        fun from(answer: String?): Depth {
+            val a = answer?.lowercase().orEmpty()
+            return if (a.contains("коротк")) Short else Full
+        }
+    }
 }

@@ -41,6 +41,7 @@ import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.domain.forecast.buildLocalForecast
 import ru.keegoo.companion.domain.forecast.formatMinutes
 import ru.keegoo.companion.domain.model.DayFeel
+import ru.keegoo.companion.domain.profile.Depth
 import ru.keegoo.companion.domain.profile.ProfileIds
 import ru.keegoo.companion.domain.profile.LocalOnlyProfileIds
 import ru.keegoo.companion.domain.profile.ProfileQuestions
@@ -73,6 +74,8 @@ data class HomeUiState(
     val tags: Set<String> = emptySet(),
     val name: String? = null,
     val unansweredQuestions: Int = 0,
+    /** How much to show. Drives which blocks Home renders and whether a daily review is sent. */
+    val depth: Depth = Depth.Full,
     /** Today's screen minutes per hour — the day timeline. */
     val hourlyScreen: List<Int>? = null,
     /**
@@ -163,6 +166,7 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         name = answers[ProfileIds.NAME]?.takeIf(String::isNotBlank),
                         unansweredQuestions = ProfileQuestions.count { q -> q.id !in answers },
+                        depth = Depth.from(answers[ProfileIds.DEPTH]),
                     )
                 }
             }

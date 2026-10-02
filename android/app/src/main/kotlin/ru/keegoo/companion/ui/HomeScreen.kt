@@ -83,6 +83,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import ru.keegoo.companion.domain.profile.Depth
 import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
 import ru.keegoo.companion.ui.home.CheckInSection
@@ -171,10 +172,18 @@ fun HomeScreen(
     var shownReview by remember { mutableStateOf<ReviewUi?>(null) }
     if (state.review != null) shownReview = state.review
 
+    // «Коротко» drops the tiles and the timeline: interview #17 described a profile for whom a
+    // daily readout of their own numbers is the stressor itself, and softer wording does not
+    // fix that — less of it does. The check-in stays in both modes, since without it there is
+    // nothing to build a week out of, and notifications are untouched either way.
+    val detailed = state.depth == Depth.Full
     val blocks = when {
-        evening -> listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
-        askCheckIn -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
-        else -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
+        evening && detailed -> listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
+        evening -> listOf(HomeBlock.CheckIn, HomeBlock.Morning)
+        askCheckIn && detailed -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
+        askCheckIn -> listOf(HomeBlock.Morning, HomeBlock.CheckIn)
+        detailed -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
+        else -> listOf(HomeBlock.Morning)
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
     val entries = statEntries(state)
