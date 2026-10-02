@@ -154,3 +154,55 @@ func TestThousands(t *testing.T) {
 		}
 	}
 }
+
+// find returns the signal with this key, or nil.
+func find(sigs []Signal, key string) *Signal {
+	for i := range sigs {
+		if sigs[i].Key == key {
+			return &sigs[i]
+		}
+	}
+	return nil
+}
+
+func TestLateNightRun(t *testing.T) {
+	calm := func(n int) *repo.DailyData { return day(n, hours(3, 3), 60, 450, "22:30") }
+	late := func(n int, sleep int) *repo.DailyData { return day(n, hours(3, 3), 60, sleep, "01:10") }
+
+	t.Run("a run reaching the last day is reported", func(t *testing.T) {
+		days := []*repo.DailyData{calm(1), calm(2), calm(3), calm(4), late(5, 380), late(6, 370), late(7, 360)}
+		s := find(ForLastDay(days, nil, func(p string) string { return p }), "late_night_run")
+		if s == nil {
+			t.Fatal("chain not detected")
+		}
+		if !strings.Contains(s.Title, "3-й") {
+			t.Errorf("run length wrong: %q", s.Title)
+		}
+		// Sleep during the run is ~80 min below the calm days, so it must be mentioned.
+		if !strings.Contains(s.Detail, "короче обычного") {
+			t.Errorf("sleep effect missing: %q", s.Detail)
+		}
+	})
+
+	t.Run("a single late night is not a chain", func(t *testing.T) {
+		days := []*repo.DailyData{calm(1), calm(2), calm(3), calm(4), late(5, 380)}
+		if find(ForLastDay(days, nil, func(p string) string { return p }), "late_night_run") != nil {
+			t.Error("one night should not count as a run")
+		}
+	})
+
+	t.Run("a run that ended earlier is history, not today's news", func(t *testing.T) {
+		days := []*repo.DailyData{calm(1), late(2, 380), late(3, 370), late(4, 360), calm(5), calm(6)}
+		if find(ForLastDay(days, nil, func(p string) string { return p }), "late_night_run") != nil {
+			t.Error("a finished streak should not be reported")
+		}
+	})
+
+	t.Run("a chain outranks one-off deviations", func(t *testing.T) {
+		days := []*repo.DailyData{calm(1), calm(2), calm(3), calm(4), late(5, 380), late(6, 370), late(7, 360)}
+		got := ForLastDay(days, nil, func(p string) string { return p })
+		if len(got) == 0 || got[0].Key != "late_night_run" {
+			t.Errorf("chain should be ranked first, got %v", got)
+		}
+	})
+}

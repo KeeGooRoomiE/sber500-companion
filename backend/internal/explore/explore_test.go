@@ -154,3 +154,44 @@ func TestEmptyDayOffersNothing(t *testing.T) {
 		t.Errorf("expected no questions for a near-empty day, got %d: %+v", len(got), got)
 	}
 }
+
+// The chain question is the one thing here that is about a sequence rather than a day.
+func TestCarriesOver(t *testing.T) {
+	start := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	mk := func(i int, last string, sleep, screen int) *repo.DailyData {
+		return &repo.DailyData{
+			Date: start.AddDate(0, 0, i), LastUnlock: sp(last),
+			SleepMin: ip(sleep), ScreenMin: ip(screen), Unlocks: ip(60),
+		}
+	}
+	in := func(days ...*repo.DailyData) Input {
+		return Input{Days: days, CheckIns: map[string]*repo.CheckIn{}, LabelOf: label, WorkApps: map[string]bool{}}
+	}
+
+	t.Run("a run of late nights is found and costed", func(t *testing.T) {
+		got := carriesOver(in(
+			mk(0, "22:30", 450, 180), mk(1, "22:40", 460, 190),
+			mk(2, "01:10", 380, 300), mk(3, "01:20", 370, 310), mk(4, "00:50", 375, 290),
+			mk(5, "22:30", 440, 200),
+		))
+		if got == nil {
+			t.Fatal("chain question not offered")
+		}
+		joined := strings.Join(got.Facts, " | ")
+		if !strings.Contains(joined, "3 подряд") {
+			t.Errorf("run length missing: %s", joined)
+		}
+		if !strings.Contains(joined, "Сон в эти ночи") || !strings.Contains(joined, "Экран в эти дни") {
+			t.Errorf("comparison facts missing: %s", joined)
+		}
+		if !strings.Contains(joined, "Ночь после череды") {
+			t.Errorf("recovery fact missing: %s", joined)
+		}
+	})
+
+	t.Run("no run, no question", func(t *testing.T) {
+		if carriesOver(in(mk(0, "22:30", 450, 180), mk(1, "01:10", 400, 200), mk(2, "22:40", 455, 190))) != nil {
+			t.Error("a single late night is not a chain")
+		}
+	})
+}

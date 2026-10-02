@@ -108,6 +108,14 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		}
 	}
 
+	// A chain across days, not a single day against the norm — the one thing people describe
+	// about themselves that no number here was showing. Interview #20 put it exactly:
+	// «Отложить телефон после двенадцати — довольно фатальное решение, которое в силах
+	// определить течение последующих нескольких дней.»
+	if c := lateNightRun(days); c != nil {
+		add(*c)
+	}
+
 	// Sleep vs norm
 	if d.SleepMin != nil {
 		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.SleepMin) })
@@ -185,6 +193,65 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		out = out[:maxSignals]
 	}
 	return out
+}
+
+// lateNightRun reports a run of consecutive nights that ended past midnight, and what the
+// sleep after them did.
+//
+// Every other signal compares one day with the person's norm. This one is about the sequence:
+// a single late night says little, three in a row is the thing people recognise in themselves.
+// Only fires when the run reaches the last day — a streak that ended last week is history, not
+// something to say this morning.
+func lateNightRun(days []*repo.DailyData) *Signal {
+	const lateAfter = 24*60 + 30 // 00:30, same threshold as the single-day signal
+
+	isLate := func(x *repo.DailyData) bool {
+		lu, ok := clock(x.LastUnlock)
+		return ok && lu >= lateAfter
+	}
+
+	run := 0
+	for i := len(days) - 1; i >= 0 && isLate(days[i]); i-- {
+		run++
+	}
+	if run < 2 {
+		return nil
+	}
+
+	// What the nights of the run did to sleep, against the days before it.
+	inRun := days[len(days)-run:]
+	before := days[:len(days)-run]
+	runSleep, nRun := avg(inRun, func(x *repo.DailyData) (float64, bool) { return ptrf(x.SleepMin) })
+	baseSleep, nBase := avg(before, func(x *repo.DailyData) (float64, bool) { return ptrf(x.SleepMin) })
+
+	detail := fmt.Sprintf("%d %s подряд экран гас после полуночи", run, plural(run, "вечер", "вечера", "вечеров"))
+	if nRun >= 1 && nBase >= 2 && baseSleep-runSleep >= 20 {
+		detail += fmt.Sprintf(" — сон в эти ночи короче обычного на %s", minutes(round(baseSleep-runSleep)))
+	}
+
+	return &Signal{
+		Key:   "late_night_run",
+		Title: fmt.Sprintf("%d-й вечер подряд за полночь", run),
+		// Ranked above one-off deviations on purpose: a chain is the more interesting fact,
+		// and with only four slots it has to out-rank them to be said at all.
+		Detail:   detail,
+		strength: 2 + float64(run),
+	}
+}
+
+// plural picks the Russian form for a count: 1 вечер, 2 вечера, 5 вечеров.
+func plural(n int, one, few, many string) string {
+	m10, m100 := n%10, n%100
+	switch {
+	case m100 >= 11 && m100 <= 14:
+		return many
+	case m10 == 1:
+		return one
+	case m10 >= 2 && m10 <= 4:
+		return few
+	default:
+		return many
+	}
 }
 
 // PromptBlock renders signals for the model.

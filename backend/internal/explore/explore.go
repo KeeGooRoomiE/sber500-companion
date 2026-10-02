@@ -52,7 +52,7 @@ func Build(in Input) []Answerable {
 		return nil
 	}
 	var out []Answerable
-	for _, f := range []func(Input) *Answerable{similarDays, whyYesterday, bestDays, phoneAndSleep, movement, workDays} {
+	for _, f := range []func(Input) *Answerable{carriesOver, similarDays, whyYesterday, bestDays, phoneAndSleep, movement, workDays} {
 		if a := f(in); a != nil && len(a.Facts) > 0 {
 			out = append(out, *a)
 		}
@@ -111,6 +111,94 @@ func Find(in Input, id string) *Answerable {
 		}
 	}
 	return nil
+}
+
+// ─── «Что тянется у меня из дня в день?» ──────────────────────────────────────
+
+// carriesOver asks about the chain, not about one day.
+//
+// Every other question here compares a day with the person's own norm. This one is about a run
+// of nights that kept going, which is the thing people describe about themselves and that no
+// single-day number shows. Placed first because when it does fire it is the most interesting
+// answer the data can give.
+func carriesOver(in Input) *Answerable {
+	days := in.Days
+	if len(days) < minHistory {
+		return nil
+	}
+
+	const lateAfter = 24*60 + 30
+	isLate := func(x *repo.DailyData) bool {
+		lu, ok := signals.ClockMinutes(x.LastUnlock)
+		return ok && lu >= lateAfter
+	}
+
+	// The longest run of late nights anywhere in the window, not just a current one: the
+	// question is about a pattern, and a stretch that ended last week still answers it.
+	best, cur, bestEnd := 0, 0, -1
+	for i := range days {
+		if isLate(days[i]) {
+			cur++
+			if cur > best {
+				best, bestEnd = cur, i
+			}
+		} else {
+			cur = 0
+		}
+	}
+	if best < 2 {
+		return nil
+	}
+
+	a := &Answerable{Question: Question{ID: "carries_over", Text: "Что тянется у меня из дня в день?"}}
+	start := bestEnd - best + 1
+	a.Facts = append(a.Facts, fmt.Sprintf("Самая длинная череда поздних вечеров: %d подряд, с %s по %s",
+		best, days[start].Date.Format("02.01"), days[bestEnd].Date.Format("02.01")))
+
+	// What those nights cost, measured against the rest of the window.
+	var runSleep, offSleep, runScreen, offScreen float64
+	var nRun, nOff, sRun, sOff int
+	for i, d := range days {
+		inRun := i >= start && i <= bestEnd
+		if d.SleepMin != nil {
+			if inRun {
+				runSleep += float64(*d.SleepMin)
+				nRun++
+			} else {
+				offSleep += float64(*d.SleepMin)
+				nOff++
+			}
+		}
+		if d.ScreenMin != nil {
+			if inRun {
+				runScreen += float64(*d.ScreenMin)
+				sRun++
+			} else {
+				offScreen += float64(*d.ScreenMin)
+				sOff++
+			}
+		}
+	}
+	if nRun > 0 && nOff > 0 {
+		a.Facts = append(a.Facts, fmt.Sprintf("Сон в эти ночи: %s, в остальные: %s",
+			signals.FormatMinutes(int(runSleep/float64(nRun))), signals.FormatMinutes(int(offSleep/float64(nOff)))))
+	}
+	if sRun > 0 && sOff > 0 {
+		a.Facts = append(a.Facts, fmt.Sprintf("Экран в эти дни: %s, в остальные: %s",
+			signals.FormatMinutes(int(runScreen/float64(sRun))), signals.FormatMinutes(int(offScreen/float64(sOff)))))
+	}
+
+	// The day after the run ended — did it recover, or carry on?
+	if bestEnd+1 < len(days) {
+		next := days[bestEnd+1]
+		if next.SleepMin != nil {
+			a.Facts = append(a.Facts, fmt.Sprintf("Ночь после череды: %s", signals.FormatMinutes(*next.SleepMin)))
+		}
+	}
+	if len(a.Facts) < 2 {
+		return nil
+	}
+	return a
 }
 
 // ─── «Как у меня обычно проходят такие дни?» ─────────────────────────────────
