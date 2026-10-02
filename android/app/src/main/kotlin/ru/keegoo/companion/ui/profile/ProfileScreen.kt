@@ -208,10 +208,11 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(16.dp))
                 // Gone once everything is answered: a full bar still asks for something, and
-                // there is nothing left to do.
+                // there is nothing left to do. The spacing goes with it — otherwise it leaves
+                // a gap where the bar used to be, which is the empty middle that was noticed.
                 if (answered < questions.size) {
+                    Spacer(Modifier.height(16.dp))
                     ProgressLine(progress = progress, label = "$answered из ${questions.size}")
                     Spacer(Modifier.height(6.dp))
                 }
@@ -360,7 +361,11 @@ private fun QuestionCard(
                         else -> "Не отвечено"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (answer != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    // One accent, and only for the moment the answer lands. Painting every
+                    // filled answer purple added a third text colour that said «отвечено» —
+                    // which the answer being there already says.
+                    color = if (justAnswered) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                 )
             }
