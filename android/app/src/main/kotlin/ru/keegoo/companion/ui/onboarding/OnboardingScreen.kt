@@ -1,5 +1,7 @@
 package ru.keegoo.companion.ui.onboarding
 
+import ru.keegoo.companion.ui.theme.Primary
+import androidx.compose.ui.graphics.Brush
 import android.net.Uri
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -628,12 +630,19 @@ private const val PRIVACY_URL = "https://keegooroomie.github.io/sber500-companio
  */
 @Composable
 private fun SampleForecast(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primary,
+    // The brand gradient the real card uses, not colorScheme.primary: that is the CTA's colour,
+    // so the two merged into one block — and its onPrimary is dark in the dark theme while this
+    // card's text is white, which left the two reading differently. The gradient is fixed in
+    // both themes, so white stays correct and the sample looks like what actually arrives.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(AppShapes.cardHero)
+            .background(Brush.linearGradient(listOf(Primary, Color(0xFF8B7CF8))))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        run {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

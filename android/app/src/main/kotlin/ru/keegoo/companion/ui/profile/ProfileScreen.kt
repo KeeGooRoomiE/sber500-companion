@@ -213,6 +213,11 @@ fun ProfileScreen(
                 Spacer(Modifier.height(6.dp))
             }
         }
+
+        // Offered again here rather than on Home: onboarding lets any optional step be skipped,
+        // so there has to be a way back — and it belongs among the questions about yourself,
+        // not as a banner over the forecast. Absent entirely once nothing is missing.
+        item(key = "permissions") { MissingPermissions() }
         items(questions, key = { it.id }) { q ->
             val i = questions.indexOf(q)
             val rise = with(animatedScope) {
