@@ -72,6 +72,11 @@ data class HomeUiState(
     val unansweredQuestions: Int = 0,
     /** Today's screen minutes per hour — the day timeline. */
     val hourlyScreen: List<Int>? = null,
+    /**
+     * The server is still writing today's forecast while the local one is on screen. Shown as a
+     * hint so the text does not simply change under someone mid-read.
+     */
+    val refining: Boolean = false,
     /** Past morning forecasts, newest first (panels at the bottom). */
     val history: List<HistoryItem> = emptyList(),
     /** The open «Разбор дня» / «Итоги недели» sheet, if any. */
@@ -178,6 +183,7 @@ class HomeViewModel @Inject constructor(
                 repository.getHistory().onSuccess { h -> _state.update { it.copy(history = h.items) } }
                 // Reinstalled on a phone the server knows: bring back «Расскажи о себе»
                 if (credentials.restorePending) restoreProfile()
+                _state.update { it.copy(refining = true) }
                 repository.getMorning()
                     .onSuccess { resp ->
                         // Seen in the app — the «first unlock» notification isn't needed today
@@ -191,6 +197,9 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     }
+                // Cleared either way: on failure the local forecast simply stays, and a hint
+                // left hanging would promise an update that is not coming.
+                _state.update { it.copy(refining = false) }
                 // Silently ignore failures — local forecast stays visible.
             }
         }

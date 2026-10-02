@@ -76,6 +76,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -426,6 +427,50 @@ private fun TopBar(
 
 // ─── Shimmer ──────────────────────────────────────────────────────────────────
 
+/**
+ * «идёт уточнение…» over the forecast card: the local text is on screen and the server's is
+ * still being written, so it is about to be replaced.
+ *
+ * Held back for a moment on purpose. The server usually answers in about a second, and a hint
+ * that appears and vanishes that fast reads as a glitch rather than as work in progress — so it
+ * only shows when the wait is long enough to be worth explaining.
+ */
+@Composable
+private fun RefiningHint(active: Boolean, modifier: Modifier = Modifier) {
+    var show by remember { mutableStateOf(false) }
+    LaunchedEffect(active) {
+        if (!active) {
+            show = false
+        } else {
+            delay(HINT_DELAY_MS)
+            show = true
+        }
+    }
+    AnimatedVisibility(
+        modifier = modifier,
+        visible = show && active,
+        enter = fadeIn(tween(260)),
+        exit = fadeOut(tween(180)),
+    ) {
+        val breathe = rememberInfiniteTransition(label = "refining")
+        val alpha by breathe.animateFloat(
+            initialValue = .45f,
+            targetValue = .85f,
+            animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Reverse),
+            label = "refining-alpha",
+        )
+        Text(
+            text = "идёт уточнение…",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White.copy(alpha = alpha),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private const val HINT_DELAY_MS = 700L
+
 @Composable
 private fun ShimmerBox(modifier: Modifier, baseColor: Color) {
     val t = rememberInfiniteTransition(label = "shimmer")
@@ -478,12 +523,25 @@ private fun MorningCard(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Прогноз на сегодня",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.75f),
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Прогноз на сегодня",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.75f),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            // Only while there is already something to read — otherwise the shimmer above
+            // is saying the same thing. If the row ever runs out of width it is the hint that
+            // gives way, never the heading.
+            RefiningHint(
+                active = state.refining && state.forecast != null,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
         when {
             state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val sh = Color.White.copy(alpha = 0.25f)
