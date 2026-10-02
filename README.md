@@ -85,7 +85,9 @@
 
 **→ [internal-docs/dev/ARCHITECTURE.md](internal-docs/dev/ARCHITECTURE.md)**
 
-Рядом лежат разборы отдельных частей: [доставка уведомлений](internal-docs/dev/NOTIFICATIONS.md)
+Рядом лежат разборы отдельных частей: [что приложение умеет замечать](internal-docs/dev/SIGNALS.md)
+(список сигналов — потолок того, что оно вообще способно сказать),
+[доставка уведомлений](internal-docs/dev/NOTIFICATIONS.md)
 (почему будильники, а не WorkManager), [нагрузочное тестирование](internal-docs/dev/LOADTEST.md)
 (10 RPS на проде), [бюджет LLM](internal-docs/dev/LLM_BUDGET.md) и
 [как метрики считаются](internal-docs/dev/METRICS_MAPPING.md).

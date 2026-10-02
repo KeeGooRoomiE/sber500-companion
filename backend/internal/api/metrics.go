@@ -35,6 +35,12 @@ type CheckinPoint struct {
 	Pct  *float64 `json:"pct"`
 }
 
+// VersionShare is how many people are on one build.
+type VersionShare struct {
+	Version string `json:"version"`
+	Users   int    `json:"users"`
+}
+
 // Cohort is one weekly sign-up group and how much of it came back. A window is null until the
 // whole cohort is old enough to have had the chance — otherwise D7 of a two-day-old cohort
 // reads as a catastrophic drop instead of "too early to say".
@@ -71,6 +77,9 @@ type MetricsResponse struct {
 	FunnelD1Eligible int `json:"funnel_d1_eligible"` // signed up yesterday or earlier
 	FunnelD7Eligible int `json:"funnel_d7_eligible"` // signed up 7+ days ago
 
+	// Which build each phone runs, newest first. Distribution is an APK link, so several
+	// versions are live at once and a fix is not «shipped» until this shows it.
+	Versions              []VersionShare `json:"app_versions"`
 	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
 	MorningDeliveredToday int            `json:"morning_delivered_today"`
@@ -201,6 +210,7 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	out := &MetricsResponse{
 		UpdatedAt:      now.Format(time.RFC3339),
 		DAUHistory:     []DAUPoint{},
+		Versions:       []VersionShare{},
 		CheckinHistory: []CheckinPoint{},
 		Cohorts:        []Cohort{},
 	}
@@ -318,7 +328,15 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	if err := m.db.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM checkins WHERE date = $2 AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM morning_messages WHERE date = $2 AND sent_at IS NOT NULL AND NOT (user_id = ANY($1))),
-		       (SELECT count(*) FROM call_log WHERE ts >= $3 AND NOT (user_id = ANY($1))),
+		       -- LLM calls only, and not the admin's. The competition defines this metric as
+		       -- «every LLM call logged … 10+ LLM calls per DAU», while call_log also holds
+		       -- tool entries — usagestats, checkin, scenario_completed — which are the app
+		       -- reading its own data rather than anyone asking the model anything. Counting
+		       -- those overstated the figure roughly twelvefold on a judged KPI, in the very
+		       -- log that exists for anti-fraud. Prompt evaluation runs are logged as 'admin'
+		       -- and are testing, not use.
+		       (SELECT count(*) FROM call_log WHERE ts >= $3 AND call_type = 'llm'
+		          AND user_id <> 'admin' AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND ts >= $3 AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM call_log WHERE component = 'scenario_completed' AND NOT (user_id = ANY($1)))
 	`, devs, today, dayStart).Scan(
@@ -345,6 +363,30 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		dauDays += p.DAU
 	}
 	out.CallsPerDAUAvg = ratio(float64(callsWindow), dauDays, 1)
+
+	// Which builds are in the wild. Only people seen in the last week, so a phone that was
+	// installed once in September does not keep an old version on the board forever.
+	verRows, err := m.db.Query(ctx, `
+		SELECT coalesce(app_version, 'неизвестно'), count(*)
+		FROM users
+		WHERE NOT (id = ANY($1)) AND last_seen >= now() - interval '7 days'
+		GROUP BY 1 ORDER BY 2 DESC
+	`, devs)
+	if err != nil {
+		return nil, err
+	}
+	for verRows.Next() {
+		var v VersionShare
+		if err := verRows.Scan(&v.Version, &v.Users); err != nil {
+			verRows.Close()
+			return nil, err
+		}
+		out.Versions = append(out.Versions, v)
+	}
+	verRows.Close()
+	if err := verRows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Check-in rate per day, over the same window as the DAU chart.
 	ciRows, err := m.db.Query(ctx, `

@@ -244,7 +244,7 @@
         color: '#6B5CE7',
       },
       {
-        label: 'Calls / DAU',
+        label: 'LLM-вызовов / DAU',
         value: calls == null ? '—' : nf(calls, 1),
         // Only claim a period average when one actually arrived: an older backend sends
         // today's figure alone, and labelling that as the average would be a lie.
@@ -468,6 +468,31 @@
     </div>`;
   }
 
+  // ─── Versions ──────────────────────────────────────────────────────────────
+  function renderVersions(list) {
+    if (!list.length) return '';
+    const total = list.reduce((a, v) => a + v.users, 0) || 1;
+    const rows = list.map(v => {
+      const pct = Math.round(v.users / total * 100);
+      return `<div class="funnel-row">
+        <span class="funnel-label">${v.version}</span>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${pct}%;background:var(--primary)">
+            <span class="funnel-bar-text">${nf(v.users)}</span>
+          </div>
+        </div>
+        <span class="funnel-pct">${pct}%</span>
+      </div>`;
+    }).join('');
+    return `<div class="section"><div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Версии приложения</span>
+        <span class="chart-note">активные за неделю</span>
+      </div>
+      <div class="funnel">${rows}</div>
+    </div></div>`;
+  }
+
   // ─── LLM + budget ──────────────────────────────────────────────────────────
   function renderLlm(d) {
     const spend  = d.budget_spend ?? 0;
@@ -546,6 +571,7 @@
       renderStats(d) +
       renderDau(dauHistory, d.dau_7d_avg) +
       renderFunnel(d) +
+      renderVersions(Array.isArray(d.app_versions) ? d.app_versions : []) +
       `<div class="two-col">${renderCohorts(cohorts)}${renderCheckins(ciHistory)}</div>` +
       renderLlm(d) +
       renderInfra(d);
