@@ -511,9 +511,13 @@
 
   // ─── Infrastructure ────────────────────────────────────────────────────────
   function renderInfra(d) {
+    // Split on purpose: the nightly batch that writes tomorrow's forecasts is the whole tail,
+    // and nobody is waiting on it. One combined number made a service that answers in under
+    // two seconds look like it takes seventeen.
     const tiles = [
-      { label: 'P50 latency', value: fmt(d.p50_latency_ms), unit: 'мс' },
-      { label: 'P95 latency', value: fmt(d.p95_latency_ms), unit: 'мс', v: d.p95_latency_ms, warn: 1500, danger: 3000 },
+      { label: 'Ответ человеку · P50', value: fmt(d.p50_latency_ms), unit: 'мс, пока ждут на экране' },
+      { label: 'Ответ человеку · P95', value: fmt(d.p95_latency_ms), unit: 'мс, пока ждут на экране', v: d.p95_latency_ms, warn: 3000, danger: 6000 },
+      { label: 'Фоновая генерация · P95', value: fmt(d.p95_background_ms), unit: 'мс, ночью, никто не ждёт' },
       { label: 'Error rate',  value: d.error_rate_pct == null ? '—' : fmt(d.error_rate_pct, 2) + '%', unit: 'за 24 ч', v: d.error_rate_pct, warn: 1, danger: 3 },
       { label: 'Uptime 24ч',  value: d.uptime_24h_pct == null ? '—' : fmt(d.uptime_24h_pct, 1) + '%', unit: 'доступность' },
     ];

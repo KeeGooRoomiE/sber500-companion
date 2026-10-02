@@ -96,10 +96,16 @@ type MetricsResponse struct {
 	LLMCallsToday    int      `json:"llm_calls_today"`
 	LLMCostRubTotal  float64  `json:"llm_cost_rub_total"`
 	LLMCostRubPerDAU *float64 `json:"llm_cost_rub_per_dau"`
-	P50LatencyMs     *float64 `json:"p50_latency_ms"`
-	P95LatencyMs     *float64 `json:"p95_latency_ms"`
-	ErrorRatePct     *float64 `json:"error_rate_pct"`
-	Uptime24hPct     *float64 `json:"uptime_24h_pct"`
+	// Latency is split by whether anybody is actually waiting. The nightly batch that writes
+	// tomorrow's forecasts at 04:10 is the whole tail (P95 ~17 s against ~2 s for everything
+	// else), and folding it into one number makes a service nobody waits more than two seconds
+	// on look slow.
+	P50LatencyMs    *float64 `json:"p50_latency_ms"` // interactive: someone is on screen
+	P95LatencyMs    *float64 `json:"p95_latency_ms"`
+	P50BackgroundMs *float64 `json:"p50_background_ms"` // scheduled generation, nobody waiting
+	P95BackgroundMs *float64 `json:"p95_background_ms"`
+	ErrorRatePct    *float64 `json:"error_rate_pct"`
+	Uptime24hPct    *float64 `json:"uptime_24h_pct"`
 }
 
 // Metrics serves aggregated, anonymous numbers for the public metrics page.
@@ -438,12 +444,14 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 
 	// LLM quality; error window starts from the last admin reset or 24 h ago, whichever is later.
-	var p50, p95 *float64
+	var p50, p95, bg50, bg95 *float64
 	var llmErr, llm24 int
 	if err := m.db.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM call_log WHERE call_type = 'llm'),
-		       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
-		       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok'),
+		       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok' AND trigger <> 'scheduled'),
+		       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok' AND trigger <> 'scheduled'),
+		       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok' AND trigger  = 'scheduled'),
+		       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE result = 'ok' AND trigger  = 'scheduled'),
 		       count(*) FILTER (WHERE result = 'error'),
 		       count(*)
 		FROM call_log
@@ -451,10 +459,11 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		    now() - interval '24 hours',
 		    COALESCE((SELECT max(ts) FROM call_log WHERE component = 'errors_reset'), now() - interval '24 hours')
 		)
-	`).Scan(&out.LLMCallsTotal, &p50, &p95, &llmErr, &llm24); err != nil {
+	`).Scan(&out.LLMCallsTotal, &p50, &p95, &bg50, &bg95, &llmErr, &llm24); err != nil {
 		return nil, err
 	}
 	out.P50LatencyMs, out.P95LatencyMs = roundPtr(p50), roundPtr(p95)
+	out.P50BackgroundMs, out.P95BackgroundMs = roundPtr(bg50), roundPtr(bg95)
 	out.ErrorRatePct = pct(llmErr, llm24)
 
 	// Realtime LLM budget from proxy (cached 15 min, no tokens burned).
