@@ -73,3 +73,53 @@ func TestSleepTrendIgnoresNoise(t *testing.T) {
 		t.Error("a real 2h slide must be flagged")
 	}
 }
+
+func TestToneFromProfile(t *testing.T) {
+	cases := map[string]string{
+		"Мягко, с поддержкой":   "soft",
+		"Спокойно, без лишнего": "plain",
+		"Коротко и прямо":       "direct",
+		"Коротко и по делу":     "direct", // the label before the third option was added
+		"":                      "plain",
+		"что-то своё":           "plain",
+	}
+	for answer, want := range cases {
+		if got := ToneFromProfile(answer); got != want {
+			t.Errorf("ToneFromProfile(%q) = %q, want %q", answer, got, want)
+		}
+	}
+}
+
+func TestRecentForecastsAreShownAndForbidden(t *testing.T) {
+	in := MorningInput{
+		Days:   []*repo.DailyData{{Date: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), ScreenMin: ipt(200)}},
+		Recent: []string{"Вчера был день звонков.", "Ночь вышла короче обычного."},
+		Tone:   "direct",
+	}
+	got := BuildMorningPrompt(in)
+
+	for _, must := range []string{"Вчера был день звонков.", "Ночь вышла короче обычного.", "Не повторяй"} {
+		if !strings.Contains(got, must) {
+			t.Errorf("prompt is missing %q", must)
+		}
+	}
+	if !strings.Contains(got, "Тон: прямой") {
+		t.Errorf("tone block missing:\n%s", got)
+	}
+	// The instruction must still come last, or the model follows the block above it instead.
+	if !strings.HasSuffix(strings.TrimSpace(got), "Составь утренний прогноз на сегодня.") {
+		t.Errorf("prompt must end with its instruction:\n%s", got)
+	}
+}
+
+func TestNoToneBlockWhenPlain(t *testing.T) {
+	in := MorningInput{
+		Days: []*repo.DailyData{{Date: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), ScreenMin: ipt(200)}},
+		Tone: "plain",
+	}
+	if strings.Contains(BuildMorningPrompt(in), "Тон:") {
+		t.Error("the default tone should add nothing to the prompt")
+	}
+}
+
+func ipt(v int) *int { return &v }

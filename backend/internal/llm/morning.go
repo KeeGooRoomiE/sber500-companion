@@ -56,6 +56,12 @@ type MorningInput struct {
 	First   bool              // very first message: a short retrospective of the person's week
 	Profile map[string]string // answers from «Расскажи о себе» (no name)
 	Signals []signals.Signal  // what stood out yesterday, computed from data
+	// Recent is the person's last few forecasts, newest first. The model is told not to
+	// repeat them: without this every morning converged on the same two or three sentences,
+	// which is what «шаблонность» meant in the interviews.
+	Recent []string
+	// Tone from «Расскажи о себе»: soft | plain | direct. Empty means plain.
+	Tone string
 }
 
 // AppLabel is the human name of a package (same names the prompt uses).
@@ -357,6 +363,8 @@ func buildPrompt(in MorningInput) string {
 			"Опиши его обычную неделю по этим дням: одна самая заметная закономерность и что из неё следует для сегодня. " +
 			"Формат и ограничения те же.")
 	} else {
+		recentBlock(&b, in.Recent)
+		toneBlock(&b, in.Tone)
 		b.WriteString("\nСоставь утренний прогноз на сегодня.")
 	}
 	return b.String()
@@ -411,4 +419,56 @@ func workMark(work map[string]bool, pkg string) string {
 		return " (рабочее)"
 	}
 	return ""
+}
+
+// recentBlock shows the model what it already said, so it does not say it again.
+//
+// Interviews called the forecasts repetitive, and they were: with the same signals and the same
+// system prompt, the wording converged within a week. Showing the last few and forbidding both
+// the phrasing and the main point is cheaper and more reliable than trying to describe variety
+// in the instructions.
+func recentBlock(b *strings.Builder, recent []string) {
+	if len(recent) == 0 {
+		return
+	}
+	b.WriteString("\nЧто ты уже писал этому человеку (новое к старому):\n")
+	for _, r := range recent {
+		r = strings.TrimSpace(r)
+		if r == "" {
+			continue
+		}
+		b.WriteString("  - " + r + "\n")
+	}
+	b.WriteString("Не повторяй эти формулировки и не делай тот же главный вывод. " +
+		"Если данные говорят о том же самом — скажи это с другой стороны или о другом.\n")
+}
+
+// toneBlock sets how warm the answer is. It does not touch what may be claimed: hedging is a
+// matter of honesty and lives in the system prompt for every tone alike.
+func toneBlock(b *strings.Builder, tone string) {
+	switch tone {
+	case "soft":
+		b.WriteString("\nТон: мягкий. Человек просил бережнее — никакого давления и упрёка, " +
+			"трудный день это не провал. Без восклицаний.\n")
+	case "direct":
+		b.WriteString("\nТон: прямой. Человек просил без смягчающих обёрток — сразу к наблюдению, " +
+			"короткими фразами, без «похоже» и «возможно» ради вежливости.\n")
+	}
+}
+
+// ToneFromProfile maps the «Как тебе удобнее, чтобы я говорил?» answer to a tone code.
+//
+// Matched by keyword rather than by exact string: the answer is stored as the label the person
+// tapped, and wording gets edited. An unrecognised answer falls back to the plain tone, which
+// is also what an unanswered question gives — the forecast must never depend on this.
+func ToneFromProfile(answer string) string {
+	a := strings.ToLower(strings.TrimSpace(answer))
+	switch {
+	case strings.Contains(a, "мягк"):
+		return "soft"
+	case strings.Contains(a, "прям"), strings.Contains(a, "коротко"):
+		return "direct"
+	default:
+		return "plain"
+	}
 }

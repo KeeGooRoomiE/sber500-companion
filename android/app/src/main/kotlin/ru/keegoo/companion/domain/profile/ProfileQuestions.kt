@@ -83,7 +83,11 @@ val ProfileQuestions = listOf(
         ProfileIds.EVENING_TIME, "Когда спрашивать, как прошёл день?", null, listOf("19:30", "20:30", "21:30", "22:30"),
         timePick = true, defaultTime = DefaultEveningTime,
     ),
-    ProfileQuestion(ProfileIds.TONE, "Как тебе удобнее, чтобы я говорил?", null, listOf("Мягко, с поддержкой", "Коротко и по делу")),
+    ProfileQuestion(
+        ProfileIds.TONE, "Как тебе удобнее, чтобы я говорил?",
+        "Меняется только подача — факты и осторожность выводов одинаковые",
+        listOf("Мягко, с поддержкой", "Спокойно, без лишнего", "Коротко и прямо"),
+    ),
 )
 
 

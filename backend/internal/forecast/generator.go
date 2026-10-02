@@ -41,8 +41,10 @@ var unsafeOutput = regexp.MustCompile(`(?i)(https?://|www\.|t\.me/|@[a-z0-9_]{4,
 func SafeOutput(s string) bool { return !unsafeOutput.MatchString(s) }
 
 const (
-	historyDays = 7
-	llmTimeout  = 25 * time.Second
+	// How many past forecasts the model is shown so it does not repeat itself.
+	recentForecasts = 5
+	historyDays     = 7
+	llmTimeout      = 25 * time.Second
 	// After a failed LLM call the day is retried, not written off: up to 3 attempts, 30 min apart.
 	maxAttempts = 3
 	retryAfter  = 30 * time.Minute
@@ -122,12 +124,29 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		return nil, err
 	}
 
+	// The last few forecasts go in so the model can avoid repeating itself — «шаблонность» was
+	// the most common complaint, and with the same signals and prompt the wording converged
+	// within a week. A failure here is not worth losing the forecast over: without the block
+	// the model simply writes as it did before.
+	var recent []string
+	if history, err := g.morning.History(ctx, userID, recentForecasts); err != nil {
+		slog.Warn("forecast: recent history unavailable", "user", userID, "err", err)
+	} else {
+		for _, m := range history {
+			if m.Message != "" {
+				recent = append(recent, m.Message)
+			}
+		}
+	}
+
 	lctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 	start := time.Now()
 	result, err := g.llm.GenerateMorning(lctx, system, llm.MorningInput{
 		Days: days, Last: last, First: !delivered, Profile: profile,
 		Signals: signals.ForLastDay(days, WorkApps(profile), llm.AppLabel),
+		Recent:  recent,
+		Tone:    llm.ToneFromProfile(profile["tone"]),
 	})
 	if err == nil && !SafeOutput(result.Message) {
 		// A tampered prompt or a model slip must not put links/phones in front of users
