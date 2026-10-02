@@ -186,13 +186,16 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	// a page the judges read, with their seeded history inflating retention on top.
 	// Folding them into the same exclusion list fixes every query at once.
 	devs := append([]string{}, m.devIDs...)
-	var mockIDs []string
+	// Mock personas and anyone registered from a debug build. Test installs used to be
+	// guessed at by «no data», which is also what a person who abandoned onboarding looks
+	// like — and the funnel has to keep counting those.
+	var excluded []string
 	if err := m.db.QueryRow(ctx,
-		`SELECT coalesce(array_agg(id), '{}') FROM users WHERE id LIKE $1`,
-		mock.Prefix+"%").Scan(&mockIDs); err != nil {
+		`SELECT coalesce(array_agg(id), '{}') FROM users WHERE id LIKE $1 OR is_dev`,
+		mock.Prefix+"%").Scan(&excluded); err != nil {
 		return nil, err
 	}
-	devs = append(devs, mockIDs...)
+	devs = append(devs, excluded...)
 
 	// Empty slices, not nil: the page maps over these, so they must serialise as [] not null.
 	out := &MetricsResponse{

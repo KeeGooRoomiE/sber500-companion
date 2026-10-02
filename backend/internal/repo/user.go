@@ -27,7 +27,7 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo { return &UserRepo{db: db} }
 // Register returns (id, token, returning). With a device key the phone keeps its identity across
 // reinstalls: a known key gets a fresh token for the same user (the old token stops working).
 // Only hashes are stored; the token itself is shown once.
-func (r *UserRepo) Register(ctx context.Context, deviceKey string) (string, string, bool, error) {
+func (r *UserRepo) Register(ctx context.Context, deviceKey string, isDev bool) (string, string, bool, error) {
 	token, err := randomString(32)
 	if err != nil {
 		return "", "", false, err
@@ -53,11 +53,11 @@ func (r *UserRepo) Register(ctx context.Context, deviceKey string) (string, stri
 	}
 	// ON CONFLICT: two first launches racing with the same key — the second one takes over.
 	err = r.db.QueryRow(ctx, `
-		INSERT INTO users (id, token_hash, device_hash) VALUES ($1, $2, $3)
+		INSERT INTO users (id, token_hash, device_hash, is_dev) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (device_hash) WHERE device_hash IS NOT NULL
 		DO UPDATE SET token_hash = EXCLUDED.token_hash, last_seen = NOW()
 		RETURNING id
-	`, "u_"+id, HashToken(token), deviceHash).Scan(&id)
+	`, "u_"+id, HashToken(token), deviceHash, isDev).Scan(&id)
 	return id, token, false, err
 }
 

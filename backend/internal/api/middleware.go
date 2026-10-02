@@ -46,6 +46,9 @@ func userIDFrom(r *http.Request) string {
 }
 
 type RegisterRequest struct {
+	// Set by debug builds. Test installs are otherwise indistinguishable from people who
+	// abandoned onboarding, and those are exactly what the funnel must keep counting.
+	IsDev bool `json:"is_dev"`
 	// Hash of the app's per-device id (survives reinstall). Optional: without it the
 	// phone always gets a new identity, like before.
 	DeviceKey string `json:"device_key"`
@@ -67,7 +70,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if len(key) < 32 || len(key) > 128 {
 		key = "" // not a hash — ignore rather than trust
 	}
-	uid, token, returning, err := h.users.Register(r.Context(), key)
+	uid, token, returning, err := h.users.Register(r.Context(), key, req.IsDev)
 	if err != nil {
 		slog.Error("register", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")

@@ -19,7 +19,11 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private data class RegisterRequest(@SerializedName("device_key") val device_key: String?)
+private data class RegisterRequest(
+    @SerializedName("device_key") val device_key: String?,
+    /** Debug build: emulator runs and local testing must not count as people. */
+    @SerializedName("is_dev") val is_dev: Boolean,
+)
 private data class RegisterResponse(
     @SerializedName("user_id") val user_id: String,
     @SerializedName("token") val token: String,
@@ -75,7 +79,7 @@ class DeviceCredentials @Inject constructor(
     }
 
     private fun doRegister(): String? = try {
-        val body = Gson().toJson(RegisterRequest(deviceKey()))
+        val body = Gson().toJson(RegisterRequest(deviceKey(), BuildConfig.DEBUG))
         val request = Request.Builder()
             .url(BuildConfig.API_BASE_URL + "api/v1/register")
             .post(body.toRequestBody("application/json".toMediaType()))
