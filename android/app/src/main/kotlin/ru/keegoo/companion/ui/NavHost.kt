@@ -1,5 +1,7 @@
 package ru.keegoo.companion.ui
 
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
@@ -78,18 +80,22 @@ fun CompanionNavHost() {
                                 },
                             )
                         }
-                        composable(ROUTE_HOME) {
+                        composable(ROUTE_HOME) { entry ->
                             HomeScreen(
                                 sharedScope = this@SharedTransitionLayout,
                                 animatedScope = this@composable,
-                                onOpenProfile = { navController.navigate(ROUTE_PROFILE) { launchSingleTop = true } },
+                                onOpenProfile = {
+                                    if (entry.settled()) {
+                                        navController.navigate(ROUTE_PROFILE) { launchSingleTop = true }
+                                    }
+                                },
                             )
                         }
-                        composable(ROUTE_PROFILE) {
+                        composable(ROUTE_PROFILE) { entry ->
                             ProfileScreen(
                                 sharedScope = this@SharedTransitionLayout,
                                 animatedScope = this@composable,
-                                onBack = { navController.popBackStack() },
+                                onBack = { if (entry.settled()) navController.popBackStack() },
                             )
                         }
                     }
@@ -100,3 +106,16 @@ fun CompanionNavHost() {
         }
     }
 }
+
+/**
+ * True once this screen has finished arriving, so it is safe to leave it.
+ *
+ * The transitions here leave a deliberate gap: the outgoing screen fades out in 150 ms while
+ * the incoming one waits 120 ms before it starts, which is what lets the shared orb carry the
+ * motion. Tapping through that gap — orb, then straight back — started a second transition on
+ * top of the first, and both entries were left part-way with nothing but the background drawn.
+ *
+ * Gating on RESUMED drops taps that land inside the window instead of acting on them.
+ */
+private fun NavBackStackEntry.settled(): Boolean =
+    lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
