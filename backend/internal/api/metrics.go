@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 )
 
 // historyDays is how far back the daily charts on web/metrics.html reach. Three weeks plus
@@ -178,7 +179,20 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	today := clock.Today()
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, clock.Location())
 	tz := clock.Location().String()
-	devs := m.devIDs
+
+	// Mock personas are seeded with a month of history each to test prompts. The mock package
+	// documents that metrics skip them, but nothing actually did: every query filtered only by
+	// DEV_USER_IDS, which is empty in production. Six personas were being counted as people on
+	// a page the judges read, with their seeded history inflating retention on top.
+	// Folding them into the same exclusion list fixes every query at once.
+	devs := append([]string{}, m.devIDs...)
+	var mockIDs []string
+	if err := m.db.QueryRow(ctx,
+		`SELECT coalesce(array_agg(id), '{}') FROM users WHERE id LIKE $1`,
+		mock.Prefix+"%").Scan(&mockIDs); err != nil {
+		return nil, err
+	}
+	devs = append(devs, mockIDs...)
 
 	// Empty slices, not nil: the page maps over these, so they must serialise as [] not null.
 	out := &MetricsResponse{

@@ -18,6 +18,7 @@ import ru.keegoo.companion.data.api.model.CheckInRequest
 import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
+import ru.keegoo.companion.data.api.model.PingRequest
 
 interface CompanionApi {
     @POST("api/v1/data/passive")
@@ -33,7 +34,7 @@ interface CompanionApi {
     suspend fun getProfile(): ProfileRequest
 
     @POST("api/v1/ping")
-    suspend fun ping()
+    suspend fun ping(@Body body: PingRequest)
 
     @POST("api/v1/followup")
     suspend fun postFollowup(@Body body: FollowupRequest): FollowupResponse

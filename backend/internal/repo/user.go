@@ -107,6 +107,15 @@ func (r *UserRepo) ActiveSince(ctx context.Context, since time.Time) ([]string, 
 	return ids, rows.Err()
 }
 
+// SetAppVersion records which build this phone is running. Sent on every ping, because the
+// app is distributed as an APK link and several versions are live at once.
+func (r *UserRepo) SetAppVersion(ctx context.Context, userID, version string) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE users SET app_version = $2 WHERE id = $1 AND app_version IS DISTINCT FROM $2`,
+		userID, version)
+	return err
+}
+
 // SetProfile replaces the user's profile answers.
 func (r *UserRepo) SetProfile(ctx context.Context, userID string, profile map[string]string) error {
 	_, err := r.db.Exec(ctx, `UPDATE users SET profile = $2 WHERE id = $1`, userID, profile)

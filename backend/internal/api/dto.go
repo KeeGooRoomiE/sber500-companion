@@ -26,6 +26,10 @@ type PassiveDataRequest struct {
 	HourlySteps    []int         `json:"hourly_steps"`   // Health Connect steps per local hour
 }
 
+type PingRequest struct {
+	AppVersion string `json:"app_version"`
+}
+
 type AppUsageDTO struct {
 	Package     string `json:"package"`
 	PackageName string `json:"package_name"` // sent by app builds before 0.4.3

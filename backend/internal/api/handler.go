@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
@@ -34,7 +35,18 @@ func (h *Handler) touch(r *http.Request, uid string) {
 
 // Ping is sent by the app when it comes to the foreground — the "user opened the app" signal.
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	h.touch(r, userIDFrom(r))
+	uid := userIDFrom(r)
+	h.touch(r, uid)
+	// Older builds send no body at all, so a missing or unreadable one is normal here.
+	var req PingRequest
+	if r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	if v := strings.TrimSpace(req.AppVersion); v != "" && len(v) <= 32 {
+		if err := h.users.SetAppVersion(r.Context(), uid, v); err != nil {
+			slog.Warn("set app version", "err", err)
+		}
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

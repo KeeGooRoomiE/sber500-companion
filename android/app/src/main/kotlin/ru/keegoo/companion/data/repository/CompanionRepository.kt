@@ -8,7 +8,9 @@ import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.FollowupRequest
 import ru.keegoo.companion.data.api.model.FollowupResponse
+import ru.keegoo.companion.BuildConfig
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
+import ru.keegoo.companion.data.api.model.PingRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.ExploreRequest
@@ -75,7 +77,8 @@ class CompanionRepository @Inject constructor(
     suspend fun getProfile(): Result<Map<String, String>> = runCatching { api.getProfile().answers.orEmpty() }
 
     /** "The app is open" — counts the person as active today (DAU). Fire and forget. */
-    suspend fun ping(): Result<Unit> = runCatching { api.ping() }
+    /** Also reports which build this phone is on — nothing else tells the server. */
+    suspend fun ping(): Result<Unit> = runCatching { api.ping(PingRequest(BuildConfig.VERSION_NAME)) }
 
     suspend fun getHistory(): Result<HistoryResponse> = runCatching { api.getHistory() }
 

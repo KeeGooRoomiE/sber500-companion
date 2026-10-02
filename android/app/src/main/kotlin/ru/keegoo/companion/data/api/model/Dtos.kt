@@ -110,3 +110,6 @@ data class FollowupResponse(
 )
 
 data class EventRequest(val type: String)
+
+/** Sent with every ping: the server cannot otherwise tell which build a phone is on. */
+data class PingRequest(@SerializedName("app_version") val appVersion: String)
