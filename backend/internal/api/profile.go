@@ -20,7 +20,18 @@ var profileLimits = map[string]int{
 	"work_apps":    1500, // comma-separated package names
 	"morning_time": 10,
 	"evening_time": 10,
+	// Added with the depth question and missed here, so the answer was silently dropped —
+	// the list is an allowlist and «Unknown keys are dropped».
+	"depth": 100,
 }
+
+// genAnswerPrefix marks answers to questions the model generated for this person. They cannot
+// be in the allowlist above because the questions do not exist until they are asked.
+const genAnswerPrefix = "gen_"
+
+// maxGenAnswers caps how many generated answers are kept, so the profile cannot grow without
+// bound and quietly inflate every prompt built from it.
+const maxGenAnswers = 20
 
 type ProfileRequest struct {
 	Answers map[string]string `json:"answers"`
@@ -48,11 +59,23 @@ func (h *Handler) PutProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clean := map[string]string{}
+	gen := 0
 	for k, v := range req.Answers {
-		limit, ok := profileLimits[k]
 		v = strings.TrimSpace(v)
-		if !ok || v == "" {
+		if v == "" {
 			continue
+		}
+		limit, ok := profileLimits[k]
+		if !ok {
+			// Answers to questions the model generated for this person. They cannot be in the
+			// allowlist because the questions do not exist until they are asked, so the key
+			// shape is checked instead — and capped, or the profile would grow without bound
+			// and quietly inflate every prompt built from it.
+			if !strings.HasPrefix(k, genAnswerPrefix) || len(k) > 64 || gen >= maxGenAnswers {
+				continue
+			}
+			gen++
+			limit = 200
 		}
 		if r := []rune(v); len(r) > limit {
 			v = string(r[:limit])

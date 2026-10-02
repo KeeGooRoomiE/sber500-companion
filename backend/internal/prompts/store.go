@@ -18,6 +18,7 @@ const (
 	WeeklySystem    = "weekly_system"
 	ExploreSystem   = "explore_system"
 	FollowupSystem  = "followup_system"
+	InsightSystem   = "insight_system"
 )
 
 // MaxBodyLen keeps a prompt within a sane size (≈ a few hundred tokens of instructions).
