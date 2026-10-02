@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui.onboarding
 
+import android.net.Uri
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -95,31 +96,79 @@ import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
 import ru.keegoo.companion.ui.permissions.appInfoIntent
 import ru.keegoo.companion.ui.permissions.usageAccessIntent
 
-private val HEALTH_PERMISSIONS = setOf(
-    HealthPermission.getReadPermission(SleepSessionRecord::class),
+// Asked one module at a time. A single dialog for «sleep and steps» made people decide about
+// the most private signal they have while deciding about step counts — interviews balked at
+// sleep specifically, and bundling cost both.
+//
+// The background permission rides with each: the collector reads from a worker, not from the
+// open app, and Android 14+ returns nothing to background reads without it. Health Connect
+// ignores whichever of the two is already granted.
+private val STEPS_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(StepsRecord::class),
-    // The collector reads sleep and steps from a worker, not from the open app. Without this
-    // Android 14+ returns nothing to background reads even when the two above are granted.
     HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
 )
 
-private data class Step(val title: String, val body: String, val cta: String, val orb: OrbMode)
+private val SLEEP_PERMISSIONS = setOf(
+    HealthPermission.getReadPermission(SleepSessionRecord::class),
+    HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
+)
+
+/**
+ * One onboarding screen.
+ *
+ * [note] is the line that says what the app does *not* see. Permission screens lead with the
+ * limit rather than the ask: every interview that balked did so over what might be read, not
+ * over what the feature gives.
+ */
+private data class Step(
+    val title: String,
+    val body: String,
+    val cta: String,
+    val orb: OrbMode,
+    val note: String? = null,
+    /** «Пропустить» under the button — the app works without this one. */
+    val skipLabel: String? = null,
+    /** Shows the sample forecast instead of plain copy. */
+    val sample: Boolean = false,
+)
 
 private val steps = listOf(
     Step(
         "Познакомимся?",
-        "Каждое утро — короткий прогноз на основе твоих реальных данных.\nНичего не нужно вводить вручную.",
-        "Начать", OrbMode.Calm,
+        "Каждое утро — короткая мысль о дне, собранная из того, что телефон уже о себе пишет.\nНичего не нужно вводить вручную.",
+        "Дальше", OrbMode.Calm,
     ),
     Step(
-        "Что мы смотрим",
-        "Время экрана, сон, шаги — и вечером одно касание о том, как прошёл день. Сначала откроются настройки «Доступ к истории использования».",
-        "Дать доступ к данным", OrbMode.Data,
+        "Вот что приходит утром",
+        "Через неделю приложение начнёт замечать то, что сам за собой не видишь.",
+        "Хочу так же — дать доступ", OrbMode.Data,
+        sample = true,
     ),
     Step(
-        "Уведомления",
-        "Утренний прогноз и вечерний чек-ин придут как пуши. Ответить можно прямо из уведомления.\nСистема спросит ещё и про работу в фоне — без неё Android усыпляет приложение, и прогноз не придёт.",
+        "Экран — основа",
+        "Видим только, сколько минут был включён экран и какие приложения открывались.",
+        "Разрешить", OrbMode.Data,
+        note = "Не видим, что на экране, — ни переписок, ни фото.",
+    ),
+    Step(
+        "Шаги — точнее",
+        "По желанию. Передаём только число шагов за день.",
+        "Разрешить", OrbMode.Data,
+        note = "Без них прогноз чуть грубее.",
+        skipLabel = "Пропустить",
+    ),
+    Step(
+        "Сон — точнее",
+        "По желанию. Передаём только длительность и время сна — без пульса и стадий.",
+        "Разрешить", OrbMode.Data,
+        note = "Без него считаем сон по самой длинной паузе без экрана.",
+        skipLabel = "Пропустить",
+    ),
+    Step(
+        "Три уведомления в день",
+        "Прогноз утром, вечером спрошу, как прошёл день, и пришлю разбор. Больше не будет.",
         "Разрешить и начать", OrbMode.Ping,
+        note = "Следом система спросит про работу в фоне — почти не тратит батарею, но без неё уведомления не придут.",
     ),
     Step(
         "Смотрю твои данные",
@@ -128,10 +177,15 @@ private val steps = listOf(
     ),
 )
 
-private const val LAST_STEP = 3
+private const val STEP_SAMPLE = 1
+private const val STEP_USAGE = 2
+private const val STEP_STEPS = 3
+private const val STEP_SLEEP = 4
+private const val STEP_NOTIFICATIONS = 5
+private const val LAST_STEP = 6
 
 /** Stable slugs for the funnel: step indexes alone are unreadable in a report a year later. */
-private val stepNames = listOf("intro", "usage_access", "notifications", "collecting")
+private val stepNames = listOf("intro", "sample", "usage_access", "steps", "sleep", "notifications", "collecting")
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(showBackground = true, showSystemUi = true, name = "Onboarding — step 1")
@@ -165,27 +219,45 @@ fun OnboardingScreen(
         Events.onboardingStep(step, stepNames.getOrElse(step) { "step_$step" })
     }
 
-    val healthLauncher = rememberLauncherForActivityResult(
+    val healthAvailable = remember {
+        HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+    }
+
+    val stepsLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
-        // Partly granted still counts as denied for the funnel: without both sleep and steps
-        // the data source is not what the step asked for.
         Events.onboardingPermission(
-            "health",
-            if (granted.containsAll(HEALTH_PERMISSIONS)) Events.PermissionResult.Granted
-            else Events.PermissionResult.Denied,
+            "steps",
+            if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class)))
+                Events.PermissionResult.Granted else Events.PermissionResult.Denied,
         )
-        step = 2
+        step = STEP_SLEEP
+    }
+
+    val sleepLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        Events.onboardingPermission(
+            "sleep",
+            if (granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class)))
+                Events.PermissionResult.Granted else Events.PermissionResult.Denied,
+        )
+        step = STEP_NOTIFICATIONS
+    }
+
+    /** Health Connect is missing on this phone: skip both of its steps, saying so once. */
+    fun skipHealthEntirely() {
+        hcUnavailable = true
+        Events.onboardingPermission("health", Events.PermissionResult.Unavailable)
+        step = STEP_NOTIFICATIONS
     }
 
     fun requestHealth() {
-        if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+        if (healthAvailable) {
             hcUnavailable = false
-            healthLauncher.launch(HEALTH_PERMISSIONS)
+            step = STEP_STEPS
         } else {
-            hcUnavailable = true
-            Events.onboardingPermission("health", Events.PermissionResult.Unavailable)
-            step = 2
+            skipHealthEntirely()
         }
     }
 
@@ -301,28 +373,60 @@ fun OnboardingScreen(
             contentAlignment = Alignment.TopCenter,
             label = "stepCopy",
         ) { s ->
+            val st = steps[s]
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = steps[s].title,
+                    text = st.title,
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = steps[s].body,
+                    text = st.body,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     lineHeight = 26.sp,
                 )
+                if (st.sample) {
+                    Spacer(Modifier.height(18.dp))
+                    SampleForecast()
+                }
+                st.note?.let { note ->
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .75f),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "Подробнее о данных",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
             }
         }
 
         Spacer(Modifier.weight(1f))
 
         AnimatedVisibility(
-            visible = usageBlocked && step == 1,
+            visible = usageBlocked && step == STEP_USAGE,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
         ) {
@@ -360,7 +464,7 @@ fun OnboardingScreen(
         }
 
         AnimatedVisibility(
-            visible = hcUnavailable && step == 2,
+            visible = hcUnavailable && step == STEP_NOTIFICATIONS,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut(),
         ) {
@@ -409,8 +513,19 @@ fun OnboardingScreen(
                     onClick = {
                         if (step != LAST_STEP) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         when (step) {
-                            0 -> step = 1
-                            1 -> if (context.hasUsageAccess()) {
+                            0 -> step = STEP_SAMPLE
+                            STEP_SAMPLE -> step = STEP_USAGE
+                            STEP_STEPS -> if (healthAvailable) {
+                                stepsLauncher.launch(STEPS_PERMISSIONS)
+                            } else {
+                                skipHealthEntirely()
+                            }
+                            STEP_SLEEP -> if (healthAvailable) {
+                                sleepLauncher.launch(SLEEP_PERMISSIONS)
+                            } else {
+                                skipHealthEntirely()
+                            }
+                            STEP_USAGE -> if (context.hasUsageAccess()) {
                                 // Already granted — a reinstall, or it was given earlier. The
                                 // launcher never runs, so the funnel has to be told here or this
                                 // person silently disappears from the step.
@@ -431,7 +546,7 @@ fun OnboardingScreen(
                                     }
                                 }
                             }
-                            2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            STEP_NOTIFICATIONS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
                                 step = LAST_STEP
@@ -464,7 +579,101 @@ fun OnboardingScreen(
             }
         }
 
+        // «Пропустить» only where the app genuinely works without the permission. Interviews
+        // named a forced walkthrough as a reason to uninstall, and an optional step that cannot
+        // be declined is a forced one.
+        val skip = steps[step].skipLabel
+        AnimatedVisibility(
+            visible = skip != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Text(
+                text = skip.orEmpty(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable {
+                        when (step) {
+                            STEP_STEPS -> {
+                                Events.onboardingPermission("steps", Events.PermissionResult.Skipped)
+                                step = STEP_SLEEP
+                            }
+                            STEP_SLEEP -> {
+                                Events.onboardingPermission("sleep", Events.PermissionResult.Skipped)
+                                step = STEP_NOTIFICATIONS
+                            }
+                        }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
+
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+
+private const val PRIVACY_URL = "https://keegooroomie.github.io/sber500-companion/privacy.html"
+
+/**
+ * What a morning actually looks like, shown before anything is asked for.
+ *
+ * Permissions were the step people balked at, and they balked without knowing what they were
+ * buying. So the ask comes after the answer: a real-shaped card, marked as an example, with the
+ * «Почему» already open — because the point is not the number, it is the chain nobody sees in
+ * their own week.
+ */
+@Composable
+private fun SampleForecast(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primary,
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Прогноз на сегодня",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = .75f),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Surface(shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = .22f)) {
+                    Text(
+                        text = "пример",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Text(
+                text = "Два вечера подряд экран гас за полночь — завтра, скорее всего, будет тяжелее, чем кажется с утра.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
+                lineHeight = 24.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Почему",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = .75f),
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Тяжесть дня на этой неделе решала не нагрузка и не день недели, а один рычаг — во сколько ночью гас экран.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = .9f),
+                lineHeight = 20.sp,
+            )
+        }
     }
 }
 
