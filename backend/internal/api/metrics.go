@@ -64,6 +64,11 @@ type MetricsResponse struct {
 	FunnelD1        int `json:"funnel_d1"`        // retained at D1
 	FunnelD7        int `json:"funnel_d7"`        // retained at D7
 	FunnelDAU       int `json:"funnel_dau"`       // active today
+	// Each retention step has its own base: only people who have had the chance. Someone who
+	// signed up today cannot have a D1 yet, and dividing by everyone made the funnel disagree
+	// with the retention tile computed from the same data.
+	FunnelD1Eligible int `json:"funnel_d1_eligible"` // signed up yesterday or earlier
+	FunnelD7Eligible int `json:"funnel_d7_eligible"` // signed up 7+ days ago
 
 	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
@@ -260,10 +265,29 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	`, devs).Scan(&activated); err != nil {
 		return nil, err
 	}
+	// Retention steps over everyone who has had the chance — not the 6-day window retD1/retD7
+	// are measured on. Reusing those made the funnel count a window against a total, so «D1 22
+	// (48%)» sat next to a D1 tile reading 73% off the same data.
+	var funD1, funD7 int
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 1),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 1
+		                          AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id
+		                                      AND a.date > (u.created_at AT TIME ZONE $2)::date)),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 7),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date <= $3::date - 7
+		                          AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id
+		                                      AND a.date >= (u.created_at AT TIME ZONE $2)::date + 7))
+		FROM users u
+		WHERE NOT (u.id = ANY($1))
+	`, devs, tz, today).Scan(&out.FunnelD1Eligible, &funD1, &out.FunnelD7Eligible, &funD7); err != nil {
+		return nil, err
+	}
+
 	out.FunnelTotal = out.UsersTotal
 	out.FunnelActivated = activated
-	out.FunnelD1 = retD1
-	out.FunnelD7 = retD7
+	out.FunnelD1 = funD1
+	out.FunnelD7 = funD7
 	out.FunnelDAU = out.DAUToday
 
 	// Engagement

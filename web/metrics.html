@@ -359,21 +359,37 @@
   // ─── Funnel ────────────────────────────────────────────────────────────────
   function renderFunnel(d) {
     const total = d.funnel_total || 0;
+
+    // Each step is measured against the people who could have reached it. Someone who signed
+    // up today has not had a D1 yet, so counting them in the base made this funnel contradict
+    // the retention tile built from the same data — and «D7 0 (0%)» read as total failure when
+    // it only meant nobody is a week old yet.
     const steps = [
-      { label: 'Зарегистрировались',  n: total,               color: '#6B5CE7' },
-      { label: 'Активировались',      n: d.funnel_activated,  color: '#8B7CF8' },
-      { label: 'Активны на D1',       n: d.funnel_d1,         color: '#10B981' },
-      { label: 'Активны на D7',       n: d.funnel_d7,         color: '#34D399' },
-      { label: 'Активны сегодня',     n: d.funnel_dau,        color: '#6EE7B7' },
+      { label: 'Зарегистрировались', n: total,              base: total,                 color: '#6B5CE7' },
+      { label: 'Активировались',     n: d.funnel_activated, base: total,                 color: '#8B7CF8' },
+      { label: 'Активны на D1',      n: d.funnel_d1,        base: d.funnel_d1_eligible,  color: '#10B981', waits: true },
+      { label: 'Активны на D7',      n: d.funnel_d7,        base: d.funnel_d7_eligible,  color: '#34D399', waits: true },
+      { label: 'Активны сегодня',    n: d.funnel_dau,       base: total,                 color: '#6EE7B7' },
     ];
+
     const rows = steps.map(s => {
+      const base = s.base ?? 0;
+      // Nobody is old enough for this step yet: «—», never a zero that looks like a failure.
+      if (s.waits && base === 0) {
+        return `<div class="funnel-row">
+          <span class="funnel-label">${s.label}</span>
+          <div class="funnel-bar-wrap"></div>
+          <span class="funnel-pct">—</span>
+        </div>`;
+      }
       const n = s.n ?? 0;
-      const pct = total > 0 ? Math.round(n / total * 100) : 0;
+      const pct = base > 0 ? Math.round(n / base * 100) : 0;
+      const of = s.waits ? ` из ${nf(base)}` : '';
       return `<div class="funnel-row">
         <span class="funnel-label">${s.label}</span>
         <div class="funnel-bar-wrap">
           <div class="funnel-bar" style="width:${pct}%;background:${s.color}">
-            <span class="funnel-bar-text">${nf(n)}</span>
+            <span class="funnel-bar-text">${nf(n)}${of}</span>
           </div>
         </div>
         <span class="funnel-pct">${pct}%</span>
@@ -383,7 +399,7 @@
     return `<div class="section"><div class="chart-card">
       <div class="chart-header">
         <span class="chart-title">Воронка пользователей</span>
-        <span class="chart-note">от регистрации до активности сегодня</span>
+        <span class="chart-note">D1 и D7 — только от тех, кто успел дожить</span>
       </div>
       <div class="funnel">${rows}</div>
     </div></div>`;
