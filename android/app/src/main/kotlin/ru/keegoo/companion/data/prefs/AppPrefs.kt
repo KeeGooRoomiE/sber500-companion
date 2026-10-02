@@ -1,5 +1,7 @@
 package ru.keegoo.companion.data.prefs
 
+import java.time.LocalTime
+import java.time.LocalDateTime
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -103,15 +105,28 @@ suspend fun Context.resetOnboarded() {
 data class LocalCheckIn(val feel: DayFeel, val tags: Set<String>)
 
 /** Today's check-in or null. Yesterday's answer doesn't count. */
+/**
+ * The day a check-in is about — the one the person has just lived through.
+ *
+ * Between midnight and 05:00 that is still yesterday. Someone who opens the app at 00:01 means
+ * the evening they just had, not the day that is one minute old; and without this the answer
+ * given at 22:00 looked unanswered again an hour later. 05:00 is the same night/day boundary
+ * the morning reminder uses, so the app draws the line in one place only.
+ */
+fun checkInDay(now: LocalDateTime = LocalDateTime.now()): LocalDate =
+    if (now.toLocalTime() < DAY_STARTS_AT) now.toLocalDate().minusDays(1) else now.toLocalDate()
+
+val DAY_STARTS_AT: LocalTime = LocalTime.of(5, 0)
+
 fun Context.todayCheckIn(): Flow<LocalCheckIn?> = appPrefs.data.map { p ->
-    if (p[KEY_CHECKIN_DATE] != LocalDate.now().toString()) return@map null
+    if (p[KEY_CHECKIN_DATE] != checkInDay().toString()) return@map null
     val feel = p[KEY_CHECKIN_FEEL]?.let { runCatching { DayFeel.valueOf(it) }.getOrNull() } ?: return@map null
     LocalCheckIn(feel, p[KEY_CHECKIN_TAGS].orEmpty())
 }
 
 suspend fun Context.saveCheckIn(feel: DayFeel, tags: Set<String>) {
     appPrefs.edit {
-        it[KEY_CHECKIN_DATE] = LocalDate.now().toString()
+        it[KEY_CHECKIN_DATE] = checkInDay().toString()
         it[KEY_CHECKIN_FEEL] = feel.name
         it[KEY_CHECKIN_TAGS] = tags
     }

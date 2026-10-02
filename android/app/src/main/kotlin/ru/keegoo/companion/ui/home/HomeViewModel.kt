@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui.home
 
+import ru.keegoo.companion.data.prefs.checkInDay
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -436,7 +437,7 @@ class HomeViewModel @Inject constructor(
             if (debounceMs > 0) delay(debounceMs)
             val tags = _state.value.tags
             context.saveCheckIn(feel, tags)
-            repository.postCheckIn(LocalDate.now(), feel, CheckInTags.filter { it in tags })
+            repository.postCheckIn(checkInDay(), feel, CheckInTags.filter { it in tags })
             // Same «разбор дня» push as the notification check-in; the worker dedups per day.
             ReviewNotificationWorker.enqueue(context)
         }

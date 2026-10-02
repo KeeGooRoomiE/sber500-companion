@@ -77,6 +77,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- «Совпало?» for the morning forecast, from the day-review notification -->
+        <receiver
+            android:name=".notifications.MorningFeedbackReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ru.keegoo.companion.ACTION_RATE_MORNING" />
+            </intent-filter>
+        </receiver>
+
         <!-- Daily reminders (AlarmManager one-shots; each fire arms the next) -->
         <receiver
             android:name=".notifications.ReminderReceiver"

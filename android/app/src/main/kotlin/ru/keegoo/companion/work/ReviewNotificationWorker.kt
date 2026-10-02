@@ -47,7 +47,15 @@ class ReviewNotificationWorker(context: Context, params: WorkerParameters) : Cor
             return if (runAttemptCount < 2) Result.retry() else Result.success()
         }
 
-        showReviewNotification(ctx, text)
+        // Ask about this morning's forecast only if there is one and it has not been rated.
+        // Asking about a forecast that never arrived would be nonsense, and asking twice is
+        // worse than not asking.
+        val morning = repo.getMorning().getOrNull()
+        val rateDate = morning
+            ?.takeIf { it.message.isNotBlank() && it.feedback.isNullOrBlank() }
+            ?.date
+
+        showReviewNotification(ctx, text, forecastDate = rateDate)
         ctx.markReviewNotified()
         return Result.success()
     }

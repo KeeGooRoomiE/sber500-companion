@@ -1,5 +1,6 @@
 package ru.keegoo.companion.notifications
 
+import ru.keegoo.companion.data.prefs.checkInDay
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -54,11 +55,41 @@ class CheckInReceiver : BroadcastReceiver() {
             try {
                 // Local first: Home shows the check-in as done even without a backend
                 context.saveCheckIn(feel, emptySet())
-                repo.postCheckIn(LocalDate.now(), feel)
+                repo.postCheckIn(checkInDay(), feel)
             } finally {
                 // The «разбор дня» follows the check-in; the LLM call is too slow for a
                 // BroadcastReceiver, so a worker does it (and posts today's snapshot first).
                 ReviewNotificationWorker.enqueue(context)
+                pending.finish()
+            }
+        }
+    }
+}
+
+/**
+ * «Совпало / Не совсем» tapped on the day-review notification.
+ *
+ * Rating the morning forecast from here rather than from a row on Home: the row was only seen
+ * by people who opened the app in the afternoon, so most forecasts went unrated.
+ */
+class MorningFeedbackReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != ACTION_RATE_MORNING) return
+        val date = intent.getStringExtra(EXTRA_FORECAST_DATE) ?: return
+        val hit = intent.getBooleanExtra(EXTRA_HIT, true)
+
+        NotificationManagerCompat.from(context).cancel(NOTIF_ID_REVIEW)
+        Toast.makeText(context, if (hit) "Совпало — записано ✓" else "Не совсем — записано ✓", Toast.LENGTH_SHORT).show()
+
+        val repo = EntryPointAccessors
+            .fromApplication(context.applicationContext, CheckInEntryPoint::class.java)
+            .repository()
+
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                repo.feedback("morning", date, hit)
+            } finally {
                 pending.finish()
             }
         }

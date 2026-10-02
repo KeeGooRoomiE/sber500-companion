@@ -19,6 +19,9 @@ const val CHANNEL_UPDATE   = "ch_update"
 const val EXTRA_FEEL = "feel"
 const val EXTRA_NOTIF_SOURCE = "notif_source"
 const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
+const val ACTION_RATE_MORNING = "ru.keegoo.companion.ACTION_RATE_MORNING"
+const val EXTRA_HIT = "hit"
+const val EXTRA_FORECAST_DATE = "forecast_date"
 
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
@@ -136,8 +139,31 @@ fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCo
  * ≤500 chars) rides in BigTextStyle, so the person reads the explanation without opening the app;
  * a tap opens Home for the «Совпало / Не совсем» feedback.
  */
-fun showReviewNotification(context: Context, text: String) {
-    val notif = NotificationCompat.Builder(context, CHANNEL_REVIEW)
+/**
+ * «Разбор дня», and — when there is a forecast worth rating — «Совпало?» for this morning.
+ *
+ * The rating used to live under the forecast on Home, which meant only people who opened the
+ * app in the afternoon ever saw it: fewer than half of forecasts got rated while 63% of people
+ * answer the evening check-in. This notification already arrives right after that check-in,
+ * while the day is still in mind, so the question rides along instead of costing a new push.
+ *
+ * [forecastDate] is null when there is nothing to rate — no forecast today, or already rated —
+ * and then the notification is exactly what it was.
+ */
+fun showReviewNotification(context: Context, text: String, forecastDate: String? = null) {
+    fun rateIntent(hit: Boolean): PendingIntent {
+        val intent = Intent(ACTION_RATE_MORNING).apply {
+            setPackage(context.packageName)
+            putExtra(EXTRA_HIT, hit)
+            putExtra(EXTRA_FORECAST_DATE, forecastDate)
+        }
+        return PendingIntent.getBroadcast(
+            context, if (hit) 201 else 202, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    val builder = NotificationCompat.Builder(context, CHANNEL_REVIEW)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle("Разбор дня")
         .setContentText(text)
@@ -145,9 +171,15 @@ fun showReviewNotification(context: Context, text: String) {
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "review"))
         .setAutoCancel(true)
-        .build()
 
-    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_REVIEW, notif) }
+    if (forecastDate != null) {
+        builder
+            .setSubText("Утром я предсказал, как пройдёт день")
+            .addAction(0, "Совпало", rateIntent(hit = true))
+            .addAction(0, "Не совсем", rateIntent(hit = false))
+    }
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_REVIEW, builder.build()) }
 }
 
 fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {

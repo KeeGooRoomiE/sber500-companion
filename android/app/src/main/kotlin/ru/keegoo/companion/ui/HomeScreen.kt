@@ -154,6 +154,12 @@ fun HomeScreen(
 
     // Morning: forecast first. Evening: the check-in moves to the top.
     val evening = remember { isEveningNow() }
+    // «Как прошёл день?» only makes sense once there is a day to speak of. Between 05:00 and
+    // the evening there is nothing to report yet, and someone opening the app at 00:01 was
+    // being asked about a day one minute old — that one now counts as yesterday (checkInDay),
+    // so the question is still worth asking. An answer already given stays on screen either
+    // way, otherwise it would look lost.
+    val askCheckIn = remember(state.checkedIn) { evening || state.checkedIn != null }
     var openStat by rememberSaveable { mutableStateOf<StatKind?>(null) }
     var lastStat by rememberSaveable { mutableStateOf(StatKind.Screen) }
     BackHandler(enabled = openStat != null) { openStat = null }
@@ -165,10 +171,10 @@ fun HomeScreen(
     var shownReview by remember { mutableStateOf<ReviewUi?>(null) }
     if (state.review != null) shownReview = state.review
 
-    val blocks = if (evening) {
-        listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
-    } else {
-        listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
+    val blocks = when {
+        evening -> listOf(HomeBlock.CheckIn, HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
+        askCheckIn -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline, HomeBlock.CheckIn)
+        else -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
     }
     val bars = WindowInsets.systemBars.asPaddingValues()
     val entries = statEntries(state)
@@ -688,9 +694,11 @@ private fun MorningCard(
             }
         }
 
-        // By the afternoon the day is visible enough to say whether the forecast fit.
-        // Only the server forecast is rated — the local one is just today's numbers.
-        if (state.forecastDate != null && LocalTime.now().hour >= FeedbackFromHour) {
+        // «Совпало?» moved to the day-review notification, which arrives right after the
+        // evening check-in. This row only reached people who opened the app after 14:00, so
+        // most forecasts went unrated. An already given verdict still shows, so the answer is
+        // visible where the forecast is.
+        if (state.morningFeedback != null) {
             FeedbackRow(
                 question = "Совпало с днём?",
                 feedback = state.morningFeedback,
@@ -702,7 +710,6 @@ private fun MorningCard(
     }
 }
 
-private const val FeedbackFromHour = 14
 
 @Composable
 private fun SignalRow(signal: SignalDto, modifier: Modifier = Modifier) {
