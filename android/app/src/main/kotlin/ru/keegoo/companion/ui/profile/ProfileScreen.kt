@@ -9,7 +9,9 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -56,6 +58,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -122,7 +125,11 @@ private val ORB_SLOT_HEIGHT = 150.dp // the space the orb used to occupy inline 
 // placeholder so the title below it doesn't jump when the orb itself becomes an overlay.
 private val ORB_EXPANDED_SIZE = 104.dp
 private val ORB_COLLAPSED_SIZE = 28.dp
-private val ORB_COLLAPSE_RANGE = 110.dp // how far the list scrolls while the collapse plays out
+// Two thresholds, not one — scrolling past ORB_COLLAPSE_AT commits to collapsed; scrolling back
+// below the much smaller ORB_EXPAND_AT commits to expanded. The gap between them is the dead
+// zone that keeps a scroll position near the boundary from flipping the orb every frame.
+private val ORB_COLLAPSE_AT = 110.dp
+private val ORB_EXPAND_AT = 20.dp
 
 /**
  * «Расскажи о себе» — opened by tapping the orb. An accordion of short questions; answering one
@@ -283,16 +290,35 @@ fun ProfileScreen(
     // when work apps aren't offered (no usage access yet), so it is never simply missing.
     val summaryAfterId = if (questions.any { it.id == ProfileIds.WORK_APPS }) ProfileIds.WORK_APPS else ProfileIds.NAME
 
-    // How far the orb has collapsed into the fixed bar: 0 at the top of the list, 1 once it has
-    // scrolled past ORB_COLLAPSE_RANGE (or past the header item entirely).
+    // Whether the orb is collapsed — a flip, not a drag: scrolling does not move it pixel by
+    // pixel, it just decides which of the two states is current. Two different thresholds (not
+    // one) give it a dead zone in between, so hovering near one scroll position doesn't flicker
+    // it back and forth every frame.
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val collapseProgress by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 1f
-            else with(density) { (listState.firstVisibleItemScrollOffset / ORB_COLLAPSE_RANGE.toPx()).coerceIn(0f, 1f) }
+    var orbCollapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            if (listState.firstVisibleItemIndex > 0) Int.MAX_VALUE else listState.firstVisibleItemScrollOffset
+        }.collect { offsetPx ->
+            val offsetDp = with(density) { offsetPx.toDp() }
+            if (!orbCollapsed && offsetDp > ORB_COLLAPSE_AT) orbCollapsed = true
+            else if (orbCollapsed && offsetDp < ORB_EXPAND_AT) orbCollapsed = false
         }
     }
+    // The actual motion: not tied to scroll position at all past this point, so there is never
+    // a "halfway down the list" look — only "about to collapse" and "about to bloom back out".
+    val collapseAnim = remember { Animatable(0f) }
+    LaunchedEffect(orbCollapsed) {
+        if (orbCollapsed) {
+            // Collapsing reads as being pulled into a point — a steady pull-in, no bounce.
+            collapseAnim.animateTo(1f, tween(320, easing = FastOutLinearInEasing))
+        } else {
+            // Expanding blooms back out with a little overshoot, like a drop landing.
+            collapseAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 260f))
+        }
+    }
+    val collapseProgress = collapseAnim.value
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -395,7 +421,7 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
                 .height(bars.calculateTopPadding() + ORB_BAR_HEIGHT)
-                .background(MaterialTheme.colorScheme.background.copy(alpha = collapseProgress)),
+                .background(MaterialTheme.colorScheme.background.copy(alpha = collapseProgress.coerceIn(0f, 1f))),
         ) {
             Box(
                 Modifier
