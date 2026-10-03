@@ -451,7 +451,11 @@
       </div>`;
     }
     const maxPct = Math.max(...withData.map(p => p.pct), 1);
-    const avg = withData.reduce((a, p) => a + p.pct, 0) / withData.length;
+    // Today's bar is still live — most check-ins land after 20:00 MSK, so including it in the
+    // average drags it down for most of the day. Average over finished days only.
+    const past = withData.slice(0, -1);
+    const avgSource = past.length ? past : withData;
+    const avg = avgSource.reduce((a, p) => a + p.pct, 0) / avgSource.length;
     const bars = history.map((p, i) => {
       const last = i === history.length - 1;
       const h = p.pct == null ? 0 : Math.max(2, Math.round(p.pct / maxPct * 56));
@@ -465,7 +469,10 @@
         <span class="chart-note">за ${history.length} дн.</span>
       </div>
       <div class="ci-bars">${bars}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px;">средний: <strong style="color:var(--text)">${fmt(avg, 0)}%</strong></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+        средний без сегодня: <strong style="color:var(--text)">${fmt(avg, 0)}%</strong>
+        — сегодняшний чек-ин ещё собирается, основной поток приходит после 20:00 МСК
+      </div>
     </div>`;
   }
 
