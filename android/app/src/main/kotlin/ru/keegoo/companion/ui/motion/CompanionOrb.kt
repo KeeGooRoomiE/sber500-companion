@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import ru.keegoo.companion.domain.model.DayFeel
@@ -65,13 +66,22 @@ fun CompanionOrb(
     badge: Boolean = false,
     speed: Float = 1f,
     waveTrigger: Int = 0,
+    // How much rounder-or-sprawlier the wobble is — 1 is normal, >1 spreads it out, as if the
+    // droplet were being squeezed. The caller eases it; this just multiplies with it.
+    wobbleBoost: Float = 1f,
+    // 0 = the mode's own colour, 1 = fully black. For sinking into the status-bar/camera area,
+    // where a purple dot would look wrong next to real camera hardware.
+    blackout: Float = 0f,
 ) {
     val blob = remember { Path() }
     val badgeColor = MaterialTheme.colorScheme.primary
     val palette = LocalBackdrop.current.feel.orbPalette()
-    val light by animateColorAsState(palette.light, tween(900), label = "orbLight")
-    val mid by animateColorAsState(palette.mid, tween(900), label = "orbMid")
-    val deep by animateColorAsState(palette.deep, tween(900), label = "orbDeep")
+    val baseLight by animateColorAsState(palette.light, tween(900), label = "orbLight")
+    val baseMid by animateColorAsState(palette.mid, tween(900), label = "orbMid")
+    val baseDeep by animateColorAsState(palette.deep, tween(900), label = "orbDeep")
+    val light = lerp(baseLight, Color.Black, blackout)
+    val mid = lerp(baseMid, Color.Black, blackout)
+    val deep = lerp(baseDeep, Color.Black, blackout)
 
     val dataA by animateFloatAsState(if (mode == OrbMode.Data) 1f else 0f, tween(300), label = "dataA")
     val pingA by animateFloatAsState(if (mode == OrbMode.Ping) 1f else 0f, tween(300), label = "pingA")
@@ -110,9 +120,9 @@ fun CompanionOrb(
         for (i in 0..steps) {
             val a = i / steps.toFloat() * 2f * PI.toFloat()
             val wobble = 1f +
-                .028f * sin(3f * a + t * .8f) +
-                .018f * sin(5f * a - t * 1.1f + 1.7f) +
-                .010f * sin(2f * a + t * .5f)
+                wobbleBoost * .028f * sin(3f * a + t * .8f) +
+                wobbleBoost * .018f * sin(5f * a - t * 1.1f + 1.7f) +
+                wobbleBoost * .010f * sin(2f * a + t * .5f)
             val p = c + Offset(cos(a) * r * wobble, sin(a) * r * wobble)
             if (i == 0) blob.moveTo(p.x, p.y) else blob.lineTo(p.x, p.y)
         }

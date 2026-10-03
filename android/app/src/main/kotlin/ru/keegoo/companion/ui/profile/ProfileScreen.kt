@@ -9,7 +9,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -81,7 +81,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.ripple
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.local.AppOption
@@ -126,10 +125,22 @@ private val ORB_SLOT_HEIGHT = 150.dp // the space the orb used to occupy inline 
 private val ORB_EXPANDED_SIZE = 104.dp
 private val ORB_COLLAPSED_SIZE = 28.dp
 // Two thresholds, not one — scrolling past ORB_COLLAPSE_AT commits to collapsed; scrolling back
-// below the much smaller ORB_EXPAND_AT commits to expanded. The gap between them is the dead
+// below the much smaller ORB_EXPAND_AT commits to expanded. Both kept small on purpose: the
+// first version used 110dp/20dp and felt like it took a deliberate scroll to react at all.
+// The gap between them is the dead
 // zone that keeps a scroll position near the boundary from flipping the orb every frame.
-private val ORB_COLLAPSE_AT = 110.dp
-private val ORB_EXPAND_AT = 20.dp
+private val ORB_COLLAPSE_AT = 24.dp
+private val ORB_EXPAND_AT = 6.dp
+
+// Past this fraction of the collapse, the orb is "almost at the camera": only here does it
+// start turning black and shrinking away to nothing, so most of the journey is just the plain
+// resize and this final approach reads as a distinct, deliberate last step — not a gradient
+// that's been running the whole time.
+private const val ORB_DOCK_THRESHOLD = 0.8f
+
+// cubic-bezier(0.25, 0.1, 0.25, 1) — CSS's own "ease": a droplet flowing in, not a mechanical
+// linear slide.
+private val OrbDockEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 
 /**
  * «Расскажи о себе» — opened by tapping the orb. An accordion of short questions; answering one
@@ -156,11 +167,18 @@ fun ProfileScreen(
 
     // The poke mechanic lives only on this screen's big orb — squish on every tap, a bigger
     // "look at me" pulse every 6-9s, and a one-time invitation if nine seconds pass untouched.
+    //
+    // Squish is deliberately subtle (a 7% dip, not a 18% one) and quick to give back — the
+    // first version changed its proportions too much and took the better part of a second to
+    // settle; this reads as an instant nudge instead.
     val orbScale = remember { Animatable(1f) }
     // The orb's own shape-morph speed (breathing/glow/wobble) — a quick kick on every tap, on
     // top of the squish, so the tap itself reads as something happening, not just a bounce.
     // Held up for as long as a reaction is on screen, since that is the orb "replying".
     val morphSpeed = remember { Animatable(1f) }
+    // How much the wobble itself spreads out — a droplet being squeezed, not just moving
+    // faster. Rises fast, settles back over the same shortened window as morphSpeed.
+    val wobbleBoost = remember { Animatable(1f) }
     // Bumped on every tap; each change spawns one ring+fill wave in CompanionOrb (see there).
     var waveTrigger by remember { mutableIntStateOf(0) }
     var orbTapped by remember { mutableStateOf(false) }
@@ -171,12 +189,16 @@ fun ProfileScreen(
             invitePhrase = null
             waveTrigger++
             scope.launch {
-                orbScale.animateTo(0.82f, tween(70))
-                orbScale.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 300f))
+                orbScale.animateTo(0.93f, tween(50))
+                orbScale.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = 500f))
             }
             scope.launch {
                 morphSpeed.animateTo(3f, tween(70))
-                morphSpeed.animateTo(1f, tween(550))
+                morphSpeed.animateTo(1f, tween(240))
+            }
+            scope.launch {
+                wobbleBoost.animateTo(1.18f, tween(90))
+                wobbleBoost.animateTo(1f, tween(260))
             }
         },
         onSingle = {}, // already on the screen a single tap would have opened — nothing to do
@@ -186,7 +208,7 @@ fun ProfileScreen(
     // kick above would otherwise have decayed well before a 2.2s bubble finishes.
     LaunchedEffect(orbReaction) {
         if (orbReaction != null) morphSpeed.animateTo(3f, tween(80))
-        else morphSpeed.animateTo(1f, tween(450))
+        else morphSpeed.animateTo(1f, tween(240))
     }
     LaunchedEffect(Unit) {
         while (true) {
@@ -312,7 +334,7 @@ fun ProfileScreen(
     LaunchedEffect(orbCollapsed) {
         if (orbCollapsed) {
             // Collapsing reads as being pulled into a point — a steady pull-in, no bounce.
-            collapseAnim.animateTo(1f, tween(320, easing = FastOutLinearInEasing))
+            collapseAnim.animateTo(1f, tween(320, easing = OrbDockEasing))
         } else {
             // Expanding blooms back out with a little overshoot, like a drop landing.
             collapseAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 260f))
@@ -441,14 +463,22 @@ fun ProfileScreen(
         // the «съезжает под камеру» effect. Alignment.TopCenter here is relative to the whole
         // screen width, same as the header's old CenterHorizontally column was.
         run {
-            val orbSize = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress
+            // 0 outside the last stretch of the journey, 0→1 across it — the "final approach"
+            // that turns the orb black and tucks it away, independent of direction: scrolling
+            // down runs it 0→1, scrolling back up runs the very same stretch in reverse, which
+            // is what gives the reappear-from-black its own 15-20% of the path for free.
+            val dockT = ((collapseProgress - ORB_DOCK_THRESHOLD) / (1f - ORB_DOCK_THRESHOLD)).coerceIn(0f, 1f)
+            val orbSize = run {
+                val resized = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress.coerceIn(0f, 1f)
+                resized * (1f - dockT * 0.85f)
+            }
+            val orbAlpha = 1f - dockT
             val expandedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp + ORB_SLOT_HEIGHT / 2
             // All the way up into the status-bar inset itself — not just down to the bar below
             // it, where the back arrow lives. That is what makes it read as climbing into the
             // camera cutout rather than just shrinking in place.
             val collapsedCenterY = bars.calculateTopPadding() / 2
             val orbCenterY = expandedCenterY + (collapsedCenterY - expandedCenterY) * collapseProgress
-            val rippleRadius = 60.dp + (28.dp - 60.dp) * collapseProgress
 
             Box(
                 modifier = Modifier
@@ -461,6 +491,8 @@ fun ProfileScreen(
                         mode = OrbMode.Calm,
                         speed = morphSpeed.value,
                         waveTrigger = waveTrigger,
+                        wobbleBoost = wobbleBoost.value,
+                        blackout = dockT,
                         modifier = Modifier
                             .sharedElement(
                                 rememberSharedContentState(SharedKeys.ORB),
@@ -468,10 +500,16 @@ fun ProfileScreen(
                                 boundsTransform = OrbBoundsTransform,
                             )
                             .size(orbSize)
-                            .graphicsLayer { scaleX = orbScale.value; scaleY = orbScale.value }
+                            .graphicsLayer {
+                                scaleX = orbScale.value
+                                scaleY = orbScale.value
+                                alpha = orbAlpha
+                            }
+                            // No ripple: the tap waves CompanionOrb draws itself are the only
+                            // reaction, and the default grey ripple fought with them visually.
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = rippleRadius),
+                                indication = null,
                                 onClick = onOrbTap,
                             ),
                     )
