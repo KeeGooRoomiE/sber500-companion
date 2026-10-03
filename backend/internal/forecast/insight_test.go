@@ -227,3 +227,38 @@ func TestQuestionRepeatsOptionsIgnoresSubstringCollisions(t *testing.T) {
 		t.Error("a genuine whole-word duplicate was not caught")
 	}
 }
+
+// Exactly the text from a live bug report: midday grew a question-with-options tail it was
+// never asked for, and midday has no parsing of its own — it would have shown this verbatim.
+func TestStripLeakedQuestion(t *testing.T) {
+	cases := []struct{ raw, want string }{
+		{
+			"Сегодня экран и разблокировки близки к средним значениям, но заметно выше обычного — " +
+				"особенно экран (почти 3 часа против 41 минуты).\n\n" +
+				"В чём ты сегодня больше всего отвлекался: в рабочих чатах или на случайные приложения?\n" +
+				"Варианты: Рабочие чаты | Случайные приложения",
+			"Сегодня экран и разблокировки близки к средним значениям, но заметно выше обычного — " +
+				"особенно экран (почти 3 часа против 41 минуты).",
+		},
+		{
+			// the leaked question with no "Варианты:" label at all
+			"Сон сегодня короче обычного.\n\nЧто мешало лечь пораньше?",
+			"Сон сегодня короче обычного.",
+		},
+		{
+			// a clean answer with no leak must pass through untouched
+			"Экран сегодня заметно выше обычного — почти вдвое.",
+			"Экран сегодня заметно выше обычного — почти вдвое.",
+		},
+		{
+			"",
+			"",
+		},
+	}
+	for _, c := range cases {
+		got := StripLeakedQuestion(c.raw)
+		if got != c.want {
+			t.Errorf("StripLeakedQuestion(%q) = %q; want %q", c.raw, got, c.want)
+		}
+	}
+}

@@ -458,6 +458,30 @@ func feelWord(feel string) string {
 // and starts being a form.
 const maxQuestionOptions = 3
 
+// StripLeakedQuestion drops a stray question-with-options tail from a kind that never asked for
+// one — midday, a stat tile, retro, a tag, the profile summary. Seen live: a midday card whose
+// real answer was a complete sentence, followed by a blank line and "В чём ты сегодня больше
+// всего отвлекался? Варианты: Рабочие чаты | Случайные приложения" tacked on, shown verbatim
+// because these kinds are served as-is with no parsing at all. The system prompt now says not
+// to do this; this is the backstop for the calls where it does anyway — applied at serve time,
+// not generation time, so a card already cached with the leak heals on the next read instead of
+// sitting broken until the day's cache resets.
+func StripLeakedQuestion(raw string) string {
+	s := raw
+	if idx := strings.Index(strings.ToLower(s), "варианты"); idx >= 0 {
+		s = s[:idx]
+	}
+	// No label, but the text still ends in its own bare question (paragraphs split by a blank
+	// line) — the same leak, just without the options line.
+	if paras := strings.Split(strings.TrimRight(s, "\n"), "\n\n"); len(paras) > 1 {
+		last := strings.TrimSpace(paras[len(paras)-1])
+		if strings.HasSuffix(last, "?") && len([]rune(last)) < 140 {
+			s = strings.Join(paras[:len(paras)-1], "\n\n")
+		}
+	}
+	return strings.TrimSpace(s)
+}
+
 // ParseQuestionAnswer splits a generated question's raw text into the question itself and its
 // answer options.
 //

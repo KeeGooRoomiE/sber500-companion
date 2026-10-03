@@ -66,8 +66,16 @@ func (h *Handler) Insight(w http.ResponseWriter, r *http.Request) {
 
 	h.touch(r, uid)
 	resp := InsightResponse{Kind: req.Kind, Arg: req.Arg, Text: rv.Text}
-	if req.Kind == forecast.InsightQuestion || req.Kind == forecast.InsightProfileClarify {
+	switch req.Kind {
+	case forecast.InsightQuestion, forecast.InsightProfileClarify:
 		resp.Text, resp.Options = forecast.ParseQuestionAnswer(rv.Text)
+	case forecast.InsightOrbTap:
+		// Already screened by SafeOrbReaction above — a leaked "Варианты: ..." tail would not
+		// end cleanly in ".!?…" either, so that check already catches this case too.
+	default:
+		// None of these kinds ever ask the model for a question — strip one off if it grew one
+		// anyway (the system prompt now says not to, but this is the backstop for when it does).
+		resp.Text = forecast.StripLeakedQuestion(rv.Text)
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
