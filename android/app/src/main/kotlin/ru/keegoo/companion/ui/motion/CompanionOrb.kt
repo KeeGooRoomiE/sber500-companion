@@ -72,6 +72,10 @@ fun CompanionOrb(
     // 0 = the mode's own colour, 1 = fully black. For sinking into the status-bar/camera area,
     // where a purple dot would look wrong next to real camera hardware.
     blackout: Float = 0f,
+    // Current size as a fraction of the orb's full/expanded size — 1 normally. Tap waves only
+    // draw at 0.7 and above: a wave spreading out of an orb that has already shrunk most of the
+    // way down (or gone black near the camera) reads as wrong, not lively.
+    sizeFraction: Float = 1f,
 ) {
     val blob = remember { Path() }
     val badgeColor = MaterialTheme.colorScheme.primary
@@ -157,8 +161,9 @@ fun CompanionOrb(
         )
 
         // Tap waves: a thin ring answering right away, a soft fill catching up behind it. Drawn
-        // behind the badge/mode extras so those still read as sitting on top of the orb.
-        for (t0 in waves) {
+        // behind the badge/mode extras so those still read as sitting on top of the orb — and
+        // only while the orb is still close to its full size.
+        for (t0 in if (sizeFraction >= 0.7f) waves else emptyList()) {
             val age = t - t0
             if (age < 0f || age > WAVE_MAX_AGE) continue
 

@@ -132,12 +132,6 @@ private val ORB_COLLAPSED_SIZE = 28.dp
 private val ORB_COLLAPSE_AT = 24.dp
 private val ORB_EXPAND_AT = 6.dp
 
-// Past this fraction of the collapse, the orb is "almost at the camera": only here does it
-// start turning black and shrinking away to nothing, so most of the journey is just the plain
-// resize and this final approach reads as a distinct, deliberate last step — not a gradient
-// that's been running the whole time.
-private const val ORB_DOCK_THRESHOLD = 0.8f
-
 // cubic-bezier(0.25, 0.1, 0.25, 1) — CSS's own "ease": a droplet flowing in, not a mechanical
 // linear slide.
 private val OrbDockEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
@@ -340,13 +334,30 @@ fun ProfileScreen(
     //     travel/un-blacken — so it never looks like it's still mid-flight while fading in.
     val dockAnim = remember { Animatable(0f) }
     val hideAnim = remember { Animatable(0f) }
+    // Colour used to be derived from dockAnim's own progress, but dockAnim's reverse is a
+    // spring — nonlinear, slow out of the gate — so the un-blacken riding on it read as
+    // lagging behind the resize instead of keeping pace with it. Its own tween, timed
+    // independently in each direction, fixes that.
+    val blackoutAnim = remember { Animatable(0f) }
     LaunchedEffect(orbCollapsed) {
         if (orbCollapsed) {
+            // Lands black right as the 320ms travel finishes — same timing as before, just an
+            // explicit animation now instead of a value derived from dockAnim's progress.
+            launch { blackoutAnim.animateTo(1f, tween(90, delayMillis = 230, easing = OrbDockEasing)) }
             // Collapsing reads as being pulled into a point — a steady pull-in, no bounce.
             dockAnim.animateTo(1f, tween(320, easing = OrbDockEasing))
-            hideAnim.animateTo(1f, tween(240, easing = OrbDockEasing))
+            // Shrink-away, halved (was 240ms) — it was visibly black for too long before
+            // actually vanishing.
+            hideAnim.animateTo(1f, tween(120, easing = OrbDockEasing))
         } else {
-            hideAnim.animateTo(0f, tween(200, easing = OrbDockEasing))
+            // Reappearing at camera size, quartered (was 200ms) — almost instant, so growth
+            // can start right away instead of still being "appearing" when it should already
+            // be opening back up.
+            hideAnim.animateTo(0f, tween(50, easing = OrbDockEasing))
+            // Un-blackens well ahead of the resize settling (the spring below easily takes
+            // 300-400ms+ to land), rather than trying to match its pace — colour catches up to
+            // the eye first, size keeps growing after.
+            launch { blackoutAnim.animateTo(0f, tween(160, easing = OrbDockEasing)) }
             // Expanding blooms back out with a little overshoot, like a drop landing.
             dockAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 260f))
         }
@@ -474,17 +485,16 @@ fun ProfileScreen(
         // the «съезжает под камеру» effect. Alignment.TopCenter here is relative to the whole
         // screen width, same as the header's old CenterHorizontally column was.
         run {
-            // 0 outside the last stretch of stage 1, 0→1 across it — the "final approach" that
-            // turns the orb black, timed to finish exactly when the travel/resize does. Running
-            // in reverse during stage 1's own reversal is what gives the reappear-from-black its
-            // 15-20% of that path for free, no separate direction-handling needed.
-            val blackT = ((collapseProgress - ORB_DOCK_THRESHOLD) / (1f - ORB_DOCK_THRESHOLD)).coerceIn(0f, 1f)
             // Stage 1 only — travels and resizes down to camera size. Stage 2 (hideAnim) does
             // not start until this has fully committed (see the LaunchedEffect above), so there
             // is never a moment where it is both still moving and already shrinking away.
             val stage1Size = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress.coerceIn(0f, 1f)
             val orbSize = stage1Size * (1f - hideAnim.value * 0.92f)
             val orbAlpha = 1f - hideAnim.value
+            // Tap waves only show once the orb is still close to full size — a wave spreading
+            // out of a dot that has already shrunk most of the way down (or gone black) reads
+            // as wrong, not lively.
+            val orbSizeFraction = stage1Size / ORB_EXPANDED_SIZE
             val expandedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp + ORB_SLOT_HEIGHT / 2
             // All the way up into the status-bar inset itself — not just down to the bar below
             // it, where the back arrow lives. That is what makes it read as climbing into the
@@ -504,7 +514,8 @@ fun ProfileScreen(
                         speed = morphSpeed.value,
                         waveTrigger = waveTrigger,
                         wobbleBoost = wobbleBoost.value,
-                        blackout = blackT,
+                        blackout = blackoutAnim.value,
+                        sizeFraction = orbSizeFraction,
                         modifier = Modifier
                             .sharedElement(
                                 rememberSharedContentState(SharedKeys.ORB),
