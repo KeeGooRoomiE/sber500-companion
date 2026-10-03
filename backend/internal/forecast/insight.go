@@ -25,6 +25,9 @@ var InsightLimits = Limits{Tokens: 160, Chars: 300}
 // tighter than the generic insight line on purpose.
 var ProfileLimits = Limits{Tokens: 120, Chars: 200}
 
+// OrbTapLimits: a reaction bubble over the orb for about a second — the tightest budget here.
+var OrbTapLimits = Limits{Tokens: 30, Chars: 60}
+
 // InsightDailyLimit caps new insights per person per day.
 //
 // Generous because these are tied to gestures the person already makes — opening the app after
@@ -42,6 +45,7 @@ const (
 	InsightQuestion       = "question"        // a question for the person, generated from their data
 	InsightProfile        = "profile"         // «Твой профиль» — how the model reads this person
 	InsightProfileClarify = "profile_clarify" // a question to correct/extend «Твой профиль»
+	InsightOrbTap         = "orbtap"          // a one-way reaction to tapping the companion orb
 )
 
 // Insight answers one slice of the person's data.
@@ -93,8 +97,11 @@ func (g *Generator) Insight(ctx context.Context, userID, kind, arg string) (*rep
 	}
 
 	limits := InsightLimits
-	if kind == InsightProfile {
+	switch kind {
+	case InsightProfile:
 		limits = ProfileLimits
+	case InsightOrbTap:
+		limits = OrbTapLimits
 	}
 	user := llm.BuildInsight(task, facts, profile)
 	return g.complete(ctx, userID, prompts.InsightSystem, analytics.ComponentLLMInsight,
@@ -149,6 +156,17 @@ func insightCacheKind(kind, arg string) (string, error) {
 		return "in:profile:" + arg, nil
 	case InsightProfileClarify:
 		return "in:profile_clarify", nil
+	case InsightOrbTap:
+		// Five slots, each tied to a specific fact (see insightPrompt) — not five independent
+		// chances to re-roll the same reaction. "" is slot 1.
+		switch arg {
+		case "":
+			arg = "1"
+		case "1", "2", "3", "4", "5":
+		default:
+			return "", ErrBadInsight
+		}
+		return "in:orbtap:" + arg, nil
 	}
 	return "", ErrBadInsight
 }
@@ -255,7 +273,7 @@ func (g *Generator) insightPrompt(
 			}
 			facts = append(facts, "Больше всего времени за последний день: "+strings.Join(apps, ", "))
 		}
-		task := "Задай человеку один короткий вопрос о нём самом с вариантами ответа, ответ на который помог бы точнее объяснять его дни. Отталкивайся от того, что видно в данных."
+		task := "Задай человеку один короткий вопрос о нём самом с вариантами ответа, ответ на который помог бы точнее объяснять его дни. Отталкивайся от того, что видно в данных. Вопрос — открытый, не называй варианты внутри него (не пиши «...А или Б?»)."
 		if known := llm.KnownProfileFacts(profile); len(known) > 0 {
 			facts = append(facts, "Уже известно про человека: "+strings.Join(known, "; "))
 			task += " Не повторяй и не переформулируй то, что уже известно про человека — спроси о другой стороне его дней."
@@ -287,9 +305,54 @@ func (g *Generator) insightPrompt(
 			return nil, "", ErrNoData
 		}
 		facts := []string{"Текущее описание этого человека: «" + base.Text + "»"}
-		return facts, "Задай человеку один короткий вопрос с вариантами ответа, который помог бы поправить или дополнить это описание. Не повторяй его буквально — спроси о конкретной стороне его дней, способной его изменить.", nil
+		return facts, "Задай человеку один короткий вопрос с вариантами ответа, который помог бы поправить или дополнить это описание. Не повторяй его буквально — спроси о конкретной стороне его дней, способной его изменить. Вопрос — открытый, не называй варианты внутри него.", nil
+
+	case InsightOrbTap:
+		// One fact per slot, not the same question asked five times — see the comment on
+		// insightCacheKind. A slot with nothing to say (statFacts empty, no signal, no tag)
+		// falls through to ErrNoData in Insight(), same as every other kind.
+		var facts []string
+		switch arg {
+		case "1":
+			facts = head(statFacts(days, "screen"), 2)
+		case "2":
+			facts = head(statFacts(days, "sleep"), 2)
+		case "3":
+			facts = head(statFacts(days, "unlocks"), 2)
+		case "4":
+			if sig := signals.ForLastDay(days, WorkApps(profile), llm.AppLabel); len(sig) > 0 {
+				facts = []string{sig[0].Title + ": " + sig[0].Detail}
+			}
+		case "5":
+			if checkins, err := g.checkin.Range(ctx, userID, today, today); err == nil {
+				if c := checkins[today.Format("2006-01-02")]; c != nil && len(c.Tags) > 0 {
+					facts = []string{"Сегодня человек отметил: " + c.Tags[0]}
+				}
+			}
+			if len(facts) == 0 && len(last.TopApps) > 0 {
+				a := last.TopApps[0]
+				facts = []string{"Больше всего времени сегодня: " + llm.AppLabel(a.Package) + " " + signals.FormatMinutes(a.Minutes)}
+			}
+		}
+		task := "Человек только что несколько раз быстро тронул иконку-компаньона на экране — " +
+			"это жест, не вопрос к нему, отвечать вопросом не нужно. Напиши одну очень короткую " +
+			"фразу-реакцию, строго до 60 символов, и обязательно закончи её точкой, восклицательным " +
+			"или вопросительным знаком — не обрывай фразу без знака в конце. Если в данных есть что-то " +
+			"заметное — тепло и коротко прокомментируй именно это; если заметного нет — короткую " +
+			"нейтральную фразу без выдуманного наблюдения. Без вопроса с вариантами ответа, без " +
+			"приветствий и подписей."
+		return facts, task, nil
 	}
 	return nil, "", ErrBadInsight
+}
+
+// head returns at most the first n elements — statFacts' first lines (today, then the average)
+// are enough context for a one-line reaction; its weekly list would only pad the prompt.
+func head(s []string, n int) []string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
 }
 
 // statFacts turns one tile into «сегодня столько, обычно столько, за неделю так».
@@ -408,12 +471,23 @@ func ParseQuestionAnswer(raw string) (question string, options []string) {
 	if raw == "" {
 		return "", nil
 	}
+	// Every successful path returns through here, so the one check that matters — did the
+	// question already name its own options — only has to be written once.
+	finish := func(head string, opts []string) (string, []string) {
+		if questionRepeatsOptions(head, opts) {
+			// The model spelled the choice out twice: once as «А или Б» in the sentence, once
+			// as chips. Showing both reads as the chips repeating the question, so this drops
+			// to the sentence alone — still a complete, answerable question on its own.
+			return head, nil
+		}
+		return head, opts
+	}
 	lower := strings.ToLower(raw)
 	if idx := strings.Index(lower, "варианты"); idx >= 0 {
 		head := lastSentence(strings.TrimRight(strings.TrimSpace(raw[:idx]), " -–—:·"))
 		if _, list, ok := strings.Cut(raw[idx:], ":"); ok {
 			if opts := splitQuestionOptions(list); len(opts) >= 2 {
-				return head, opts
+				return finish(head, opts)
 			}
 		}
 		// The label is there but nothing usable follows it — drop it rather than show it.
@@ -423,7 +497,7 @@ func ParseQuestionAnswer(raw string) (question string, options []string) {
 	if colon := strings.LastIndex(raw, ":"); colon >= 0 && strings.Contains(raw[colon:], "|") {
 		head := lastSentence(strings.TrimSpace(raw[:colon]))
 		if opts := splitQuestionOptions(raw[colon+1:]); len(opts) >= 2 {
-			return head, opts
+			return finish(head, opts)
 		}
 	}
 	// Neither label nor colon: the plain two-line shape the prompt actually asks for —
@@ -431,7 +505,7 @@ func ParseQuestionAnswer(raw string) (question string, options []string) {
 	if nl := strings.Index(raw, "\n"); nl >= 0 {
 		if rest := strings.TrimSpace(raw[nl+1:]); strings.Contains(rest, "|") {
 			if opts := splitQuestionOptions(rest); len(opts) >= 2 {
-				return lastSentence(strings.TrimSpace(raw[:nl])), opts
+				return finish(lastSentence(strings.TrimSpace(raw[:nl])), opts)
 			}
 		}
 	}
@@ -447,11 +521,46 @@ func ParseQuestionAnswer(raw string) (question string, options []string) {
 		}
 		if cut >= 0 {
 			if opts := splitQuestionOptions(raw[cut+1:]); len(opts) >= 2 {
-				return lastSentence(strings.TrimSpace(raw[:cut+1])), opts
+				return finish(lastSentence(strings.TrimSpace(raw[:cut+1])), opts)
 			}
 		}
 	}
 	return lastSentence(raw), nil
+}
+
+// questionRepeatsOptions: true when every option already appears, word for word, inside the
+// question itself — most often because the model phrased it as «А или Б?» instead of asking
+// something open. Chips under a sentence that already names them would look like the chips
+// are duplicating the text, not answering it.
+func questionRepeatsOptions(question string, options []string) bool {
+	if len(options) == 0 {
+		return false
+	}
+	q := strings.ToLower(question)
+	for _, opt := range options {
+		if !strings.Contains(q, strings.ToLower(opt)) {
+			return false
+		}
+	}
+	return true
+}
+
+// SafeOrbReaction returns the text as-is if it ends cleanly, or ok=false if the 60-char cap
+// had to cut it off with nothing to stop at — capMessage's own fallback when a sentence runs
+// long with no earlier punctuation. For a line shown inside a paragraph that is a non-event;
+// for a bubble over the orb for about a second, a word sheared in half reads as an obvious
+// glitch, so the caller shows a canned phrase instead rather than this.
+func SafeOrbReaction(raw string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", false
+	}
+	switch r := []rune(s); r[len(r)-1] {
+	case '.', '!', '?', '…':
+		return s, true
+	default:
+		return "", false
+	}
 }
 
 // lastSentence drops a stray lead-in before the actual question — the system prompt says

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -157,5 +159,29 @@ internal fun DailyQuestionBanner(modifier: Modifier = Modifier, onClick: () -> U
             modifier = Modifier.weight(1f),
         )
         Text("→", color = MaterialTheme.colorScheme.onPrimaryContainer)
+    }
+}
+
+/**
+ * A small speech bubble over the orb: the one-way "хочешь поговорить?" reaction, or the
+ * nine-second idle invitation. No tail — a plain rounded card reads as a bubble clearly enough
+ * at this size, and a drawn pointer would need exact anchoring this call site doesn't have.
+ */
+@Composable
+internal fun OrbBubble(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .widthIn(max = 170.dp)
+            .shadow(3.dp, AppShapes.chip)
+            .clip(AppShapes.chip)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+        )
     }
 }

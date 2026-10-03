@@ -9,11 +9,11 @@ import (
 )
 
 type InsightRequest struct {
-	// midday | stat | retro | tag | question | profile | profile_clarify
+	// midday | stat | retro | tag | question | profile | profile_clarify | orbtap
 	Kind string `json:"kind"`
 	// What the kind is about: the tile name, the date, the tag, the slot "1".."3" for question
-	// (up to 3 fresh ones a day) or "1"/"2" for profile (base, then after «Уточнить»). Empty
-	// for midday and profile_clarify, and for question/profile means "1".
+	// (up to 3 fresh ones a day), "1"/"2" for profile (base, then after «Уточнить»), or "1".."5"
+	// for orbtap. Empty for midday and profile_clarify, and elsewhere means slot "1".
 	Arg string `json:"arg"`
 }
 
@@ -50,6 +50,18 @@ func (h *Handler) Insight(w http.ResponseWriter, r *http.Request) {
 	if rv == nil {
 		writeError(w, http.StatusNotFound, "not enough data")
 		return
+	}
+
+	// The orb reaction is shown for about a second — a word cut in half by the 60-char cap
+	// reads as an obvious glitch there, unlike inside a paragraph elsewhere. Treated the same
+	// as "not enough data": the app already has a canned phrase for exactly that response.
+	if req.Kind == forecast.InsightOrbTap {
+		safe, ok := forecast.SafeOrbReaction(rv.Text)
+		if !ok {
+			writeError(w, http.StatusNotFound, "not enough data")
+			return
+		}
+		rv.Text = safe
 	}
 
 	h.touch(r, uid)

@@ -126,6 +126,32 @@ suspend fun Context.advanceGenQuestionSlot(): Int {
     return next
 }
 
+/**
+ * Fresh orb-tap reactions in one day — each slot is tied to a different fact on the server, so
+ * this only ever advances on an actual tap flurry, never just because the screen opened.
+ */
+const val MaxOrbTapSlotsPerDay = 5
+
+private val KEY_ORB_SLOT_DATE = stringPreferencesKey("orb_tap_slot_date")
+private val KEY_ORB_SLOT = androidx.datastore.preferences.core.intPreferencesKey("orb_tap_slot")
+
+/** Which slot (1..5) to ask the server for next. Resets to 1 on a new day. */
+suspend fun Context.orbTapSlotToday(): Int {
+    val p = appPrefs.data.first()
+    return if (p[KEY_ORB_SLOT_DATE] == LocalDate.now().toString()) (p[KEY_ORB_SLOT] ?: 1) else 1
+}
+
+/** Moves to the next slot and returns it — called once per flurry, success or not: the call
+ *  (or the attempt) is already spent either way. */
+suspend fun Context.advanceOrbTapSlot(): Int {
+    val next = orbTapSlotToday() + 1
+    appPrefs.edit {
+        it[KEY_ORB_SLOT_DATE] = LocalDate.now().toString()
+        it[KEY_ORB_SLOT] = next
+    }
+    return next
+}
+
 suspend fun Context.isOnboarded(): Boolean = appPrefs.data.first()[KEY_ONBOARDED] ?: false
 
 suspend fun Context.isBackfilled(): Boolean = appPrefs.data.first()[KEY_BACKFILLED] ?: false
