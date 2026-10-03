@@ -5,8 +5,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
@@ -40,12 +43,29 @@ private fun DayFeel?.orbPalette(): OrbPalette = when (this) {
 
 private val SatelliteColors = listOf(Color(0xFFB3A6FF), Color(0xFF6FA8FF), Color(0xFF4CC9B0))
 
+// A tap spawns one wave: a thin ring that answers immediately, and a soft filled one that
+// catches up a beat later. Several can be in flight at once (a tap flurry layers them).
+private const val WAVE_RING_DURATION = 0.28f
+private const val WAVE_FILL_DELAY = 0.12f
+private const val WAVE_FILL_DURATION = 0.7f
+private const val WAVE_MAX_AGE = WAVE_FILL_DELAY + WAVE_FILL_DURATION
+
 /**
  * Draws a softly breathing sphere. The canvas draws glow and satellites outside
  * its own bounds on purpose, so the orb keeps its layout size in shared transitions.
+ *
+ * [speed] multiplies how fast everything here moves — breathing, glow, the wobble — not just
+ * a squish on top of it; the caller eases it (e.g. a quick kick on tap), this just applies it.
+ * [waveTrigger] spawns one tap-wave each time it changes (any change, not just an increment).
  */
 @Composable
-fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = false, reacting: Boolean = false) {
+fun CompanionOrb(
+    mode: OrbMode,
+    modifier: Modifier = Modifier,
+    badge: Boolean = false,
+    speed: Float = 1f,
+    waveTrigger: Int = 0,
+) {
     val blob = remember { Path() }
     val badgeColor = MaterialTheme.colorScheme.primary
     val palette = LocalBackdrop.current.feel.orbPalette()
@@ -58,11 +78,16 @@ fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = 
     val thinkA by animateFloatAsState(if (mode == OrbMode.Thinking) 1f else 0f, tween(300), label = "thinkA")
 
     val still = rememberReducedMotion()
-    // While reacting (a tap flurry's reply is on screen), everything the orb does — breathing,
-    // glow, the wobble — runs faster for that moment, not just the squish. Eased, not snapped,
-    // so the speed-up itself doesn't look like a glitch.
-    val speed = animateFloatAsState(if (reacting) 2.2f else 1f, tween(200), label = "orbSpeed")
-    val time = rememberFrameSeconds(running = !still, rate = speed)
+    val speedState = rememberUpdatedState(speed)
+    val time = rememberFrameSeconds(running = !still, rate = speedState)
+
+    // Each wave remembers the orb's own clock reading at the moment it was spawned, so its age
+    // is always just "now minus that", independent of anything else going on.
+    val waves = remember { mutableStateListOf<Float>() }
+    LaunchedEffect(waveTrigger) {
+        waves.removeAll { time.floatValue - it > WAVE_MAX_AGE }
+        waves.add(time.floatValue)
+    }
 
     Canvas(modifier) {
         val t = time.floatValue
@@ -117,6 +142,32 @@ fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = 
             blob,
             Brush.radialGradient(listOf(light.copy(alpha = .28f), light.copy(alpha = 0f)), shimmerC, r * .7f),
         )
+
+        // Tap waves: a thin ring answering right away, a soft fill catching up behind it. Drawn
+        // behind the badge/mode extras so those still read as sitting on top of the orb.
+        for (t0 in waves) {
+            val age = t - t0
+            if (age < 0f || age > WAVE_MAX_AGE) continue
+
+            if (age <= WAVE_RING_DURATION) {
+                val p = age / WAVE_RING_DURATION
+                drawCircle(
+                    mid.copy(alpha = (1f - p) * .55f),
+                    radius = r * (1f + .35f * p),
+                    center = c,
+                    style = Stroke(width = 1.5.dp.toPx()),
+                )
+            }
+
+            val fillAge = age - WAVE_FILL_DELAY
+            if (fillAge in 0f..WAVE_FILL_DURATION) {
+                val p = fillAge / WAVE_FILL_DURATION
+                // Grows to 2x the orb's own radius; fade is tied to size, not time — it barely
+                // dims while still small, then drops away fast as it finishes expanding.
+                val fade = (1f - p) * (1f - p)
+                drawCircle(mid.copy(alpha = .06f * fade), radius = r * (1f + p), center = c)
+            }
+        }
 
         if (badge) {
             val br = r * .22f

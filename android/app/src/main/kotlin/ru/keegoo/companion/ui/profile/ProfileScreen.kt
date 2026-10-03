@@ -52,6 +52,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -147,20 +150,37 @@ fun ProfileScreen(
     // The poke mechanic lives only on this screen's big orb — squish on every tap, a bigger
     // "look at me" pulse every 6-9s, and a one-time invitation if nine seconds pass untouched.
     val orbScale = remember { Animatable(1f) }
+    // The orb's own shape-morph speed (breathing/glow/wobble) — a quick kick on every tap, on
+    // top of the squish, so the tap itself reads as something happening, not just a bounce.
+    // Held up for as long as a reaction is on screen, since that is the orb "replying".
+    val morphSpeed = remember { Animatable(1f) }
+    // Bumped on every tap; each change spawns one ring+fill wave in CompanionOrb (see there).
+    var waveTrigger by remember { mutableIntStateOf(0) }
     var orbTapped by remember { mutableStateOf(false) }
     var invitePhrase by remember { mutableStateOf<String?>(null) }
     val onOrbTap = rememberOrbGesture(
         onTap = {
             orbTapped = true
             invitePhrase = null
+            waveTrigger++
             scope.launch {
                 orbScale.animateTo(0.82f, tween(70))
                 orbScale.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 300f))
+            }
+            scope.launch {
+                morphSpeed.animateTo(3f, tween(70))
+                morphSpeed.animateTo(1f, tween(550))
             }
         },
         onSingle = {}, // already on the screen a single tap would have opened — nothing to do
         onFlurry = { vm.onOrbFlurry() },
     )
+    // The reaction itself keeps the morph fast for as long as it is being "said" — the per-tap
+    // kick above would otherwise have decayed well before a 2.2s bubble finishes.
+    LaunchedEffect(orbReaction) {
+        if (orbReaction != null) morphSpeed.animateTo(3f, tween(80))
+        else morphSpeed.animateTo(1f, tween(450))
+    }
     LaunchedEffect(Unit) {
         while (true) {
             delay(Random.nextLong(6_000, 9_000))
@@ -397,7 +417,10 @@ fun ProfileScreen(
         run {
             val orbSize = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress
             val expandedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp + ORB_SLOT_HEIGHT / 2
-            val collapsedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT / 2
+            // All the way up into the status-bar inset itself — not just down to the bar below
+            // it, where the back arrow lives. That is what makes it read as climbing into the
+            // camera cutout rather than just shrinking in place.
+            val collapsedCenterY = bars.calculateTopPadding() / 2
             val orbCenterY = expandedCenterY + (collapsedCenterY - expandedCenterY) * collapseProgress
             val rippleRadius = 60.dp + (28.dp - 60.dp) * collapseProgress
 
@@ -410,7 +433,8 @@ fun ProfileScreen(
                 with(sharedScope) {
                     CompanionOrb(
                         mode = OrbMode.Calm,
-                        reacting = orbReaction != null,
+                        speed = morphSpeed.value,
+                        waveTrigger = waveTrigger,
                         modifier = Modifier
                             .sharedElement(
                                 rememberSharedContentState(SharedKeys.ORB),
@@ -428,10 +452,15 @@ fun ProfileScreen(
                 }
                 // Reaction over invitation — a flurry is itself an answer to «тапни на меня».
                 // Hidden once the orb is mostly tucked into the bar: nothing to point a speech
-                // bubble at there.
+                // bubble at there. Lifted 1.5x its own (measured) height above the orb's edge,
+                // not a guessed constant, so a two-line answer clears it the same as one line.
+                var bubbleHeightPx by remember { mutableFloatStateOf(0f) }
                 OrbBubbleSlot(
                     text = (orbReaction ?: invitePhrase)?.takeIf { collapseProgress < 0.6f },
-                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-4).dp),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .onSizeChanged { if (it.height > 0) bubbleHeightPx = it.height.toFloat() }
+                        .offset(y = with(density) { (-bubbleHeightPx * 1.5f).toDp() }),
                 )
             }
         }
