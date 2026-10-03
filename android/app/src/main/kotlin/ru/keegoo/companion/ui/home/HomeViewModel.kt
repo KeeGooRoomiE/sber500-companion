@@ -19,9 +19,6 @@ import ru.keegoo.companion.data.prefs.claimFirstForecast
 import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.saveProfileAnswer
-import ru.keegoo.companion.data.prefs.MaxOrbTapSlotsPerDay
-import ru.keegoo.companion.data.prefs.advanceOrbTapSlot
-import ru.keegoo.companion.data.prefs.orbTapSlotToday
 import ru.keegoo.companion.data.local.TodayData
 import ru.keegoo.companion.data.local.TodayRepository
 import ru.keegoo.companion.data.collector.hasUsageAccess
@@ -68,21 +65,6 @@ object Insights {
     const val PROFILE_CLARIFY = "profile_clarify"
     const val ORBTAP = "orbtap"
 }
-
-/**
- * Said over the orb when a real, grounded reaction isn't available — the daily slots are used
- * up, there isn't enough data yet, or the call simply failed. These are also the exact phrases
- * from the original pitch for this feature; the model's job is to occasionally do better than
- * this list, not to replace it.
- */
-val OrbReactionPool = listOf(
-    "Тебе скучно?", "Хочешь поговорить?", "В хорошем настроении?", "Как день?",
-    "Нравится антистресс?", "Что-то на уме?", "Все нормально?", "Задумался о чём-то?",
-    "Ещё разок?", "Щекотно, да?",
-)
-
-/** Shown once, after nine idle seconds, as an invitation rather than a reaction. */
-val OrbInvitePool = listOf("Тапни на меня", "Можно потрогать", "Поиграй со мной")
 
 /** The key one insight is held under, mirroring the server's cache key. */
 internal fun insightKey(kind: String, arg: String = ""): String =
@@ -146,12 +128,6 @@ data class HomeUiState(
      * that fetched it succeeds.
      */
     val dailyQuestion: String? = null,
-    /**
-     * The orb's current reaction bubble, or null when quiet. Set by a tap flurry and cleared
-     * automatically a moment later — this is the only insight here with a lifetime shorter than
-     * "until the screen changes".
-     */
-    val orbReaction: String? = null,
 )
 
 /** One question in «Хочу ещё»: waiting for the answer, answered, or failed. */
@@ -201,9 +177,6 @@ data class FollowupAnswerUi(val questionId: String, val label: String, val text:
 private const val MIDDAY_FROM = 12
 private const val MIDDAY_UNTIL = 18
 
-/** How long the orb's reaction bubble stays up — long enough to read ≤60 characters, no more. */
-private const val ORB_REACTION_MS = 2_200L
-
 val CheckInTags = listOf("Работа", "Люди", "Спорт", "Сон", "Дорога", "Телефон")
 
 @HiltViewModel
@@ -221,7 +194,6 @@ class HomeViewModel @Inject constructor(
     private var refreshJob: Job? = null
     /** Raw text of today's slot-1 question, independent of whether it is still unanswered. */
     private var dailyQuestionText: String? = null
-    private var orbReactionJob: Job? = null
 
     init {
         refresh()
@@ -561,28 +533,6 @@ class HomeViewModel @Inject constructor(
 
     fun resetCheckIn() {
         viewModelScope.launch { context.clearCheckIn() }
-    }
-
-    /**
-     * Three taps on the orb inside five seconds — poking the companion, not opening it.
-     *
-     * Each of today's five slots is tied to a different fact on the server, so this spends a
-     * call only on an actual flurry and never twice for the same slot. Past slot 5, or on any
-     * failure, the reaction is a line from [OrbReactionPool] instead — free, instant, and the
-     * exact phrasing this feature was pitched with.
-     */
-    fun onOrbFlurry() {
-        orbReactionJob?.cancel()
-        orbReactionJob = viewModelScope.launch {
-            val slot = context.orbTapSlotToday()
-            val text = if (slot > MaxOrbTapSlotsPerDay) null else {
-                context.advanceOrbTapSlot()
-                repository.insight(Insights.ORBTAP, slot.toString()).getOrNull()?.text?.trim()?.takeIf(String::isNotEmpty)
-            }
-            _state.update { it.copy(orbReaction = text ?: OrbReactionPool.random()) }
-            delay(ORB_REACTION_MS)
-            _state.update { it.copy(orbReaction = null) }
-        }
     }
 
     // Tags are tapped in bursts — save once after the person stops tapping.

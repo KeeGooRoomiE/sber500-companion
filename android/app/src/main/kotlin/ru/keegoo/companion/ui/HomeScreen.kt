@@ -23,7 +23,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -42,7 +41,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,10 +82,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlin.random.Random
 import ru.keegoo.companion.domain.profile.Depth
 import ru.keegoo.companion.data.api.model.SignalDto
 import ru.keegoo.companion.domain.forecast.ForecastFact
@@ -120,9 +115,6 @@ import ru.keegoo.companion.ui.motion.CompanionOrb
 import ru.keegoo.companion.ui.motion.LocalBackdrop
 import ru.keegoo.companion.ui.motion.OrbBoundsTransform
 import ru.keegoo.companion.ui.motion.OrbMode
-import ru.keegoo.companion.ui.motion.rememberOrbGesture
-import ru.keegoo.companion.ui.home.OrbBubble
-import ru.keegoo.companion.ui.home.OrbInvitePool
 import ru.keegoo.companion.ui.motion.SharedKeys
 import ru.keegoo.companion.ui.theme.AppShapes
 import ru.keegoo.companion.ui.theme.Primary
@@ -228,9 +220,7 @@ fun HomeScreen(
                     animatedScope = animatedScope,
                     greeting = greeting(evening, state.name),
                     hasQuestions = state.unansweredQuestions > 0,
-                    orbBubble = state.orbReaction,
-                    onOrbSingleTap = onOpenProfile,
-                    onOrbFlurry = vm::onOrbFlurry,
+                    onOrbClick = onOpenProfile,
                 )
             }
             items(blocks, key = { it.name }) { block ->
@@ -434,26 +424,6 @@ private fun greeting(evening: Boolean, name: String?): String {
 
 // ─── TopBar ───────────────────────────────────────────────────────────────────
 
-// How long the orb sits unpoked before it invites a tap. Matches the pulse's own minimum, so
-// the first pulse and the invitation can land close enough together to read as one nudge.
-private const val ORB_INVITE_DELAY_MS = 9_000L
-private const val ORB_PULSE_MIN_MS = 6_000L
-private const val ORB_PULSE_MAX_MS = 9_000L
-
-// A plain function call: inside Row the RowScope overload of AnimatedVisibility would be
-// picked (same reason StatSlot in HomeStats.kt is its own function).
-@Composable
-private fun OrbBubbleSlot(text: String?, modifier: Modifier = Modifier) {
-    AnimatedVisibility(
-        visible = text != null,
-        enter = fadeIn(tween(180)),
-        exit = fadeOut(tween(150)),
-        modifier = modifier,
-    ) {
-        text?.let { OrbBubble(it) }
-    }
-}
-
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun TopBar(
@@ -461,53 +431,9 @@ private fun TopBar(
     animatedScope: AnimatedVisibilityScope,
     greeting: String,
     hasQuestions: Boolean,
-    orbBubble: String?,
-    onOrbSingleTap: () -> Unit,
-    onOrbFlurry: () -> Unit,
+    onOrbClick: () -> Unit,
 ) {
     val view = LocalView.current
-    val scope = rememberCoroutineScope()
-    val scale = remember { Animatable(1f) }
-    var hasBeenTapped by remember { mutableStateOf(false) }
-    // Chosen once, when the invitation actually appears — not re-rolled on every unrelated
-    // recomposition while it happens to be on screen.
-    var invitePhrase by remember { mutableStateOf<String?>(null) }
-
-    val onTap = rememberOrbGesture(
-        onTap = {
-            hasBeenTapped = true
-            invitePhrase = null
-            scope.launch {
-                scale.animateTo(0.82f, tween(70))
-                scale.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 300f))
-            }
-        },
-        onSingle = {
-            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-            onOrbSingleTap()
-        },
-        onFlurry = {
-            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-            onOrbFlurry()
-        },
-    )
-
-    // A bigger, slower "look at me" pulse on top of the orb's own idle breathing — the nudge
-    // to tap it at all. Keeps going for as long as Home is on screen; a tap never stops it,
-    // since the point is to invite the *next* one just as much as this one.
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(Random.nextLong(ORB_PULSE_MIN_MS, ORB_PULSE_MAX_MS))
-            scale.animateTo(1.14f, tween(260, easing = FastOutSlowInEasing))
-            scale.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 180f))
-        }
-    }
-    // The one-time invitation: only if nine seconds pass with nothing tapped yet.
-    LaunchedEffect(Unit) {
-        delay(ORB_INVITE_DELAY_MS)
-        if (!hasBeenTapped) invitePhrase = OrbInvitePool.random()
-    }
-
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -519,35 +445,31 @@ private fun TopBar(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
         )
-        Box(contentAlignment = Alignment.TopEnd) {
-            // The onboarding orb lands here; a lone tap opens «Расскажи о себе», three taps
-            // inside five seconds poke it instead (see rememberOrbGesture).
-            with(sharedScope) {
-                CompanionOrb(
-                    mode = OrbMode.Calm,
-                    badge = hasQuestions,
-                    modifier = Modifier
-                        .padding(top = 4.dp, start = 12.dp)
-                        .sharedElement(
-                            rememberSharedContentState(SharedKeys.ORB),
-                            animatedVisibilityScope = animatedScope,
-                            boundsTransform = OrbBoundsTransform,
-                        )
-                        .size(48.dp)
-                        .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
-                        // No clip: the question badge sits on the orb's edge and would be cut
-                        // off. An unbounded round ripple keeps the touch feedback circular.
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 28.dp),
-                            onClick = onTap,
-                        ),
-                )
-            }
-            // The reaction takes priority — a flurry answers the invitation, so there is
-            // never a reason to show both at once.
-            val bubbleText = orbBubble ?: invitePhrase
-            OrbBubbleSlot(text = bubbleText, modifier = Modifier.offset(x = (-150).dp, y = (-6).dp))
+        // The onboarding orb lands here; tapping it opens «Расскажи о себе». The poke/pulse/
+        // bubble mechanic lives only on the big orb on that screen — this one stays a plain
+        // button, small and already busy carrying the shared-element transition.
+        with(sharedScope) {
+            CompanionOrb(
+                mode = OrbMode.Calm,
+                badge = hasQuestions,
+                modifier = Modifier
+                    .padding(top = 4.dp, start = 12.dp)
+                    .sharedElement(
+                        rememberSharedContentState(SharedKeys.ORB),
+                        animatedVisibilityScope = animatedScope,
+                        boundsTransform = OrbBoundsTransform,
+                    )
+                    .size(48.dp)
+                    // No clip: the question badge sits on the orb's edge and would be cut off.
+                    // An unbounded round ripple keeps the touch feedback circular instead.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 28.dp),
+                    ) {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        onOrbClick()
+                    },
+            )
         }
     }
 }

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -24,6 +26,8 @@ import ru.keegoo.companion.domain.profile.GenQuestionTextPrefix
 import ru.keegoo.companion.domain.profile.composeProfileForServer
 import ru.keegoo.companion.domain.profile.genQuestionId
 import ru.keegoo.companion.ui.home.Insights
+import ru.keegoo.companion.ui.motion.ORB_REACTION_MS
+import ru.keegoo.companion.ui.motion.resolveOrbReaction
 import javax.inject.Inject
 
 /** One generated question and its answer options, if the model gave a real choice. */
@@ -81,6 +85,14 @@ class ProfileViewModel @Inject constructor(
      * with that answer folded in, both cached the same way as everything else here.
      */
     val profileSummary: StateFlow<ProfileSummaryUi> = _profileSummary
+
+    private val _orbReaction = MutableStateFlow<String?>(null)
+    /**
+     * The orb's current reaction bubble, or null when quiet. The big orb on this screen is the
+     * only one with the poke mechanic — see [onOrbFlurry] and `ui/motion/OrbGesture.kt`.
+     */
+    val orbReaction: StateFlow<String?> = _orbReaction
+    private var orbReactionJob: Job? = null
 
     init {
         viewModelScope.launch { _topApps.value = runCatching { today.weekTopApps() }.getOrDefault(emptyList()) }
@@ -158,6 +170,16 @@ class ProfileViewModel @Inject constructor(
             }
             repository.putProfile(composeProfileForServer(context.profileAnswersNow()))
             fetchProfileSummary("2")
+        }
+    }
+
+    /** Three taps on the orb inside five seconds — poking the companion, not a question to it. */
+    fun onOrbFlurry() {
+        orbReactionJob?.cancel()
+        orbReactionJob = viewModelScope.launch {
+            _orbReaction.value = resolveOrbReaction(context, repository)
+            delay(ORB_REACTION_MS)
+            _orbReaction.value = null
         }
     }
 }
