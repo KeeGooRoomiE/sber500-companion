@@ -359,13 +359,15 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	out.CheckinRatePct = pct(checkinsToday, out.DAUToday)
 	out.CallsPerDAU = ratio(float64(callsToday), out.DAUToday, 1)
 
-	// Calls per active user averaged over the chart window: total calls divided by the sum of
+	// Calls per active user averaged over the chart window: LLM calls divided by the sum of
 	// daily DAU. Weighting by activity rather than averaging daily ratios keeps a quiet day
-	// with one user from counting as much as a busy one.
+	// with one user from counting as much as a busy one. Same LLM-only, non-admin filter as
+	// the today figure above — counting tool entries here overstated it ~7x against the KPI.
 	var callsWindow int
 	if err := m.db.QueryRow(ctx, `
 		SELECT count(*) FROM call_log
-		WHERE ts >= $2::date - $3::int AND NOT (user_id = ANY($1))
+		WHERE ts >= $2::date - $3::int AND call_type = 'llm'
+		  AND user_id <> 'admin' AND NOT (user_id = ANY($1))
 	`, devs, today, historyDays-1).Scan(&callsWindow); err != nil {
 		return nil, err
 	}
