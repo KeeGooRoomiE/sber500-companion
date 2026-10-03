@@ -16,6 +16,9 @@ data class ProfileQuestion(
     val hint: String? = null,
     val options: List<String> = emptyList(),
     val freeText: Boolean = false,
+    /** Shown greyed-out in the free-text field until something is typed. Null uses the generic
+     *  "Написать..." — only the name question needs an example rather than an instruction. */
+    val freeTextPlaceholder: String? = null,
     val multi: Boolean = false,
     val oneTime: Boolean = false,
     /** Besides the ready-made options, «Своё время…» opens an hour/minute picker; stored as "HH:MM". */
@@ -84,7 +87,10 @@ val DefaultMorningTime: LocalTime = LocalTime.of(7, 40)
 val DefaultEveningTime: LocalTime = LocalTime.of(20, 30)
 
 val ProfileQuestions = listOf(
-    ProfileQuestion(ProfileIds.NAME, "Как к тебе обращаться?", "Имя остаётся на телефоне — только для приветствия", freeText = true),
+    ProfileQuestion(
+        ProfileIds.NAME, "Как к тебе обращаться?", "Имя остаётся на телефоне — только для приветствия",
+        freeText = true, freeTextPlaceholder = "Например, Саша",
+    ),
     ProfileQuestion(
         ProfileIds.WORK_APPS, "Какие из твоих приложений — рабочие?",
         "Так я отличу напряжённый рабочий день от обычного залипания", multi = true,

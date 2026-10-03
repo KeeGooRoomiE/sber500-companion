@@ -330,17 +330,28 @@ fun ProfileScreen(
     }
     // The actual motion: not tied to scroll position at all past this point, so there is never
     // a "halfway down the list" look — only "about to collapse" and "about to bloom back out".
-    val collapseAnim = remember { Animatable(0f) }
+    //
+    // Two stages, not one, run strictly in sequence — the second never starts until the first
+    // has actually finished:
+    //  1. dockAnim: travels to the camera position, shrinks to camera size, turns black.
+    //  2. hideAnim: only once docked and still — shrinks the now-black dot away to nothing, as
+    //     if the black ring around the camera were simply closing in, not a lens flying off
+    //     into the distance. Reversing undoes them in the opposite order: reappear first, then
+    //     travel/un-blacken — so it never looks like it's still mid-flight while fading in.
+    val dockAnim = remember { Animatable(0f) }
+    val hideAnim = remember { Animatable(0f) }
     LaunchedEffect(orbCollapsed) {
         if (orbCollapsed) {
             // Collapsing reads as being pulled into a point — a steady pull-in, no bounce.
-            collapseAnim.animateTo(1f, tween(320, easing = OrbDockEasing))
+            dockAnim.animateTo(1f, tween(320, easing = OrbDockEasing))
+            hideAnim.animateTo(1f, tween(240, easing = OrbDockEasing))
         } else {
+            hideAnim.animateTo(0f, tween(200, easing = OrbDockEasing))
             // Expanding blooms back out with a little overshoot, like a drop landing.
-            collapseAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 260f))
+            dockAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 260f))
         }
     }
-    val collapseProgress = collapseAnim.value
+    val collapseProgress = dockAnim.value
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -463,16 +474,17 @@ fun ProfileScreen(
         // the «съезжает под камеру» effect. Alignment.TopCenter here is relative to the whole
         // screen width, same as the header's old CenterHorizontally column was.
         run {
-            // 0 outside the last stretch of the journey, 0→1 across it — the "final approach"
-            // that turns the orb black and tucks it away, independent of direction: scrolling
-            // down runs it 0→1, scrolling back up runs the very same stretch in reverse, which
-            // is what gives the reappear-from-black its own 15-20% of the path for free.
-            val dockT = ((collapseProgress - ORB_DOCK_THRESHOLD) / (1f - ORB_DOCK_THRESHOLD)).coerceIn(0f, 1f)
-            val orbSize = run {
-                val resized = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress.coerceIn(0f, 1f)
-                resized * (1f - dockT * 0.85f)
-            }
-            val orbAlpha = 1f - dockT
+            // 0 outside the last stretch of stage 1, 0→1 across it — the "final approach" that
+            // turns the orb black, timed to finish exactly when the travel/resize does. Running
+            // in reverse during stage 1's own reversal is what gives the reappear-from-black its
+            // 15-20% of that path for free, no separate direction-handling needed.
+            val blackT = ((collapseProgress - ORB_DOCK_THRESHOLD) / (1f - ORB_DOCK_THRESHOLD)).coerceIn(0f, 1f)
+            // Stage 1 only — travels and resizes down to camera size. Stage 2 (hideAnim) does
+            // not start until this has fully committed (see the LaunchedEffect above), so there
+            // is never a moment where it is both still moving and already shrinking away.
+            val stage1Size = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress.coerceIn(0f, 1f)
+            val orbSize = stage1Size * (1f - hideAnim.value * 0.92f)
+            val orbAlpha = 1f - hideAnim.value
             val expandedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp + ORB_SLOT_HEIGHT / 2
             // All the way up into the status-bar inset itself — not just down to the bar below
             // it, where the back arrow lives. That is what makes it read as climbing into the
@@ -492,7 +504,7 @@ fun ProfileScreen(
                         speed = morphSpeed.value,
                         waveTrigger = waveTrigger,
                         wobbleBoost = wobbleBoost.value,
-                        blackout = dockT,
+                        blackout = blackT,
                         modifier = Modifier
                             .sharedElement(
                                 rememberSharedContentState(SharedKeys.ORB),
@@ -824,7 +836,7 @@ private fun FreeTextAnswer(question: ProfileQuestion, answer: String?, onAnswer:
         value = text,
         onValueChange = { text = it.take(30) },
         singleLine = true,
-        placeholder = { Text("Например, Саша") },
+        placeholder = { Text(question.freeTextPlaceholder ?: "Написать...") },
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { submit() }),
         modifier = Modifier.fillMaxWidth(),

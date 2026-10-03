@@ -128,15 +128,18 @@ fun CompanionOrb(
         }
         blob.close()
 
-        // highlight drifts slowly over the surface, like light on a glass ball
+        // highlight drifts slowly over the surface, like light on a glass ball — blended toward
+        // black along with everything else, so full blackout reads as a flat black dot and not
+        // a black sphere with a glint still sitting on it.
         val hl = -2.25f + .35f * sin(t * .45f)
         val hlCenter = c + Offset(cos(hl) * r * .5f, sin(hl) * r * .5f)
+        val glint = lerp(Color.White, Color.Black, blackout)
         drawPath(
             blob,
             Brush.radialGradient(
                 colorStops = arrayOf(
-                    0f to Color.White.copy(alpha = .95f),
-                    .08f to Color.White.copy(alpha = .85f),
+                    0f to glint.copy(alpha = .95f),
+                    .08f to glint.copy(alpha = .85f),
                     .30f to light,
                     .62f to mid,
                     1f to deep,
