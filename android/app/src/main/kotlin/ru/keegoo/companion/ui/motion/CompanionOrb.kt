@@ -45,7 +45,7 @@ private val SatelliteColors = listOf(Color(0xFFB3A6FF), Color(0xFF6FA8FF), Color
  * its own bounds on purpose, so the orb keeps its layout size in shared transitions.
  */
 @Composable
-fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = false) {
+fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = false, reacting: Boolean = false) {
     val blob = remember { Path() }
     val badgeColor = MaterialTheme.colorScheme.primary
     val palette = LocalBackdrop.current.feel.orbPalette()
@@ -58,7 +58,11 @@ fun CompanionOrb(mode: OrbMode, modifier: Modifier = Modifier, badge: Boolean = 
     val thinkA by animateFloatAsState(if (mode == OrbMode.Thinking) 1f else 0f, tween(300), label = "thinkA")
 
     val still = rememberReducedMotion()
-    val time = rememberFrameSeconds(running = !still)
+    // While reacting (a tap flurry's reply is on screen), everything the orb does — breathing,
+    // glow, the wobble — runs faster for that moment, not just the squish. Eased, not snapped,
+    // so the speed-up itself doesn't look like a glitch.
+    val speed = animateFloatAsState(if (reacting) 2.2f else 1f, tween(200), label = "orbSpeed")
+    val time = rememberFrameSeconds(running = !still, rate = speed)
 
     Canvas(modifier) {
         val t = time.floatValue

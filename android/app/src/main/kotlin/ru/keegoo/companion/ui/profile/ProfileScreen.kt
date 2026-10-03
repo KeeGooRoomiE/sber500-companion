@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -106,6 +109,17 @@ import java.time.LocalTime
 
 /** How long an answered one-time question stays on screen (with «Учту ✓») before folding away. */
 private const val FOLD_AWAY_MS = 5_000L
+
+// ─── Collapsing orb (Telegram-style avatar-into-the-toolbar) ─────────────────
+// Scrolling the question list far enough shrinks the orb and slides it up into a fixed bar at
+// the top — the camera-cutout area most phones leave empty there — instead of letting it
+// scroll away with everything else. Scrolling back expands it again.
+private val ORB_BAR_HEIGHT = 56.dp
+private val ORB_SLOT_HEIGHT = 150.dp // the space the orb used to occupy inline — kept as a
+// placeholder so the title below it doesn't jump when the orb itself becomes an overlay.
+private val ORB_EXPANDED_SIZE = 104.dp
+private val ORB_COLLAPSED_SIZE = 28.dp
+private val ORB_COLLAPSE_RANGE = 110.dp // how far the list scrolls while the collapse plays out
 
 /**
  * «Расскажи о себе» — opened by tapping the orb. An accordion of short questions; answering one
@@ -249,78 +263,55 @@ fun ProfileScreen(
     // when work apps aren't offered (no usage access yet), so it is never simply missing.
     val summaryAfterId = if (questions.any { it.id == ProfileIds.WORK_APPS }) ProfileIds.WORK_APPS else ProfileIds.NAME
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 20.dp, end = 20.dp,
-            top = bars.calculateTopPadding() + 8.dp,
-            bottom = bars.calculateBottomPadding() + 32.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item(key = "header") {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth()) {
-                    Box(
-                        Modifier
-                            .size(40.dp)
-                            .clip(AppShapes.circle)
-                            .clickable(onClick = onBack),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("←", fontSize = 22.sp, color = MaterialTheme.colorScheme.onBackground)
-                    }
-                }
-                Box(Modifier.size(150.dp), contentAlignment = Alignment.Center) {
-                    with(sharedScope) {
-                        CompanionOrb(
-                            mode = OrbMode.Calm,
-                            modifier = Modifier
-                                .sharedElement(
-                                    rememberSharedContentState(SharedKeys.ORB),
-                                    animatedVisibilityScope = animatedScope,
-                                    boundsTransform = OrbBoundsTransform,
-                                )
-                                .size(104.dp)
-                                .graphicsLayer { scaleX = orbScale.value; scaleY = orbScale.value }
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 60.dp),
-                                    onClick = onOrbTap,
-                                ),
-                        )
-                    }
-                    // Reaction over invitation — a flurry is itself an answer to «тапни на меня».
-                    // TopCenter of this 150dp box already sits in the gap above the orb's own
-                    // visible edge (it is 104dp, centred) — no extra offset needed to clear the
-                    // back arrow above; a small lift keeps it off the orb's rounded top.
-                    OrbBubbleSlot(
-                        text = orbReaction ?: invitePhrase,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(y = (-4).dp),
+    // How far the orb has collapsed into the fixed bar: 0 at the top of the list, 1 once it has
+    // scrolled past ORB_COLLAPSE_RANGE (or past the header item entirely).
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val collapseProgress by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) 1f
+            else with(density) { (listState.firstVisibleItemScrollOffset / ORB_COLLAPSE_RANGE.toPx()).coerceIn(0f, 1f) }
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 20.dp, end = 20.dp,
+                top = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp,
+                bottom = bars.calculateBottomPadding() + 32.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item(key = "header") {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    // The orb used to sit inline here; it is a floating overlay now (below),
+                    // so the title doesn't jump up — this just holds its old place open.
+                    Spacer(Modifier.height(ORB_SLOT_HEIGHT))
+                    Text(
+                        text = "Расскажи о себе",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
-                }
-                Text(
-                    text = "Расскажи о себе",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "Пара коротких вопросов — так я точнее разберу твои дни. Имя остаётся на телефоне.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                // Gone once everything is answered: a full bar still asks for something, and
-                // there is nothing left to do. The spacing goes with it — otherwise it leaves
-                // a gap where the bar used to be, which is the empty middle that was noticed.
-                if (answered < questions.size) {
-                    Spacer(Modifier.height(16.dp))
-                    ProgressLine(progress = progress, label = "$answered из ${questions.size}")
                     Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Пара коротких вопросов — так я точнее разберу твои дни. Имя остаётся на телефоне.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    // Gone once everything is answered: a full bar still asks for something, and
+                    // there is nothing left to do. The spacing goes with it — otherwise it leaves
+                    // a gap where the bar used to be, which is the empty middle that was noticed.
+                    if (answered < questions.size) {
+                        Spacer(Modifier.height(16.dp))
+                        ProgressLine(progress = progress, label = "$answered из ${questions.size}")
+                        Spacer(Modifier.height(6.dp))
+                    }
                 }
             }
-        }
 
         // Offered again here rather than on Home: onboarding lets any optional step be skipped,
         // so there has to be a way back — and it belongs among the questions about yourself,
@@ -371,6 +362,76 @@ fun ProfileScreen(
                         .clip(AppShapes.chip)
                         .clickable { showPast = !showPast }
                         .padding(vertical = 12.dp),
+                )
+            }
+        }
+        }
+
+        // Fixed back button, pinned above the list — it also doubles as the "camera" the orb
+        // climbs into, and gains a background once that climb is mostly done so the orb does
+        // not end up floating over bare content.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .height(bars.calculateTopPadding() + ORB_BAR_HEIGHT)
+                .background(MaterialTheme.colorScheme.background.copy(alpha = collapseProgress)),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = (ORB_BAR_HEIGHT - 40.dp) / 2)
+                    .size(40.dp)
+                    .clip(AppShapes.circle)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("←", fontSize = 22.sp, color = MaterialTheme.colorScheme.onBackground)
+            }
+        }
+
+        // The orb itself: a floating overlay so it can detach from the scrolling list and
+        // settle into the fixed bar above instead of scrolling away with everything else —
+        // the «съезжает под камеру» effect. Alignment.TopCenter here is relative to the whole
+        // screen width, same as the header's old CenterHorizontally column was.
+        run {
+            val orbSize = ORB_EXPANDED_SIZE + (ORB_COLLAPSED_SIZE - ORB_EXPANDED_SIZE) * collapseProgress
+            val expandedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp + ORB_SLOT_HEIGHT / 2
+            val collapsedCenterY = bars.calculateTopPadding() + ORB_BAR_HEIGHT / 2
+            val orbCenterY = expandedCenterY + (collapsedCenterY - expandedCenterY) * collapseProgress
+            val rippleRadius = 60.dp + (28.dp - 60.dp) * collapseProgress
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = orbCenterY - orbSize / 2),
+                contentAlignment = Alignment.Center,
+            ) {
+                with(sharedScope) {
+                    CompanionOrb(
+                        mode = OrbMode.Calm,
+                        reacting = orbReaction != null,
+                        modifier = Modifier
+                            .sharedElement(
+                                rememberSharedContentState(SharedKeys.ORB),
+                                animatedVisibilityScope = animatedScope,
+                                boundsTransform = OrbBoundsTransform,
+                            )
+                            .size(orbSize)
+                            .graphicsLayer { scaleX = orbScale.value; scaleY = orbScale.value }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = rippleRadius),
+                                onClick = onOrbTap,
+                            ),
+                    )
+                }
+                // Reaction over invitation — a flurry is itself an answer to «тапни на меня».
+                // Hidden once the orb is mostly tucked into the bar: nothing to point a speech
+                // bubble at there.
+                OrbBubbleSlot(
+                    text = (orbReaction ?: invitePhrase)?.takeIf { collapseProgress < 0.6f },
+                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-4).dp),
                 )
             }
         }
