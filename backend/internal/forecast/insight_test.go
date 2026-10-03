@@ -213,3 +213,17 @@ func TestSafeOrbReaction(t *testing.T) {
 		}
 	}
 }
+
+// A one-word option like «Да» is a byte-for-byte substring of «задача» — a raw strings.Contains
+// check would have stripped perfectly good chips from a question that never mentioned them.
+func TestQuestionRepeatsOptionsIgnoresSubstringCollisions(t *testing.T) {
+	q, opts := ParseQuestionAnswer("Какие задачи сегодня важнее? Варианты: Да | Нет")
+	if q != "Какие задачи сегодня важнее?" || len(opts) != 2 {
+		t.Errorf("a coincidental substring («да» inside «задачи») dropped real options: q=%q opts=%v", q, opts)
+	}
+
+	// A genuine whole-word duplicate must still be caught.
+	if !questionRepeatsOptions("Ты дома или в офисе?", []string{"Дома", "В офисе"}) {
+		t.Error("a genuine whole-word duplicate was not caught")
+	}
+}

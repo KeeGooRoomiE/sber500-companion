@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/clock"
@@ -536,13 +537,58 @@ func questionRepeatsOptions(question string, options []string) bool {
 	if len(options) == 0 {
 		return false
 	}
-	q := strings.ToLower(question)
+	qWords := wordsOf(question)
 	for _, opt := range options {
-		if !strings.Contains(q, strings.ToLower(opt)) {
+		if !containsWholeWords(qWords, wordsOf(opt)) {
 			return false
 		}
 	}
 	return true
+}
+
+// wordsOf splits on anything that isn't a letter or digit and lowercases the rest. Plain
+// strings.Contains was a real bug here: a one-word option like «Да» is a byte-for-byte
+// substring of «задача», so a question about tasks was losing its chips over a coincidence
+// that had nothing to do with it.
+func wordsOf(s string) []string {
+	var words []string
+	var cur []rune
+	flush := func() {
+		if len(cur) > 0 {
+			words = append(words, string(cur))
+			cur = cur[:0]
+		}
+	}
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			cur = append(cur, r)
+		} else {
+			flush()
+		}
+	}
+	flush()
+	return words
+}
+
+// containsWholeWords: true if needle's words appear, in the same order, as a contiguous run
+// inside haystack's words — a whole-word match, not a substring one.
+func containsWholeWords(haystack, needle []string) bool {
+	if len(needle) == 0 || len(needle) > len(haystack) {
+		return false
+	}
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		match := true
+		for j, w := range needle {
+			if haystack[i+j] != w {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
 }
 
 // SafeOrbReaction returns the text as-is if it ends cleanly, or ok=false if the 60-char cap
