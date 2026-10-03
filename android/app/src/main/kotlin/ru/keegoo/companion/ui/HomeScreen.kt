@@ -91,7 +91,6 @@ import ru.keegoo.companion.ui.home.CheckInTags
 import ru.keegoo.companion.ui.home.InsightUi
 import ru.keegoo.companion.ui.home.Insights
 import ru.keegoo.companion.ui.home.DailyQuestionBanner
-import ru.keegoo.companion.ui.home.MiddayCard
 import ru.keegoo.companion.ui.home.insightKey
 import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
 import ru.keegoo.companion.ui.permissions.appInfoIntent
@@ -122,7 +121,7 @@ import java.time.LocalDate
 import java.util.Locale
 import java.time.LocalTime
 
-private enum class HomeBlock { Morning, Midday, Stats, Timeline, CheckIn }
+private enum class HomeBlock { Morning, Stats, Timeline, CheckIn }
 
 // M3 "emphasized decelerate" — for things arriving on screen
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
@@ -192,12 +191,11 @@ fun HomeScreen(
         detailed -> listOf(HomeBlock.Morning, HomeBlock.Stats, HomeBlock.Timeline)
         else -> listOf(HomeBlock.Morning)
     }
-    // «Как идёт день» sits straight under the forecast it follows on from, and only exists in
-    // the afternoon window the view model asks for it in.
+    // «Как идёт день» now lives inside the forecast card itself (MorningCard) rather than as
+    // its own block — a standalone white card with nothing to tap read as clutter once the
+    // question that used to live there got pulled out of it.
     val midday = state.insights[insightKey(Insights.MIDDAY)]
-    val blocks = if (midday == null || midday.failed) baseBlocks else {
-        baseBlocks.toMutableList().apply { add(indexOf(HomeBlock.Morning) + 1, HomeBlock.Midday) }
-    }
+    val blocks = baseBlocks
     val bars = WindowInsets.systemBars.asPaddingValues()
     // A tile with nothing in it is just a dash taking up space — most often sleep, when Health
     // Connect was never connected. Dropping it is the honest version: the offer to connect
@@ -226,7 +224,6 @@ fun HomeScreen(
             items(blocks, key = { it.name }) { block ->
                 // Blocks below the hero card rise in one after another once the orb has landed.
                 val enterDelay = when (block) {
-                    HomeBlock.Midday -> 200
                     HomeBlock.Stats -> 220
                     HomeBlock.Timeline -> 260
                     else -> 300
@@ -254,6 +251,7 @@ fun HomeScreen(
                                         clipInOverlayDuringTransition = OverlayClip(AppShapes.cardHero),
                                     ),
                                     state = state,
+                                    midday = midday,
                                     onRate = vm::rateMorning,
                                     onMore = vm::openExplore,
                                     onOpenUsageAccess = {
@@ -270,7 +268,6 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        HomeBlock.Midday -> MiddayCard(modifier = rise, insight = midday ?: InsightUi())
                         HomeBlock.Stats -> StatsRow(
                             modifier = rise,
                             sharedScope = sharedScope,
@@ -557,6 +554,7 @@ private fun ShimmerBox(modifier: Modifier, baseColor: Color) {
 private fun MorningCard(
     modifier: Modifier,
     state: HomeUiState,
+    midday: InsightUi?,
     onRate: (Boolean) -> Unit,
     onMore: () -> Unit,
     onOpenUsageAccess: () -> Unit,
@@ -654,6 +652,30 @@ private fun MorningCard(
             )
         }
 
+        // «Как идёт день» — a second read inside the same card, not a separate one. It used to
+        // be its own white block, which worked while it held a question with chips; once that
+        // got pulled out (a leaked-text bug), a bare paragraph sitting alone between the hero
+        // card and the stat tiles read as clutter rather than something worth a block of its own.
+        if (midday != null && !midday.failed) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Как идёт день",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (midday.text != null) {
+                    Text(midday.text, style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                } else {
+                    val sh = Color.White.copy(alpha = 0.25f)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ShimmerBox(Modifier.fillMaxWidth(0.9f).height(14.dp), sh)
+                        ShimmerBox(Modifier.fillMaxWidth(0.6f).height(14.dp), sh)
+                    }
+                }
+            }
+        }
+
         if (state.facts.isNotEmpty() || state.signals.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -733,7 +755,7 @@ private fun MorningCard(
                     }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                Text("Спросить о себе", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text("Узнать больше", style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
 

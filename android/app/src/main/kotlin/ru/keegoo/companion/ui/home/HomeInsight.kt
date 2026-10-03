@@ -100,39 +100,10 @@ internal fun ThinkingLines(lines: Int) {
     }
 }
 
-/**
- * «Как идёт день» — the afternoon read, between the morning forecast and the evening check-in.
- *
- * Its own card rather than a line inside the forecast: the forecast was written this morning and
- * can be rated, this is about the hours since, and merging them would make it unclear which text
- * «Совпало?» refers to.
- */
-@Composable
-internal fun MiddayCard(modifier: Modifier, insight: InsightUi) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(AppShapes.cardHero)
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(
-            text = "Как идёт день",
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (insight.text != null) {
-            Text(
-                text = insight.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            ThinkingLines(lines = 2)
-        }
-    }
-}
+// MiddayCard (a standalone «Как идёт день» card) was removed: once the question it used to
+// hold got pulled out as a bug fix, a bare paragraph sitting alone between the hero card and
+// the stat tiles read as clutter. «Как идёт день» now lives inside MorningCard itself, in
+// HomeScreen.kt, as a second section of the same card.
 
 /**
  * «Есть вопрос по сегодня» — a thin strip above the forecast, not a card of its own: it is a
