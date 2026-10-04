@@ -59,6 +59,15 @@
     .btn-refresh:hover { opacity: .8; }
     .btn-refresh svg { width: 13px; height: 13px; }
 
+    .btn-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; flex-shrink: 0;
+      color: var(--primary); background: var(--primary-light);
+      border: none; border-radius: 8px; cursor: pointer; transition: opacity .15s;
+    }
+    .btn-icon:hover { opacity: .8; }
+    .btn-icon svg { width: 13px; height: 13px; }
+
     /* ── SECTION ── */
     .section { margin-bottom: 28px; }
     .section-title {
@@ -201,6 +210,32 @@
 <script>
   const API_URL = 'https://api.94-183-236-169.sslip.io/api/v1/metrics';
   const LLM_BUDGET_RUB = 50000;
+
+  // Kept from the last render so the download button can export without re-fetching.
+  let lastCohorts = [];
+
+  function csvEscape(v) {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function downloadCSV(filename, rows) {
+    // BOM so Excel opens Cyrillic as UTF-8 instead of guessing a legacy codepage.
+    const csv = '﻿' + rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadCohortsCSV() {
+    if (!lastCohorts.length) return;
+    const rows = [['Когорта', 'Пользователей', 'D1 %', 'D7 %', 'D14 %']];
+    lastCohorts.forEach(c => rows.push([c.week, c.size, c.d1_pct, c.d7_pct, c.d14_pct]));
+    downloadCSV('retention-cohorts.csv', rows);
+  }
 
   // Competition targets, shown as progress rather than pass/fail — the judges want the
   // trajectory, and «0 из 1000» on day one is information, not a failure.
@@ -434,7 +469,16 @@
     }).join('');
 
     return `<div class="chart-card">
-      <div class="chart-header"><span class="chart-title">Ретеншн по когортам</span></div>
+      <div class="chart-header">
+        <span class="chart-title">Ретеншн по когортам</span>
+        <button class="btn-icon" onclick="downloadCohortsCSV()" title="Скачать CSV" aria-label="Скачать CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+      </div>
       <table class="ret-table">
         <thead><tr><th>Когорта</th><th>Польз.</th><th>D1</th><th>D7</th><th>D14</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -573,6 +617,7 @@
     const dauHistory = Array.isArray(d.dau_history) ? d.dau_history : [];
     const ciHistory  = Array.isArray(d.checkin_history) ? d.checkin_history : [];
     const cohorts    = Array.isArray(d.retention_cohorts) ? d.retention_cohorts : [];
+    lastCohorts = cohorts;
 
     document.getElementById('content').innerHTML =
       renderKpis(d) +
