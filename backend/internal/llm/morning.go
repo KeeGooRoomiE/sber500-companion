@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -25,6 +27,24 @@ func NewClient() *Client {
 	cfg.BaseURL = os.Getenv("LLM_BASE_URL")
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://shared1.multitool.works:4000/v1"
+	}
+	// The default transport caps idle connections per host at 2, so the 04:10 morning batch
+	// (several workers hitting the same proxy host at once) opened a fresh TLS handshake per
+	// request instead of reusing one — against a slow/flaky shared test proxy that meant most
+	// handshakes raced the 10s default TLSHandshakeTimeout and lost. Raising the per-host pool
+	// lets concurrent requests reuse warm connections instead of all handshaking at once.
+	cfg.HTTPClient = &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:        64,
+			MaxIdleConnsPerHost: 16,
+			IdleConnTimeout:     90 * time.Second,
+			TLSHandshakeTimeout: 15 * time.Second,
+		},
 	}
 	model := os.Getenv("LLM_MODEL")
 	if model == "" {
