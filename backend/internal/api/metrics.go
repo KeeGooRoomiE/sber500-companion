@@ -137,6 +137,7 @@ type Metrics struct {
 	budgetSpend    float64
 	budgetMax      float64
 	budgetCachedAt time.Time
+	budgetStale    bool // true if the last fetch failed — retry sooner than a healthy cache
 
 	httpClient *http.Client
 }
@@ -558,12 +559,25 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	return out, nil
 }
 
-// budget returns (spend, max) from the LLM proxy key/info, cached for 15 minutes.
-// Returns (0, 0) on error so the metrics page shows "--" gracefully.
+// budget TTLs for the LLM proxy key/info poll. Success is cached long because the number
+// barely moves; failure is cached much shorter so a proxy blip self-heals quickly — but still
+// bounded, so a dead proxy doesn't eat a fresh 5s timeout on every metrics refresh.
+const (
+	budgetSuccessTTL = 15 * time.Minute
+	budgetFailureTTL = 2 * time.Minute
+)
+
+// budget returns (spend, max) from the LLM proxy key/info. On failure it returns the last
+// known-good value (so the metrics page keeps showing real numbers through a blip) and marks
+// the cache stale so the next attempt comes sooner than the healthy 15-minute TTL.
 func (m *Metrics) budget(ctx context.Context) (spend, max float64) {
 	m.budgetMu.Lock()
 	defer m.budgetMu.Unlock()
-	if time.Since(m.budgetCachedAt) < 15*time.Minute {
+	ttl := budgetSuccessTTL
+	if m.budgetStale {
+		ttl = budgetFailureTTL
+	}
+	if time.Since(m.budgetCachedAt) < ttl {
 		return m.budgetSpend, m.budgetMax
 	}
 	baseURL := os.Getenv("LLM_BASE_URL")
@@ -575,15 +589,21 @@ func (m *Metrics) budget(ctx context.Context) (spend, max float64) {
 	if len(proxyRoot) > 3 && proxyRoot[len(proxyRoot)-3:] == "/v1" {
 		proxyRoot = proxyRoot[:len(proxyRoot)-3]
 	}
+	fail := func(err error) (float64, float64) {
+		if err != nil {
+			slog.Warn("budget fetch failed", "err", err)
+		}
+		m.budgetCachedAt, m.budgetStale = time.Now(), true
+		return m.budgetSpend, m.budgetMax
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyRoot+"/key/info", nil)
 	if err != nil {
-		return 0, 0
+		return fail(err)
 	}
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
 	resp, err := m.httpClient.Do(req)
 	if err != nil {
-		slog.Warn("budget fetch failed", "err", err)
-		return 0, 0
+		return fail(err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -594,9 +614,9 @@ func (m *Metrics) budget(ctx context.Context) (spend, max float64) {
 		} `json:"info"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return 0, 0
+		return fail(err)
 	}
-	m.budgetSpend, m.budgetMax, m.budgetCachedAt = payload.Info.Spend, payload.Info.MaxBudget, time.Now()
+	m.budgetSpend, m.budgetMax, m.budgetCachedAt, m.budgetStale = payload.Info.Spend, payload.Info.MaxBudget, time.Now(), false
 	return m.budgetSpend, m.budgetMax
 }
 
