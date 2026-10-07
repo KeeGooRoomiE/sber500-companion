@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Companion — editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #1A1525;
+         background: #F7F6FF; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .wrap { width: 100%; max-width: 640px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 4px; }
+  .sub { color: #6E6A85; font-size: 14px; margin-bottom: 24px; }
+  .grid { display: grid; gap: 14px; }
+  a.card { display: block; text-decoration: none; color: inherit; border-radius: 18px; padding: 20px;
+           background: #fff; box-shadow: 0 2px 10px rgba(40,28,90,.1); border: 1px solid #ECE9FB;
+           transition: transform .12s ease, box-shadow .12s ease; }
+  a.card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(40,28,90,.16); }
+  a.card .t { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  a.card .d { font-size: 13px; color: #6E6A85; margin-top: 6px; line-height: 1.5; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: #6B5CE7;
+           background: #EDE9FF; padding: 3px 9px; border-radius: 7px; }
+  .foot { font-size: 12px; color: #9A96B0; margin-top: 22px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Companion · editor</h1>
+    <p class="sub">Воспроизведение экранов 1.0.0 для дизайна и медиа. Служебная страница, не для публики.</p>
+    <div class="grid">
+      <a class="card" href="screens.html">
+        <div class="t">📱 Экраны <span class="badge">3 экрана · тема · плашки</span></div>
+        <div class="d">Главный, онбординг, вопросы. Переключение светлой/тёмной темы и включение/выключение опциональных плашек. Живой волновой фон и орб.</div>
+      </a>
+      <a class="card" href="orb.html">
+        <div class="t">🔮 Орб <span class="badge">для записи</span></div>
+        <div class="d">Один подвижный орб, 300–380 px, переключаемый фон (волны ☀/🌙, белый, чёрный). «H» прячет панель для чистой записи и скринов.</div>
+      </a>
+    </div>
+    <p class="foot">Вся визуальная математика — порт из кода приложения (CompanionOrb, Backdrop, Theme). Это макет, не эмулятор.</p>
+  </div>
+</body>
+</html>

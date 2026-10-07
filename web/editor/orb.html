@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Companion — орб (для медиа)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { display: grid; place-items: center; overflow: hidden;
+         font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         background: var(--stage, #F7F6FF); transition: background .35s ease; }
+  #bg   { position: fixed; inset: 0; z-index: 0; }        /* animated wave field */
+  #stage{ position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; }
+  canvas { display: block; }
+
+  #ui { position: fixed; top: 14px; left: 14px; z-index: 10;
+        display: flex; flex-direction: column; gap: 10px;
+        background: rgba(255,255,255,.82); backdrop-filter: blur(10px);
+        padding: 14px; border-radius: 14px; width: 216px;
+        font-size: 13px; color: #1A1525; box-shadow: 0 4px 20px rgba(40,28,90,.18); }
+  body.dark #ui { background: rgba(28,27,44,.85); color: #E8E6F8; box-shadow: 0 4px 20px rgba(0,0,0,.45); }
+  #ui.hidden { display: none; }
+  #ui h1 { font-size: 13px; font-weight: 700; letter-spacing: .2px; }
+  #ui .grp { display: flex; flex-direction: column; gap: 6px; }
+  #ui .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; opacity: .6; }
+  #ui .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  #ui .seg button { flex: 1 1 44%; padding: 7px 4px; border: 1px solid rgba(107,92,231,.45); background: transparent;
+                    color: inherit; border-radius: 9px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  #ui .seg button.on { background: #6B5CE7; color: #fff; border-color: #6B5CE7; }
+  #ui label.row { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  #ui input[type=range] { width: 100%; accent-color: #6B5CE7; }
+  #ui .val { font-variant-numeric: tabular-nums; opacity: .7; }
+  #ui .hint { font-size: 11px; opacity: .55; line-height: 1.45; }
+  #eye { position: fixed; top: 14px; right: 14px; z-index: 11; width: 40px; height: 40px; border-radius: 50%;
+         border: none; cursor: pointer; background: rgba(255,255,255,.82); backdrop-filter: blur(10px);
+         font-size: 18px; box-shadow: 0 4px 20px rgba(40,28,90,.18); }
+  body.dark #eye { background: rgba(28,27,44,.85); color: #E8E6F8; }
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div id="stage"><canvas id="orb"></canvas></div>
+
+  <button id="eye" title="Скрыть панель (H)">👁</button>
+  <div id="ui">
+    <h1>Орб · для медиа</h1>
+    <div class="grp">
+      <span class="lbl">Фон</span>
+      <div class="seg" id="bgseg">
+        <button data-bg="waves-light" class="on">Волны ☀</button>
+        <button data-bg="waves-dark">Волны 🌙</button>
+        <button data-bg="white">Белый</button>
+        <button data-bg="black">Чёрный</button>
+      </div>
+    </div>
+    <div class="grp">
+      <label class="row"><span class="lbl">Диаметр орба</span><span class="val" id="dval">340&nbsp;px</span></label>
+      <input type="range" id="diam" min="300" max="380" value="340" step="4">
+    </div>
+    <div class="grp">
+      <label class="row"><span>Спутники (данные)</span><input type="checkbox" id="sat"></label>
+      <label class="row"><span>Значок-бейдж</span><input type="checkbox" id="badge"></label>
+      <label class="row"><span>Движение</span><input type="checkbox" id="motion" checked></label>
+    </div>
+    <div class="grp">
+      <label class="row"><span class="lbl">Темп</span><span class="val" id="sval">1.0×</span></label>
+      <input type="range" id="speed" min="0.3" max="3" value="1" step="0.1">
+    </div>
+    <p class="hint">Клик по экрану — волна от тапа. «H» — спрятать панель. Диаметр = тело орба, свечение выходит за него.</p>
+  </div>
+
+<script>
+// ─── palette (CompanionOrb.kt, OrbMode.Calm / feel = null) ───────────────────
+const LIGHT=[0x9B,0x8A,0xFF], MID=[0x6B,0x5C,0xE7], DEEP=[0x3A,0x2F,0x8A];
+const SAT=['#B3A6FF','#6FA8FF','#4CC9B0'];
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const STAGE={ 'waves-light':'#F7F6FF', 'waves-dark':'#111019', 'white':'#FFFFFF', 'black':'#0B0B0F' };
+
+const S={ diam:340, speed:1, sat:false, badge:false, motion:true, bg:'waves-light', waves:[] };
+let DPR=Math.min(window.devicePixelRatio||1,2);
+
+// ─── orb canvas ───────────────────────────────────────────────────────────────
+const canvas=document.getElementById('orb'), ctx=canvas.getContext('2d');
+function resizeOrb(){ const box=Math.round(S.diam*1.7);
+  canvas.style.width=box+'px'; canvas.style.height=box+'px'; canvas.width=box*DPR; canvas.height=box*DPR; }
+resizeOrb();
+
+function orbFrame(now){
+  const t=S.motion? now/1000*S.speed : 1.2;
+  const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H);
+  ctx.save(); ctx.scale(DPR,DPR);
+  const w=W/DPR,h=H/DPR,cx=w/2,cy=h/2;
+  const breathe=1+.02*(1+Math.sin(t*1.5)); const r=(S.diam/2)*breathe;
+
+  const gp=1+.06*Math.sin(t*.9+1), gcy=cy+r*.25, gr=r*1.4*gp;
+  let g=ctx.createRadialGradient(cx,gcy,0,cx,gcy,gr);
+  g.addColorStop(0,rgba(MID,.35)); g.addColorStop(1,rgba(MID,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,gcy,gr,0,7); ctx.fill();
+
+  const steps=72; ctx.beginPath();
+  for(let i=0;i<=steps;i++){ const a=i/steps*2*Math.PI;
+    const wob=1+.028*Math.sin(3*a+t*.8)+.018*Math.sin(5*a-t*1.1+1.7)+.010*Math.sin(2*a+t*.5);
+    const x=cx+Math.cos(a)*r*wob,y=cy+Math.sin(a)*r*wob; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+  ctx.closePath();
+
+  const hl=-2.25+.35*Math.sin(t*.45), hx=cx+Math.cos(hl)*r*.5, hy=cy+Math.sin(hl)*r*.5;
+  let body=ctx.createRadialGradient(hx,hy,0,hx,hy,r*1.75);
+  body.addColorStop(0,'rgba(255,255,255,.95)'); body.addColorStop(.08,'rgba(255,255,255,.85)');
+  body.addColorStop(.30,rgba(LIGHT,1)); body.addColorStop(.62,rgba(MID,1)); body.addColorStop(1,rgba(DEEP,1));
+  ctx.fillStyle=body; ctx.fill();
+
+  const sw=t*.6, scx=cx+Math.cos(sw)*r*.35, scy=cy+Math.sin(sw)*r*.35;
+  let sh=ctx.createRadialGradient(scx,scy,0,scx,scy,r*.7);
+  sh.addColorStop(0,rgba(LIGHT,.28)); sh.addColorStop(1,rgba(LIGHT,0)); ctx.fillStyle=sh; ctx.fill();
+
+  const RING=.28,FDELAY=.12,FDUR=.7,MAX=FDELAY+FDUR; S.waves=S.waves.filter(t0=>t-t0<=MAX);
+  for(const t0 of S.waves){ const age=t-t0; if(age<0)continue;
+    if(age<=RING){ const p=age/RING; ctx.strokeStyle=rgba(MID,(1-p)*.55); ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(cx,cy,r*(1+.35*p),0,7); ctx.stroke(); }
+    const fa=age-FDELAY; if(fa>=0&&fa<=FDUR){ const p=fa/FDUR,fade=(1-p)*(1-p);
+      ctx.fillStyle=rgba(MID,.06*fade); ctx.beginPath(); ctx.arc(cx,cy,r*(1+p),0,7); ctx.fill(); } }
+
+  if(S.sat){ const per=[5,-7,6],orb=[1.30,1.40,1.22];
+    for(let i=0;i<3;i++){ const a=t/per[i]*2*Math.PI+i*2.1; ctx.fillStyle=SAT[i];
+      ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r*orb[i],cy+Math.sin(a)*r*orb[i],r*.08,0,7); ctx.fill(); } }
+  if(S.badge){ const br=r*.22,bx=cx+r*.72,by=cy-r*.72;
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(bx,by,br*1.25,0,7); ctx.fill();
+    ctx.fillStyle=rgba(MID,1); ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill(); }
+  ctx.restore(); requestAnimationFrame(orbFrame);
+}
+requestAnimationFrame(orbFrame);
+
+// ─── animated wave backdrop (faithful port of Backdrop.kt) ───────────────────
+const bg=document.getElementById('bg'), bx=bg.getContext('2d');
+const WAVES=8, BASE_SPEED=.12, SPEED_STEP=.048, BASE_AMP=10, AMP_STEP=9, Y_STEP=.108, PHASE_OFF=1.2, SEC=.45, Y_START=.22;
+const phases=Array.from({length:WAVES},(_,i)=>i*7.3); let lastW=performance.now();
+function resizeBg(){ bg.style.width=innerWidth+'px'; bg.style.height=innerHeight+'px';
+  bg.width=innerWidth*DPR; bg.height=innerHeight*DPR; }
+resizeBg();
+function waveColor(i,dark){ const hue=((339-12*i)%360+360)%360, sat=62+2.5*i, light=(68-2*i)-(dark?12:0);
+  return `hsla(${hue},${sat}%,${light}%,ALPHA)`.replace('ALPHA', dark?0.10:0.065); }
+function bgFrame(now){
+  const dt=S.motion?(now-lastW)/1000:0; lastW=now;
+  const showWaves=S.bg.startsWith('waves'); const dark=(S.bg==='waves-dark');
+  const W=bg.width,H=bg.height; bx.clearRect(0,0,W,H);
+  if(showWaves){
+    bx.save(); bx.scale(DPR,DPR); const w=W/DPR,h=H/DPR;
+    for(let i=0;i<WAVES;i++){ phases[i]+=dt*(BASE_SPEED+i*SPEED_STEP);
+      const amp=BASE_AMP+i*AMP_STEP, yBase=h*(Y_START+i*Y_STEP), ph=phases[i]+i*PHASE_OFF;
+      bx.beginPath();
+      for(let x=0;x<=w+4;x+=4){ const y=yBase+Math.sin(x*.008+ph)*amp+Math.sin(x*.004+ph*.6)*amp*SEC;
+        x===0?bx.moveTo(x,y):bx.lineTo(x,y); }
+      bx.lineTo(w,h); bx.lineTo(0,h); bx.closePath(); bx.fillStyle=waveColor(i,dark); bx.fill(); }
+    bx.restore();
+  }
+  requestAnimationFrame(bgFrame);
+}
+requestAnimationFrame(bgFrame);
+
+// ─── controls ────────────────────────────────────────────────────────────────
+function applyBg(mode){ S.bg=mode; document.body.style.setProperty('--stage',STAGE[mode]);
+  document.body.classList.toggle('dark', mode==='waves-dark'||mode==='black'); }
+applyBg('waves-light');
+document.getElementById('bgseg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#bgseg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); applyBg(b.dataset.bg); });
+const diam=document.getElementById('diam'),dval=document.getElementById('dval');
+diam.oninput=()=>{ S.diam=+diam.value; dval.innerHTML=S.diam+'&nbsp;px'; resizeOrb(); };
+const speed=document.getElementById('speed'),sval=document.getElementById('sval');
+speed.oninput=()=>{ S.speed=+speed.value; sval.textContent=S.speed.toFixed(1)+'×'; };
+document.getElementById('sat').onchange=e=>S.sat=e.target.checked;
+document.getElementById('badge').onchange=e=>S.badge=e.target.checked;
+document.getElementById('motion').onchange=e=>{ S.motion=e.target.checked; lastW=performance.now(); };
+document.getElementById('stage').addEventListener('pointerdown',()=>S.waves.push(performance.now()/1000*S.speed));
+const ui=document.getElementById('ui'); const toggleUI=()=>ui.classList.toggle('hidden');
+document.getElementById('eye').onclick=toggleUI;
+addEventListener('keydown',e=>{ if(e.key==='h'||e.key==='H') toggleUI(); });
+addEventListener('resize',()=>{ DPR=Math.min(window.devicePixelRatio||1,2); resizeOrb(); resizeBg(); });
+</script>
+</body>
+</html>

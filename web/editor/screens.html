@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Companion — экраны 1.0.0 (мок)</title>
+<style>
+  @font-face { font-family: Roboto; font-weight: 100 900; font-display: swap; src: url(../screens/fonts/roboto-cyrillic.woff2) format("woff2");
+               unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: Roboto; font-weight: 100 900; font-display: swap; src: url(../screens/fonts/roboto-latin.woff2) format("woff2");
+               unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122, U+2212; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#F7F6FF; --surface:#FFFFFF; --surface-variant:#F0EEFF; --text:#1A1525; --muted:#6E6A85;
+    --outline:#DDD9F8; --primary:#6B5CE7; --chip-bg:#F0EEFF; --chip-br:#DDD9F8;
+    --good:#1F7A50; --warn:#B35B00; --bad:#B22020; --standout:#6B5CE7;
+    --card-shadow: 0 1px 2px rgba(0,0,0,.14), 0 1px 3px 1px rgba(0,0,0,.06);
+  }
+  body.dark {
+    --bg:#111019; --surface:#1D1B2C; --surface-variant:#2A2740; --text:#E8E6F8; --muted:#AEA8D0;
+    --outline:#3D3860; --primary:#9B8AFF; --chip-bg:#2A2740; --chip-br:#3D3860;
+    --good:#5FD39A; --warn:#F2A94A; --bad:#FF7A7A; --standout:#B9A7FF;
+    --card-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  body { font-family: Roboto, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+         background:#e9e7f3; color:#1A1525; min-height:100%; display:flex; }
+  body.dark { background:#07070c; }
+  .emoji { font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif; }
+
+  /* ─── control panel ─────────────────────────────────────────────── */
+  #panel { width:260px; flex:none; padding:20px 18px; background:#fff; border-right:1px solid #ddd9f8;
+           height:100vh; overflow-y:auto; position:sticky; top:0; font-size:13px; color:#1A1525; }
+  body.dark #panel { background:#12111b; border-color:#2a2740; color:#E8E6F8; }
+  #panel h1 { font-size:15px; font-weight:700; margin-bottom:4px; }
+  #panel .sub { font-size:11px; color:#6E6A85; margin-bottom:16px; }
+  body.dark #panel .sub { color:#AEA8D0; }
+  #panel .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.6px; opacity:.55; margin:16px 0 8px; }
+  .seg { display:flex; gap:5px; }
+  .seg button { flex:1; padding:8px 4px; border:1px solid rgba(107,92,231,.4); background:transparent;
+                color:inherit; border-radius:9px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .seg button.on { background:#6B5CE7; color:#fff; border-color:#6B5CE7; }
+  #panel label.row { display:flex; align-items:center; gap:9px; padding:6px 0; cursor:pointer; }
+  #panel label.row input { accent-color:#6B5CE7; width:16px; height:16px; }
+  #panel .optgrp { display:none; }
+  #panel .optgrp.active { display:block; }
+  #panel .hint { font-size:11px; opacity:.5; line-height:1.5; margin-top:14px; }
+
+  /* ─── stage / phone ─────────────────────────────────────────────── */
+  #stageWrap { flex:1; display:grid; place-items:center; padding:28px; }
+  .phone { position:relative; width:412px; height:892px; border-radius:30px; overflow:hidden;
+           background:var(--bg); box-shadow:0 24px 60px rgba(40,28,90,.28); }
+  .bgcanvas { position:absolute; inset:0; z-index:0; }
+  .status { position:absolute; top:0; left:0; right:0; height:34px; display:flex; align-items:center;
+            justify-content:space-between; padding:0 18px 0 22px; font-size:13px; font-weight:500; z-index:3; color:var(--text); }
+  .content { position:absolute; top:46px; left:20px; right:20px; bottom:0; z-index:2;
+             display:flex; flex-direction:column; gap:16px; overflow:hidden; }
+  .screen { display:none; flex-direction:column; gap:16px; }
+  .screen.active { display:flex; }
+  .hidden { display:none !important; }
+
+  /* TopBar */
+  .top { display:flex; justify-content:space-between; align-items:flex-start; padding-top:4px; }
+  .greet { font-weight:300; font-size:33px; line-height:40px; letter-spacing:-.5px; flex:1; color:var(--text); }
+  .orbslot { flex:none; position:relative; }
+
+  /* hero / forecast */
+  .hero { border-radius:20px; padding:20px; color:#fff; display:flex; flex-direction:column; gap:12px;
+          background:linear-gradient(140deg,#6B5CE7,#8B7CF8); }
+  .hero .label { font-size:12px; font-weight:600; letter-spacing:.4px; color:rgba(255,255,255,.75); display:flex; justify-content:space-between; align-items:center; }
+  .hero .badge-ex { font-size:10px; font-weight:700; letter-spacing:.4px; background:rgba(255,255,255,.22); padding:3px 8px; border-radius:7px; }
+  .hero .text { font-size:16px; line-height:24px; }
+  .hero .why { font-size:14px; font-weight:600; color:rgba(255,255,255,.9); display:flex; gap:4px; align-items:center; cursor:pointer; }
+  .hero .whybody { font-size:14px; line-height:21px; color:rgba(255,255,255,.82); padding-top:2px; }
+  .hero .whybody .wl { font-size:12px; font-weight:600; letter-spacing:.3px; color:rgba(255,255,255,.6); display:block; margin-bottom:3px; }
+  .more { align-self:flex-start; border-radius:14px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.5);
+          padding:10px 16px; font-size:14px; font-weight:600; }
+  .loop { display:flex; align-items:center; gap:10px; padding-top:2px; flex-wrap:wrap; }
+  .loop .q { font-size:14px; font-weight:600; color:rgba(255,255,255,.92); }
+  .loop .pill2 { border:1px solid rgba(255,255,255,.55); border-radius:13px; padding:7px 14px; font-size:13px; font-weight:600; color:#fff; }
+  .loop .pill2.filled { background:rgba(255,255,255,.9); color:#5B4ED0; border-color:transparent; }
+
+  /* cta big (onboarding) */
+  .cta { border-radius:18px; background:linear-gradient(140deg,#6B5CE7,#8B7CF8); color:#fff; text-align:center;
+         padding:18px; font-size:16px; font-weight:700; }
+
+  /* stat tiles */
+  .stats { display:flex; gap:10px; }
+  .tile { flex:1; min-width:0; border-radius:16px; padding:14px 12px; display:flex; flex-direction:column; gap:2px;
+          background:color-mix(in srgb, var(--lvl) 11%, var(--surface)); box-shadow:var(--card-shadow); }
+  .tile .dot { width:8px; height:8px; border-radius:50%; background:var(--lvl); margin-bottom:4px; }
+  .tile .val { font-size:20px; line-height:26px; font-weight:700; color:var(--lvl); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .tile .lab { font-size:11px; font-weight:500; letter-spacing:.6px; color:var(--muted); white-space:nowrap; }
+
+  /* surface cards */
+  .card { border-radius:20px; background:var(--surface); padding:20px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--card-shadow); }
+  .row { display:flex; align-items:center; }
+  .title-s { font-size:14px; line-height:20px; font-weight:600; letter-spacing:.1px; flex:1; color:var(--text); }
+  .label-s { font-size:11px; font-weight:500; letter-spacing:.5px; color:var(--muted); }
+  .body-s { font-size:14px; line-height:21px; color:var(--muted); }
+  .hours { display:flex; }
+  .hours span { flex:1; font-size:11px; font-weight:500; color:var(--muted); text-align:center; }
+  .hours span:first-child { text-align:left; } .hours span:last-child { text-align:right; }
+  .pills { display:flex; gap:10px; }
+  .pill { flex:1; border-radius:14px; border:1px solid var(--primary); padding:11px 8px; text-align:center;
+          font-size:14px; font-weight:600; color:var(--primary); }
+  .pill.filled { background:var(--primary); color:#fff; }
+  body.dark .pill.filled { color:#1A1A2E; }
+
+  /* check-in */
+  .feels { display:flex; gap:10px; }
+  .feel { flex:1; border-radius:12px; background:var(--chip-bg); padding:14px 4px; display:flex; flex-direction:column;
+          align-items:center; gap:5px; border:1px solid transparent; }
+  .feel.sel { border-color:var(--primary); }
+  .feel .e { font-size:25px; } .feel .et { font-size:15px; font-weight:600; color:var(--text); }
+  .feel .l { font-size:11px; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--chip-br); background:var(--chip-bg); border-radius:12px; padding:8px 14px; font-size:13px; color:var(--text); }
+  .saved { font-size:12px; color:var(--good); } .saved b { color:var(--muted); font-weight:400; }
+
+  /* onboarding bits */
+  .obhead { text-align:center; display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:4px; }
+  .dots { display:flex; gap:7px; }
+  .dots i { width:7px; height:7px; border-radius:50%; background:var(--outline); }
+  .dots i.on { width:20px; border-radius:4px; background:var(--primary); }
+  .obh1 { font-size:27px; font-weight:700; letter-spacing:-.4px; color:var(--text); }
+  .obsub { font-size:16px; line-height:23px; color:var(--muted); max-width:320px; }
+  .spacer { flex:1; }
+</style>
+</head>
+<body>
+  <div id="panel">
+    <h1>Экраны · 1.0.0</h1>
+    <div class="sub">Воспроизведение, не эмулятор. Тумблеры — тема и опциональные плашки.</div>
+
+    <div class="lbl">Тема</div>
+    <div class="seg" id="theme"><button data-t="light" class="on">☀ Светлая</button><button data-t="dark">🌙 Тёмная</button></div>
+
+    <div class="lbl">Экран</div>
+    <div class="seg" id="screen"><button data-s="home" class="on">Главный</button><button data-s="onboarding">Онбординг</button><button data-s="questions">Вопросы</button></div>
+
+    <!-- HOME options -->
+    <div class="optgrp active" data-for="home">
+      <div class="lbl">Плашки — главный</div>
+      <label class="row"><input type="checkbox" data-o="name"> Имя в приветствии</label>
+      <label class="row"><input type="checkbox" data-o="loop" checked> Петля «Совпало с днём?»</label>
+      <label class="row"><input type="checkbox" data-o="why"> «Почему» раскрыто</label>
+      <label class="row"><input type="checkbox" data-o="midday" checked> «Как идёт день»</label>
+      <label class="row"><input type="checkbox" data-o="stats" checked> Плитки (экран/сон/разбл.)</label>
+      <label class="row"><input type="checkbox" data-o="timeline" checked> График «по часам»</label>
+      <label class="row"><input type="checkbox" data-o="checkin" checked> Чек-ин</label>
+      <label class="row"><input type="checkbox" data-o="chips"> Чек-ин: причины (ответ дан)</label>
+      <label class="row"><input type="checkbox" data-o="textfeel"> Чек-ин текстом (без эмодзи)</label>
+    </div>
+    <!-- ONBOARDING options -->
+    <div class="optgrp" data-for="onboarding">
+      <div class="lbl">Плашки — онбординг</div>
+      <label class="row"><input type="checkbox" data-o="ob_sub" checked> Подзаголовок</label>
+      <label class="row"><input type="checkbox" data-o="ob_card" checked> Карточка-пример</label>
+      <label class="row"><input type="checkbox" data-o="ob_sat" checked> Спутники у орба</label>
+    </div>
+    <!-- QUESTIONS options -->
+    <div class="optgrp" data-for="questions">
+      <div class="lbl">Плашки — вопросы</div>
+      <label class="row"><input type="checkbox" data-o="q_free"> Вопрос без вариантов (текст)</label>
+      <label class="row"><input type="checkbox" data-o="q_profile" checked> Карточка «Твой профиль»</label>
+      <label class="row"><input type="checkbox" data-o="q_orb" checked> Большой орб сверху</label>
+    </div>
+
+    <p class="hint">Фон внутри телефона — тот же живой волновой бэкдроп, что в приложении (в тёмной теме даёт фиолет/магенту). Орб анимирован.</p>
+  </div>
+
+  <div id="stageWrap">
+    <div class="phone">
+      <canvas class="bgcanvas" id="bgc"></canvas>
+      <div class="status"><span id="clock">13:21</span><span>▲ ▼ ⛰ 47%</span></div>
+      <div class="content">
+
+        <!-- ─── HOME ─── -->
+        <div class="screen active" id="s-home">
+          <div class="top">
+            <div class="greet" id="greet">Добрый день</div>
+            <div class="orbslot"><canvas id="orbHome" width="120" height="120" style="width:60px;height:60px;margin:-6px -8px 0 10px"></canvas></div>
+          </div>
+          <div class="hero">
+            <div class="label"><span>Прогноз на сегодня</span></div>
+            <div class="text">Твои дни обычно с экраном 3–4 часа, вчера был ближе к нижней границе. После таких ровных дней у тебя обычно спокойное утро и плавный переход к работе.</div>
+            <div class="why" id="whyToggle">Почему такой прогноз <span>▾</span></div>
+            <div class="whybody hidden" id="whyBody"><span class="wl">НА ЧЁМ ОСНОВАНО</span>Спокойный по экрану день — экран 1ч27м при обычных 3ч. Вечер без позднего телефона второй день подряд.</div>
+            <div class="more">Хочу ещё ✦</div>
+            <div class="loop" id="loop"><span class="q">Совпало с днём?</span><span class="pill2 filled">Совпало</span><span class="pill2">Не совсем</span></div>
+          </div>
+          <div class="card" id="midday">
+            <div class="title-s">Как идёт день</div>
+            <div class="body-s">Сегодня экран и разблокировки близки к средним значениям — день пока идёт ровно, без всплесков.</div>
+          </div>
+          <div class="stats" id="stats">
+            <div class="tile" style="--lvl:var(--good)"><div class="dot"></div><div class="val">1ч 27м</div><div class="lab">ЭКРАН</div></div>
+            <div class="tile" style="--lvl:var(--good)"><div class="dot"></div><div class="val">7ч 44м</div><div class="lab">БЕЗ ТЕЛЕФОНА</div></div>
+            <div class="tile" style="--lvl:var(--good)"><div class="dot"></div><div class="val">20</div><div class="lab">РАЗБЛОК.</div></div>
+          </div>
+          <div class="card" id="timeline">
+            <div class="row"><div class="title-s">Сегодня по часам</div><div class="label-s">экран, минут в час</div></div>
+            <canvas id="chart" width="332" height="64" style="width:100%;height:64px"></canvas>
+            <div class="hours"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+            <div class="pills"><div class="pill filled">Разбор вчера</div><div class="pill">Разбор сегодня</div></div>
+          </div>
+          <div class="card" id="checkin">
+            <div class="title-s" id="ciTitle">Как прошёл день?</div>
+            <div class="feels" id="feels"></div>
+            <div class="chips hidden" id="ciChips"></div>
+            <div class="saved hidden" id="ciSaved"><b>Сохранено ✓ · отметь, что повлияло, и карточка свернётся</b></div>
+          </div>
+        </div>
+
+        <!-- ─── ONBOARDING ─── -->
+        <div class="screen" id="s-onboarding">
+          <div class="spacer" style="max-height:30px"></div>
+          <div class="obhead">
+            <canvas id="orbOb" width="300" height="300" style="width:170px;height:170px"></canvas>
+            <div class="dots"><i></i><i class="on"></i><i></i><i></i><i></i></div>
+            <div class="obh1">Вот что приходит утром</div>
+            <div class="obsub" id="obSub">Через неделю приложение начнёт замечать то, что сам за собой не видишь.</div>
+          </div>
+          <div class="hero" id="obCard" style="margin-top:6px">
+            <div class="label"><span>Прогноз на сегодня</span><span class="badge-ex">пример</span></div>
+            <div class="text">Два вечера подряд экран гас за полночь — завтра, скорее всего, будет тяжелее, чем кажется с утра.</div>
+            <div class="whybody"><span class="wl">ПОЧЕМУ</span>Тяжесть дня на этой неделе решала не нагрузка и не день недели, а один рычаг — во сколько ночью гас экран.</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="cta">Хочу так же — дать доступ</div>
+          <div class="spacer" style="max-height:20px"></div>
+        </div>
+
+        <!-- ─── QUESTIONS ─── -->
+        <div class="screen" id="s-questions">
+          <div class="top">
+            <div class="greet" style="font-size:28px">Расскажи<br>о себе</div>
+            <div class="orbslot" id="qOrbSlot"><canvas id="orbQ" width="260" height="260" style="width:120px;height:120px;margin:-14px -20px 0 0"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="title-s" style="color:var(--primary)">Вопрос дня</div>
+            <div class="body-s" style="color:var(--text);font-size:16px;line-height:23px" id="qText">Где тебе обычно лучше работается?</div>
+            <div class="chips" id="qChips"></div>
+            <input id="qFree" class="hidden" placeholder="Написать…" style="border:1px solid var(--chip-br);background:var(--chip-bg);color:var(--text);border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit;outline:none">
+          </div>
+          <div class="card" id="qProfile">
+            <div class="title-s" style="color:var(--primary)">Твой профиль</div>
+            <div class="body-s">Ты работаешь из дома, активнее во второй половине дня, и телефон чаще берёшь по делу, чем от скуки. Вечер обычно спокойный, без позднего экрана.</div>
+            <div class="chips"><span class="chip" style="color:var(--primary);border-color:var(--primary)">Уточнить ✦</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+// ─── palette ─────────────────────────────────────────────────────────────────
+const LIGHT=[0x9B,0x8A,0xFF],MID=[0x6B,0x5C,0xE7],DEEP=[0x3A,0x2F,0x8A],SATC=['#B3A6FF','#6FA8FF','#4CC9B0'];
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+let DPR=Math.min(window.devicePixelRatio||1,2);
+
+// ─── reusable orb (faithful CompanionOrb.kt) ─────────────────────────────────
+function makeOrb(canvas,{diam,sat=false,badge=false}){
+  const ctx=canvas.getContext('2d'); const box=diam*1.7;
+  canvas.width=box*DPR; canvas.height=box*DPR; canvas.style.width=box/1.7*0+ (canvas.style.width||'');
+  // keep CSS size as set inline; just match internal res to it
+  const cssW=parseFloat(canvas.style.width), cssH=parseFloat(canvas.style.height);
+  canvas.width=cssW*DPR; canvas.height=cssH*DPR;
+  const R=diam/2;
+  function frame(now){
+    const t=now/1000; const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H);
+    ctx.save(); ctx.scale(DPR,DPR); const w=W/DPR,h=H/DPR,cx=w/2,cy=h/2;
+    const breathe=1+.02*(1+Math.sin(t*1.5)); const r=R*breathe;
+    const gp=1+.06*Math.sin(t*.9+1),gcy=cy+r*.25,gr=r*1.4*gp;
+    let g=ctx.createRadialGradient(cx,gcy,0,cx,gcy,gr); g.addColorStop(0,rgba(MID,.35)); g.addColorStop(1,rgba(MID,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,gcy,gr,0,7); ctx.fill();
+    ctx.beginPath();
+    for(let i=0;i<=72;i++){ const a=i/72*2*Math.PI;
+      const wob=1+.028*Math.sin(3*a+t*.8)+.018*Math.sin(5*a-t*1.1+1.7)+.010*Math.sin(2*a+t*.5);
+      const x=cx+Math.cos(a)*r*wob,y=cy+Math.sin(a)*r*wob; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath();
+    const hl=-2.25+.35*Math.sin(t*.45),hx=cx+Math.cos(hl)*r*.5,hy=cy+Math.sin(hl)*r*.5;
+    let b=ctx.createRadialGradient(hx,hy,0,hx,hy,r*1.75);
+    b.addColorStop(0,'rgba(255,255,255,.95)');b.addColorStop(.08,'rgba(255,255,255,.85)');
+    b.addColorStop(.30,rgba(LIGHT,1));b.addColorStop(.62,rgba(MID,1));b.addColorStop(1,rgba(DEEP,1));
+    ctx.fillStyle=b; ctx.fill();
+    const sw=t*.6,scx=cx+Math.cos(sw)*r*.35,scy=cy+Math.sin(sw)*r*.35;
+    let s=ctx.createRadialGradient(scx,scy,0,scx,scy,r*.7); s.addColorStop(0,rgba(LIGHT,.28)); s.addColorStop(1,rgba(LIGHT,0));
+    ctx.fillStyle=s; ctx.fill();
+    if(sat){ const per=[5,-7,6],orb=[1.30,1.40,1.22]; for(let i=0;i<3;i++){ const a=t/per[i]*2*Math.PI+i*2.1;
+      ctx.fillStyle=SATC[i]; ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r*orb[i],cy+Math.sin(a)*r*orb[i],r*.08,0,7); ctx.fill(); } }
+    if(badge){ const br=r*.22,bx=cx+r*.72,by=cy-r*.72; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(bx,by,br*1.25,0,7); ctx.fill();
+      ctx.fillStyle=rgba(MID,1); ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill(); }
+    ctx.restore(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ─── wave backdrop inside the phone (faithful Backdrop.kt) ───────────────────
+const bgc=document.getElementById('bgc'),bgx=bgc.getContext('2d');
+const PHW=412,PHH=892;
+const WAVES=8,BS=.12,SS=.048,BA=10,AS=9,YS=.108,PO=1.2,SEC=.45;
+const phases=Array.from({length:WAVES},(_,i)=>i*7.3); let last=performance.now();
+let yStart=.22, dark=false;
+function resizeBg(){ bgc.width=PHW*DPR; bgc.height=PHH*DPR; bgc.style.width=PHW+'px'; bgc.style.height=PHH+'px'; }
+resizeBg();
+function bgFrame(now){ const dt=(now-last)/1000; last=now;
+  bgx.clearRect(0,0,bgc.width,bgc.height); bgx.save(); bgx.scale(DPR,DPR);
+  for(let i=0;i<WAVES;i++){ phases[i]+=dt*(BS+i*SS);
+    const amp=BA+i*AS, yBase=PHH*(yStart+i*YS), ph=phases[i]+i*PO;
+    bgx.beginPath();
+    for(let x=0;x<=PHW+4;x+=4){ const y=yBase+Math.sin(x*.008+ph)*amp+Math.sin(x*.004+ph*.6)*amp*SEC; x?bgx.lineTo(x,y):bgx.moveTo(x,y);}
+    bgx.lineTo(PHW,PHH); bgx.lineTo(0,PHH); bgx.closePath();
+    const hue=((339-12*i)%360+360)%360, sat=62+2.5*i, light=(68-2*i)-(dark?12:0), al=dark?0.10:0.065;
+    bgx.fillStyle=`hsla(${hue},${sat}%,${light}%,${al})`; bgx.fill(); }
+  bgx.restore(); requestAnimationFrame(bgFrame);
+}
+requestAnimationFrame(bgFrame);
+
+// ─── build check-in + chart + chips ──────────────────────────────────────────
+const FEELS=[['😊','Отлично'],['😐','Нормально'],['😮‍💨','Тяжело']];
+const CAUSES=['Работа','Люди','Спорт','Сон','Дорога','Телефон'];
+function renderFeels(){
+  const text=opts.textfeel, chips=opts.chips, el=document.getElementById('feels');
+  document.getElementById('ciTitle').textContent = chips? 'Как прошёл день?' : 'Как прошёл день?';
+  el.innerHTML = FEELS.map((f,i)=>{
+    const sel = chips && i===2 ? ' sel':'';
+    const face = text? `<span class="et">${f[1]}</span>` : `<span class="e emoji">${f[0]}</span><span class="l">${f[1]}</span>`;
+    return `<div class="feel${sel}">${face}</div>`;
+  }).join('');
+  const chipsEl=document.getElementById('ciChips'), savedEl=document.getElementById('ciSaved');
+  chipsEl.classList.toggle('hidden',!chips); savedEl.classList.toggle('hidden',!chips);
+  if(chips) chipsEl.innerHTML = CAUSES.map(c=>`<span class="chip">${c}</span>`).join('');
+}
+function renderChart(){
+  const cv=document.getElementById('chart'); const ctx=cv.getContext('2d');
+  cv.width=332*DPR; cv.height=64*DPR; ctx.scale(DPR,DPR); ctx.clearRect(0,0,332,64);
+  const faint=getComputedStyle(document.body).getPropertyValue('--chip-bg')||'#EDE9FF';
+  const prim=getComputedStyle(document.body).getPropertyValue('--primary')||'#6B5CE7';
+  const data=[9,3,0,0,0,0,0,11,18,4,14,22,10,0,0,0,0,0,0,0,0,0,0,0]; const now=11;
+  const bw=332/24*0.86, gap=332/24;
+  data.forEach((v,h)=>{ const bh=Math.max(2, v/22*48); const x=h*gap+(gap-bw)/2, y=64-bh;
+    ctx.fillStyle = h===now? prim.trim() : faint.trim(); ctx.beginPath();
+    (ctx.roundRect?ctx.roundRect(x,y,bw,bh,3):ctx.rect(x,y,bw,bh)); ctx.fill(); });
+}
+function renderQChips(){
+  const free=opts.q_free; const el=document.getElementById('qChips'), inp=document.getElementById('qFree');
+  document.getElementById('qText').textContent = free? 'Как ты обычно чувствуешь себя к концу рабочего дня?' : 'Где тебе обычно лучше работается?';
+  el.classList.toggle('hidden',free); inp.classList.toggle('hidden',!free);
+  if(!free) el.innerHTML=['Дома','В офисе','Где придётся'].map(c=>`<span class="chip">${c}</span>`).join('');
+}
+
+// ─── state + toggles ──────────────────────────────────────────────────────────
+let theme='light', screen='home';
+const opts={ name:false,loop:true,why:false,midday:true,stats:true,timeline:true,checkin:true,chips:false,textfeel:false,
+             ob_sub:true,ob_card:true,ob_sat:true, q_free:false,q_profile:true,q_orb:true };
+function apply(){
+  document.body.classList.toggle('dark', theme==='dark'); dark=(theme==='dark');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id==='s-'+screen));
+  document.querySelectorAll('.optgrp').forEach(g=>g.classList.toggle('active', g.dataset.for===screen));
+  yStart = screen==='home'?.22 : screen==='questions'?.30 : .40;
+  // home
+  document.getElementById('greet').textContent = 'Добрый день' + (opts.name?', Вячеслав':'');
+  document.getElementById('loop').classList.toggle('hidden',!opts.loop);
+  document.getElementById('whyBody').classList.toggle('hidden',!opts.why);
+  document.getElementById('midday').classList.toggle('hidden',!opts.midday);
+  document.getElementById('stats').classList.toggle('hidden',!opts.stats);
+  document.getElementById('timeline').classList.toggle('hidden',!opts.timeline);
+  document.getElementById('checkin').classList.toggle('hidden',!opts.checkin);
+  renderFeels(); renderChart();
+  // onboarding
+  document.getElementById('obSub').classList.toggle('hidden',!opts.ob_sub);
+  document.getElementById('obCard').classList.toggle('hidden',!opts.ob_card);
+  // questions
+  document.getElementById('qProfile').classList.toggle('hidden',!opts.q_profile);
+  document.getElementById('qOrbSlot').classList.toggle('hidden',!opts.q_orb);
+  renderQChips();
+}
+document.getElementById('theme').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#theme button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); theme=b.dataset.t; apply(); });
+document.getElementById('screen').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#screen button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); screen=b.dataset.s; apply(); });
+document.querySelectorAll('#panel input[type=checkbox]').forEach(cb=>{
+  cb.checked=opts[cb.dataset.o]; cb.addEventListener('change',()=>{ opts[cb.dataset.o]=cb.checked;
+    // onboarding satellite toggle needs orb rebuild — simplest: reload orbs via flag
+    if(cb.dataset.o==='ob_sat') obSat=cb.checked; apply(); }); });
+
+// ─── init orbs ────────────────────────────────────────────────────────────────
+let obSat=opts.ob_sat;
+makeOrb(document.getElementById('orbHome'),{diam:44,badge:true});
+makeOrb(document.getElementById('orbQ'),{diam:96,sat:false});
+// onboarding orb: satellites follow a live flag
+(function(){ const cv=document.getElementById('orbOb'); const ctx=cv.getContext('2d');
+  const cssW=170,cssH=170; cv.width=cssW*DPR; cv.height=cssH*DPR; const R=74;
+  function fr(now){ const t=now/1000; const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H); ctx.save(); ctx.scale(DPR,DPR);
+    const w=W/DPR,h=H/DPR,cx=w/2,cy=h/2; const breathe=1+.02*(1+Math.sin(t*1.5)); const r=R*breathe;
+    const gp=1+.06*Math.sin(t*.9+1),gcy=cy+r*.25,gr=r*1.4*gp; let g=ctx.createRadialGradient(cx,gcy,0,cx,gcy,gr);
+    g.addColorStop(0,rgba(MID,.35)); g.addColorStop(1,rgba(MID,0)); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,gcy,gr,0,7); ctx.fill();
+    ctx.beginPath(); for(let i=0;i<=72;i++){ const a=i/72*2*Math.PI;
+      const wob=1+.028*Math.sin(3*a+t*.8)+.018*Math.sin(5*a-t*1.1+1.7)+.010*Math.sin(2*a+t*.5);
+      const x=cx+Math.cos(a)*r*wob,y=cy+Math.sin(a)*r*wob; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath();
+    const hl=-2.25+.35*Math.sin(t*.45),hx=cx+Math.cos(hl)*r*.5,hy=cy+Math.sin(hl)*r*.5;
+    let b=ctx.createRadialGradient(hx,hy,0,hx,hy,r*1.75); b.addColorStop(0,'rgba(255,255,255,.95)');
+    b.addColorStop(.08,'rgba(255,255,255,.85)'); b.addColorStop(.30,rgba(LIGHT,1)); b.addColorStop(.62,rgba(MID,1)); b.addColorStop(1,rgba(DEEP,1));
+    ctx.fillStyle=b; ctx.fill();
+    const sw=t*.6,scx=cx+Math.cos(sw)*r*.35,scy=cy+Math.sin(sw)*r*.35; let s=ctx.createRadialGradient(scx,scy,0,scx,scy,r*.7);
+    s.addColorStop(0,rgba(LIGHT,.28)); s.addColorStop(1,rgba(LIGHT,0)); ctx.fillStyle=s; ctx.fill();
+    if(obSat){ const per=[5,-7,6],orb=[1.30,1.40,1.22]; for(let i=0;i<3;i++){ const a=t/per[i]*2*Math.PI+i*2.1;
+      ctx.fillStyle=SATC[i]; ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r*orb[i],cy+Math.sin(a)*r*orb[i],r*.08,0,7); ctx.fill(); } }
+    ctx.restore(); requestAnimationFrame(fr); } requestAnimationFrame(fr); })();
+
+document.getElementById('whyToggle').onclick=()=>{ opts.why=!opts.why; document.querySelector('[data-o=why]').checked=opts.why; apply(); };
+apply();
+addEventListener('resize',()=>{ DPR=Math.min(window.devicePixelRatio||1,2); resizeBg(); renderChart(); });
+</script>
+</body>
+</html>
