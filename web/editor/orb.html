@@ -13,6 +13,11 @@
          background: var(--stage, #F7F6FF); transition: background .35s ease; }
   #bg   { position: fixed; inset: 0; z-index: 0; }        /* animated wave field */
   #stage{ position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; }
+  #bubble{ position: fixed; left: 50%; transform: translateX(-50%); max-width: 250px; padding: 11px 15px;
+           border-radius: 17px; background: #fff; color: #1A1525; font-size: 14px; line-height: 19px;
+           box-shadow: 0 6px 26px rgba(40,28,90,.2); text-align: center; z-index: 6; display: none; }
+  body.dark #bubble{ background: #1D1B2C; color: #E8E6F8; box-shadow: 0 6px 26px rgba(0,0,0,.5); }
+  #bubble.show{ display: block; }
   canvas { display: block; }
 
   #ui { position: fixed; top: 14px; left: 14px; z-index: 10;
@@ -42,6 +47,7 @@
 <body>
   <canvas id="bg"></canvas>
   <div id="stage"><canvas id="orb"></canvas></div>
+  <div id="bubble"></div>
 
   <button id="eye" title="Скрыть панель (H)">👁</button>
   <div id="ui">
@@ -54,6 +60,20 @@
         <button data-bg="white">Белый</button>
         <button data-bg="black">Чёрный</button>
       </div>
+    </div>
+    <div class="grp">
+      <span class="lbl">Состояние</span>
+      <div class="seg" id="stateseg">
+        <button data-st="purple" class="on">🟣 Фиолет</button>
+        <button data-st="green">🟢 Хорошо</button>
+        <button data-st="yellow">🟡 Средне</button>
+        <button data-st="red">🔴 Тяжело</button>
+      </div>
+    </div>
+    <div class="grp">
+      <span class="lbl">Реплика орба</span>
+      <input id="say" placeholder="Напиши, что говорит орб…" autocomplete="off"
+             style="width:100%;border:1px solid rgba(107,92,231,.4);background:transparent;color:inherit;border-radius:9px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none">
     </div>
     <div class="grp">
       <label class="row"><span class="lbl">Диаметр орба</span><span class="val" id="dval">340&nbsp;px</span></label>
@@ -72,10 +92,22 @@
   </div>
 
 <script>
-// ─── palette (CompanionOrb.kt, OrbMode.Calm / feel = null) ───────────────────
-const LIGHT=[0x9B,0x8A,0xFF], MID=[0x6B,0x5C,0xE7], DEEP=[0x3A,0x2F,0x8A];
+// ─── palettes (CompanionOrb.kt orbPalette, per DayFeel) ──────────────────────
+const PALETTES={
+  purple:{ l:[0x9B,0x8A,0xFF], m:[0x6B,0x5C,0xE7], d:[0x3A,0x2F,0x8A], acc:null },            // null / Calm
+  green :{ l:[0x7F,0xE0,0xB8], m:[0x2E,0x9E,0x6B], d:[0x1B,0x5E,0x44], acc:[0x2E,0xAA,0x6E] }, // OK
+  yellow:{ l:[0xFF,0xD0,0x8A], m:[0xE0,0x92,0x2A], d:[0x8A,0x4B,0x0B], acc:[0xE8,0x96,0x28] }, // MEH
+  red   :{ l:[0xF4,0xB3,0xC2], m:[0xC9,0x60,0x7A], d:[0x6E,0x2A,0x3E], acc:[0xD6,0x60,0x7A] }, // HARD
+};
+let LIGHT,MID,DEEP,ACCENT,TINT;
+function setState(k){ const p=PALETTES[k]; LIGHT=p.l; MID=p.m; DEEP=p.d; ACCENT=p.acc; TINT=p.acc?0.35:0; }
+setState('purple');
 const SAT=['#B3A6FF','#6FA8FF','#4CC9B0'];
 const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+function hslToRgb(h,s,l){ let r,g,b; if(s===0){ r=g=b=l; } else {
+  const h2=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+  const q=l<.5?l*(1+s):l+s-l*s, p=2*l-q; r=h2(p,q,h+1/3); g=h2(p,q,h); b=h2(p,q,h-1/3); }
+  return [Math.round(r*255),Math.round(g*255),Math.round(b*255)]; }
 const STAGE={ 'waves-light':'#F7F6FF', 'waves-dark':'#111019', 'white':'#FFFFFF', 'black':'#0B0B0F' };
 
 const S={ diam:340, speed:1, sat:false, badge:false, motion:true, bg:'waves-light', waves:[] };
@@ -139,8 +171,10 @@ const phases=Array.from({length:WAVES},(_,i)=>i*7.3); let lastW=performance.now(
 function resizeBg(){ bg.style.width=innerWidth+'px'; bg.style.height=innerHeight+'px';
   bg.width=innerWidth*DPR; bg.height=innerHeight*DPR; }
 resizeBg();
-function waveColor(i,dark){ const hue=((339-12*i)%360+360)%360, sat=62+2.5*i, light=(68-2*i)-(dark?12:0);
-  return `hsla(${hue},${sat}%,${light}%,ALPHA)`.replace('ALPHA', dark?0.10:0.065); }
+function waveColor(i,dark){ const hue=((339-12*i)%360+360)%360, sat=(62+2.5*i)/100, light=((68-2*i)-(dark?12:0))/100;
+  let rgb=hslToRgb(((hue%360)+360)%360/360, sat, light);
+  if(TINT>0&&ACCENT) rgb=rgb.map((v,j)=>Math.round(v+(ACCENT[j]-v)*TINT));   // feel.accent() tint, Backdrop.kt
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${dark?0.10:0.065})`; }
 function bgFrame(now){
   const dt=S.motion?(now-lastW)/1000:0; lastW=now;
   const showWaves=S.bg.startsWith('waves'); const dark=(S.bg==='waves-dark');
@@ -165,8 +199,15 @@ function applyBg(mode){ S.bg=mode; document.body.style.setProperty('--stage',STA
 applyBg('waves-light');
 document.getElementById('bgseg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
   document.querySelectorAll('#bgseg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); applyBg(b.dataset.bg); });
+document.getElementById('stateseg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#stateseg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setState(b.dataset.st); });
+// orb speech bubble (OrbBubble): type to show it above the orb
+const bubble=document.getElementById('bubble'), say=document.getElementById('say');
+function updateBubble(){ const t=say.value.trim(); bubble.textContent=t; bubble.classList.toggle('show',!!t);
+  bubble.style.bottom=(innerHeight/2 + S.diam/2 + 14)+'px'; }
+say.addEventListener('input',updateBubble);
 const diam=document.getElementById('diam'),dval=document.getElementById('dval');
-diam.oninput=()=>{ S.diam=+diam.value; dval.innerHTML=S.diam+'&nbsp;px'; resizeOrb(); };
+diam.oninput=()=>{ S.diam=+diam.value; dval.innerHTML=S.diam+'&nbsp;px'; resizeOrb(); updateBubble(); };
 const speed=document.getElementById('speed'),sval=document.getElementById('sval');
 speed.oninput=()=>{ S.speed=+speed.value; sval.textContent=S.speed.toFixed(1)+'×'; };
 document.getElementById('sat').onchange=e=>S.sat=e.target.checked;
@@ -176,7 +217,7 @@ document.getElementById('stage').addEventListener('pointerdown',()=>S.waves.push
 const ui=document.getElementById('ui'); const toggleUI=()=>ui.classList.toggle('hidden');
 document.getElementById('eye').onclick=toggleUI;
 addEventListener('keydown',e=>{ if(e.key==='h'||e.key==='H') toggleUI(); });
-addEventListener('resize',()=>{ DPR=Math.min(window.devicePixelRatio||1,2); resizeOrb(); resizeBg(); });
+addEventListener('resize',()=>{ DPR=Math.min(window.devicePixelRatio||1,2); resizeOrb(); resizeBg(); updateBubble(); });
 </script>
 </body>
 </html>
