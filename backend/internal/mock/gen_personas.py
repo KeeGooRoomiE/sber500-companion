@@ -50,12 +50,33 @@ def screen_hourly(total, unl):
     return out
 
 def day(offset, *, screen, unlocks, first, last, apps, sleep=None, bed=None, wake=None,
-        steps=None, feel=None, tags=None, weights=None, note=None, step_weights=None):
-    u = hourly(unlocks, first, last, weights)
+        steps=None, feel=None, tags=None, weights=None, note=None, step_weights=None,
+        h_unlocks=None, h_screen=None):
+    """A day. Pass h_unlocks / h_screen to author the shape of the day by hand.
+
+    The derived spread is smooth by construction: it fills every hour between first and last
+    unlock. That is fine for signals about volume, but it can never express a gap — and the
+    behavioural signals (false start, no break, a long evening sitting) are entirely about
+    gaps and runs. Those personas author the arrays; screen_min and unlocks are then taken
+    from the arrays so the totals cannot drift apart from the shape.
+    """
+    if h_unlocks is not None:
+        assert len(h_unlocks) == 24, f"h_unlocks must be 24 values, got {len(h_unlocks)}"
+        u = list(h_unlocks)
+        unlocks = sum(u)
+    else:
+        u = hourly(unlocks, first, last, weights)
+    if h_screen is not None:
+        assert len(h_screen) == 24, f"h_screen must be 24 values, got {len(h_screen)}"
+        assert max(h_screen) <= 60, "an hour cannot hold more than 60 minutes of screen"
+        hs = list(h_screen)
+        screen = sum(hs)
+    else:
+        hs = screen_hourly(screen, u)
     d = {"offset": offset, "screen_min": screen, "unlocks": unlocks,
          "first_unlock": first, "last_unlock": last,
          "top_apps": [{"package": p, "minutes": m} for p, m in apps],
-         "hourly_unlocks": u, "hourly_screen": screen_hourly(screen, u)}
+         "hourly_unlocks": u, "hourly_screen": hs}
     if sleep is not None: d["sleep_min"] = sleep
     if bed: d["bedtime"] = bed
     if wake: d["wakeup"] = wake
@@ -166,6 +187,122 @@ d = [
 ]
 personas.append({"id": "mock_newbie", "title": "День 0: только установил, два дня истории, без чек-инов",
     "profile": {}, "days": d})
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Personas for the planned behavioural signals (SIGNALS.md, «В планах»).
+# These author hourly_screen / hourly_unlocks by hand: their point is the SHAPE of the day,
+# which the derived spread cannot produce. Appended after the originals so the random
+# sequence above — and therefore the first six personas — stays byte-identical.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def flat(pairs, length=24):
+    """Build a 24-hour array from {hour: value}."""
+    a = [0] * length
+    for h, v in pairs.items():
+        a[h] = v
+    return a
+
+# 7. False start: woke at the usual hour, looked at the phone for five minutes, fell asleep
+#    again, and the day really began at 08:30. Targets: false_start, late_start, day_span.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=185 + random.randint(-15, 15), unlocks=52 + random.randint(-5, 5),
+        first="06:55", last="23:05",
+        apps=[("org.telegram.messenger", 55), ("com.instagram.android", 40), ("ru.sberbankmobile", 10)],
+        feel=random.choice(["ok", "ok", "meh"])))
+d.append(day(-1,
+    screen=0, unlocks=0,  # taken from the authored arrays below
+    first="06:05", last="23:20",
+    apps=[("org.telegram.messenger", 60), ("com.instagram.android", 55), ("com.google.android.youtube", 25)],
+    # 06:00 — a short burst; 07:00 — nothing at all (this empty hour is the signal);
+    # the real day starts at 08:30.
+    h_unlocks=flat({6: 2, 8: 4, 9: 6, 10: 5, 11: 5, 12: 6, 13: 4, 14: 5, 15: 5,
+                    16: 6, 17: 5, 18: 4, 19: 5, 20: 6, 21: 7, 22: 6, 23: 3}),
+    h_screen=flat({6: 5, 8: 12, 9: 14, 10: 11, 11: 12, 12: 15, 13: 9, 14: 12, 15: 11,
+                   16: 13, 17: 12, 18: 10, 19: 14, 20: 16, 21: 18, 22: 15, 23: 6}),
+    feel="meh", tags=["Сон"],
+    note="Проснулся в шесть, минут пять в телефоне, уснул обратно; встал в полдевятого, день скомкался"))
+personas.append({"id": "mock_falsestart", "title": "Ложное пробуждение: глянул телефон в 6, уснул снова, день начался в 8:30",
+    "profile": {"work_place": "Из дома", "goal": "Лучше спать", "wearable": "Нет", "tone": "Спокойно"},
+    "days": d})
+
+# 8. Checker: the same screen total as usual spread over twice the unlocks — the average
+#    session halves. Also never puts the phone down during the work day.
+#    Targets: checking_day, no_break. Contrast for jumpy, which sees only the counter.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=150 + random.randint(-12, 12), unlocks=48 + random.randint(-4, 4),
+        first="08:00", last="22:40",
+        apps=[("org.telegram.messenger", 45), ("com.vk.vkcompose", 30), ("ru.yandex.mail", 20)],
+        feel=random.choice(["ok", "meh"])))
+d.append(day(-1, screen=0, unlocks=0, first="08:05", last="22:50",
+    apps=[("org.telegram.messenger", 50), ("com.vk.vkcompose", 35), ("ru.yandex.mail", 30), ("com.slack", 20)],
+    # ~160 minutes over ~105 unlocks: about a minute and a half per session, against three
+    # on a normal day. Every work hour has something — no break anywhere.
+    h_unlocks=flat({8: 6, 9: 9, 10: 10, 11: 9, 12: 8, 13: 7, 14: 9, 15: 10, 16: 9,
+                    17: 8, 18: 6, 19: 5, 20: 4, 21: 3, 22: 2}),
+    h_screen=flat({8: 9, 9: 13, 10: 14, 11: 13, 12: 11, 13: 10, 14: 13, 15: 14, 16: 13,
+                   17: 11, 18: 9, 19: 8, 20: 7, 21: 5, 22: 3}),
+    feel="hard", tags=["Работа"],
+    note="Весь день дёргали в чатах, телефон не выпускал из рук, но ничего толком не сделал"))
+personas.append({"id": "mock_checker", "title": "Проверяющий: экрана столько же, но заглядываний вдвое больше",
+    "profile": {"work_place": "В офисе", "triggers": "Работа и звонки", "tone": "Коротко и по делу"},
+    "days": d})
+
+# 9. The opposite: few unlocks, long sittings. The person does not lock the screen — a low
+#    unlock count that looks calm by today's signals but is four hours in one app.
+#    Targets: immersed_day, long_stretch, evening_gap (absent here on purpose).
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=175 + random.randint(-15, 15), unlocks=40 + random.randint(-4, 4),
+        first="09:00", last="23:30",
+        apps=[("com.google.android.youtube", 60), ("org.telegram.messenger", 45), ("com.instagram.android", 30)],
+        feel=random.choice(["ok", "meh"])))
+d.append(day(-1, screen=0, unlocks=0, first="09:20", last="01:10",
+    apps=[("com.google.android.youtube", 210), ("org.telegram.messenger", 30), ("com.instagram.android", 20)],
+    # ~300 minutes over 17 unlocks: about eighteen minutes per session. The evening is one
+    # unbroken block from 20:00 to 01:00 — the shape today's signals cannot see.
+    h_unlocks=flat({9: 2, 10: 1, 12: 2, 14: 1, 16: 2, 18: 2, 20: 2, 21: 1, 22: 1, 23: 1, 0: 1, 1: 1}),
+    h_screen=flat({9: 12, 10: 8, 12: 14, 14: 6, 16: 10, 18: 15,
+                   20: 48, 21: 58, 22: 60, 23: 55, 0: 45, 1: 15}),
+    feel="meh",
+    note="Включил сериал в восемь вечера и не заметил, как настало два; экран не гас, телефон почти не разблокировал"))
+personas.append({"id": "mock_immersed", "title": "Долгие посадки: 17 разблокировок и пять часов экрана подряд вечером",
+    "profile": {"work_place": "Из дома", "bedtime": "После полуночи", "goal": "Меньше телефона", "wearable": "Нет"},
+    "days": d})
+
+# 10 and 11. The same quiet phone day, two opposite reasons — the ambiguity from the research
+#     doc that screen alone cannot resolve and steps can. Deliberately a pair: if a signal
+#     tells these two apart it works, if it says the same thing about both it does not.
+def quiet_day_persona(pid, title, steps_yesterday, step_weights, note, tags, profile):
+    d = []
+    for off in range(-7, -1):
+        d.append(day(off, screen=200 + random.randint(-18, 18), unlocks=58 + random.randint(-5, 5),
+            first="08:20", last="23:10",
+            apps=[("org.telegram.messenger", 60), ("com.google.android.youtube", 45), ("com.instagram.android", 35)],
+            steps=6200 + random.randint(-700, 700), feel=random.choice(["ok", "meh"])))
+    d.append(day(-1, screen=0, unlocks=0, first="09:40", last="22:15",
+        apps=[("org.telegram.messenger", 25), ("ru.yandex.yandexmaps", 12), ("com.spotify.music", 10)],
+        steps=steps_yesterday, step_weights=step_weights, feel="ok", tags=tags,
+        # Little screen either way: a few short check-ins and nothing in the middle of the day.
+        h_unlocks=flat({9: 3, 10: 2, 13: 2, 15: 1, 18: 2, 20: 3, 21: 3, 22: 2}),
+        h_screen=flat({9: 8, 10: 5, 13: 7, 15: 3, 18: 6, 20: 9, 21: 10, 22: 4}),
+        note=note))
+    personas.append({"id": pid, "title": title, "profile": profile, "days": d})
+
+quiet_day_persona(
+    "mock_awayday", "Выходной на ногах: мало экрана, 14 тысяч шагов",
+    14200, {10: 6, 11: 8, 12: 6, 15: 4, 16: 5},
+    "Весь день гулял, телефон доставал пару раз — посмотреть карту и включить музыку",
+    ["Прогулка"],
+    {"work_place": "По-разному", "wearable": "Да, каждый день", "goal": "Больше двигаться"})
+
+quiet_day_persona(
+    "mock_deskday", "Выходной за компьютером: мало экрана, 900 шагов",
+    900, {10: 0.01, 11: 0.01, 12: 0.01, 15: 0.01, 16: 0.01, 18: 2},
+    "Весь день просидел за компьютером, телефон не трогал — но и из дома не выходил",
+    None,
+    {"work_place": "Из дома", "wearable": "Да, каждый день", "goal": "Больше двигаться"})
 
 # Compact output: number arrays and apps on one line each
 s = json.dumps(personas, ensure_ascii=False, indent=2)
