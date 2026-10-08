@@ -1447,5 +1447,1060 @@
         "note": "Весь день просидел за компьютером, телефон не трогал — но и из дома не выходил"
       }
     ]
+  },
+  {
+    "id": "mock_nightchecks",
+    "title": "Ночные проверки: просыпался в 2 и в 4, брал телефон",
+    "profile": {
+      "work_place": "В офисе",
+      "goal": "Лучше спать",
+      "wearable": "Нет",
+      "tone": "Мягко, с поддержкой"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 195,
+        "unlocks": 57,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "feel": "meh"
+      },
+      {
+        "offset": -6,
+        "screen_min": 203,
+        "unlocks": 60,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 13, 13, 13, 10, 10, 10, 10, 10, 10, 10, 10],
+        "feel": "ok"
+      },
+      {
+        "offset": -5,
+        "screen_min": 195,
+        "unlocks": 54,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 10],
+        "feel": "meh"
+      },
+      {
+        "offset": -4,
+        "screen_min": 201,
+        "unlocks": 53,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "feel": "ok"
+      },
+      {
+        "offset": -3,
+        "screen_min": 201,
+        "unlocks": 51,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11],
+        "feel": "meh"
+      },
+      {
+        "offset": -2,
+        "screen_min": 181,
+        "unlocks": 59,
+        "first_unlock": "07:30",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.yandex.mail", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 12, 12, 12, 12, 9, 9, 9, 9, 9, 9, 9, 9, 9],
+        "feel": "meh"
+      },
+      {
+        "offset": -1,
+        "screen_min": 184,
+        "unlocks": 75,
+        "first_unlock": "02:10",
+        "last_unlock": "23:15",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 45},
+          {"package": "com.google.android.youtube", "minutes": 20}
+        ],
+        "hourly_unlocks": [0, 0, 2, 0, 2, 0, 0, 4, 5, 5, 4, 5, 5, 4, 5, 4, 5, 4, 4, 5, 5, 4, 3, 0],
+        "hourly_screen": [0, 0, 4, 0, 6, 0, 0, 10, 13, 12, 10, 12, 13, 9, 12, 10, 12, 10, 9, 12, 13, 11, 6, 0],
+        "feel": "hard",
+        "tags": [
+          "Сон"
+        ],
+        "note": "Просыпался ночью дважды, оба раза брал телефон; утром как будто не спал"
+      }
+    ]
+  },
+  {
+    "id": "mock_dayshift",
+    "title": "Сдвинутый день: обычно пик в полдень, вчера всё ушло в вечер",
+    "profile": {
+      "work_place": "Из дома",
+      "bedtime": "После полуночи",
+      "tone": "Спокойно"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 224,
+        "unlocks": 62,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 7, 7, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 18, 25, 25, 18, 18, 11, 11, 11, 11, 11, 11, 11, 10, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -6,
+        "screen_min": 205,
+        "unlocks": 62,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 7, 7, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 17, 23, 23, 16, 16, 10, 10, 10, 10, 10, 10, 10, 10, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -5,
+        "screen_min": 217,
+        "unlocks": 58,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 6, 6, 5, 5, 3, 3, 3, 3, 3, 3, 2, 2, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 19, 23, 22, 19, 19, 11, 11, 11, 11, 11, 11, 8, 8, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -4,
+        "screen_min": 204,
+        "unlocks": 56,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 6, 6, 5, 5, 3, 3, 3, 3, 2, 2, 2, 2, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 18, 22, 22, 18, 18, 11, 11, 11, 11, 8, 7, 7, 7, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -3,
+        "screen_min": 222,
+        "unlocks": 57,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 6, 6, 5, 5, 3, 3, 3, 3, 3, 2, 2, 2, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 19, 23, 23, 19, 19, 12, 12, 12, 12, 11, 8, 8, 8, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -2,
+        "screen_min": 206,
+        "unlocks": 62,
+        "first_unlock": "07:40",
+        "last_unlock": "22:50",
+        "top_apps": [
+          {"package": "com.bitrix24.android", "minutes": 60},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 5, 7, 7, 5, 5, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 17, 23, 23, 17, 16, 10, 10, 10, 10, 10, 10, 10, 10, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -1,
+        "screen_min": 203,
+        "unlocks": 68,
+        "first_unlock": "11:30",
+        "last_unlock": "00:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 70},
+          {"package": "com.google.android.youtube", "minutes": 60},
+          {"package": "com.bitrix24.android", "minutes": 40}
+        ],
+        "hourly_unlocks": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 3, 2, 3, 3, 4, 5, 8, 9, 9, 8, 6],
+        "hourly_screen": [10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 8, 7, 5, 8, 7, 10, 14, 24, 28, 30, 26, 20],
+        "feel": "meh",
+        "note": "Проспал, раскачался только к вечеру — и всё навалилось после девяти"
+      }
+    ]
+  },
+  {
+    "id": "mock_steady",
+    "title": "Ровный ритм: подъём в одно и то же время всю неделю",
+    "profile": {
+      "work_place": "В офисе",
+      "goal": "Лучше спать",
+      "wearable": "Да, каждый день"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 198,
+        "unlocks": 54,
+        "first_unlock": "07:05",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "steps": 6423,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 299, 747, 448, 299, 299, 299, 448, 299, 299, 299, 299, 747, 448, 299, 298, 298, 298],
+        "feel": "ok"
+      },
+      {
+        "offset": -6,
+        "screen_min": 207,
+        "unlocks": 55,
+        "first_unlock": "07:00",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 15, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "steps": 5542,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 258, 644, 386, 258, 258, 258, 386, 258, 258, 258, 258, 644, 386, 258, 258, 258, 258],
+        "feel": "ok"
+      },
+      {
+        "offset": -5,
+        "screen_min": 205,
+        "unlocks": 53,
+        "first_unlock": "07:10",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11],
+        "steps": 6426,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 299, 747, 448, 299, 299, 299, 448, 299, 299, 299, 299, 747, 448, 299, 299, 299, 299],
+        "feel": "meh"
+      },
+      {
+        "offset": -4,
+        "screen_min": 197,
+        "unlocks": 52,
+        "first_unlock": "07:05",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "steps": 6382,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 297, 742, 445, 297, 297, 297, 445, 297, 297, 297, 297, 742, 445, 297, 297, 297, 296],
+        "feel": "meh"
+      },
+      {
+        "offset": -3,
+        "screen_min": 189,
+        "unlocks": 58,
+        "first_unlock": "06:58",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 9],
+        "steps": 5640,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 251, 251, 626, 376, 251, 251, 251, 376, 251, 251, 251, 251, 626, 376, 251, 250, 250, 250],
+        "feel": "meh"
+      },
+      {
+        "offset": -2,
+        "screen_min": 183,
+        "unlocks": 60,
+        "first_unlock": "07:08",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 13, 13, 13, 12, 12, 12, 12, 12, 12, 9, 9, 9, 9, 9, 9, 9, 9],
+        "steps": 6581,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 306, 766, 459, 306, 306, 306, 459, 306, 306, 306, 306, 766, 459, 306, 306, 306, 306],
+        "feel": "ok"
+      },
+      {
+        "offset": -1,
+        "screen_min": 192,
+        "unlocks": 57,
+        "first_unlock": "07:02",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 13, 13, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "steps": 5653,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 263, 657, 395, 263, 263, 263, 394, 263, 263, 263, 263, 657, 394, 263, 263, 263, 263],
+        "feel": "ok",
+        "note": "Неделя без сбоев, вставал в одно время даже в выходные"
+      }
+    ]
+  },
+  {
+    "id": "mock_jitter",
+    "title": "Рваный ритм: подъём гуляет на четыре часа",
+    "profile": {
+      "work_place": "По-разному",
+      "bedtime": "По-разному",
+      "goal": "Лучше спать"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 185,
+        "unlocks": 55,
+        "first_unlock": "06:40",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 14, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "steps": 5635,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 251, 251, 626, 376, 251, 251, 251, 376, 250, 250, 250, 250, 626, 376, 250, 250, 250, 250],
+        "feel": "ok"
+      },
+      {
+        "offset": -6,
+        "screen_min": 188,
+        "unlocks": 58,
+        "first_unlock": "10:20",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13],
+        "steps": 5909,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 358, 358, 358, 538, 358, 358, 358, 358, 896, 537, 358, 358, 358, 358],
+        "feel": "meh"
+      },
+      {
+        "offset": -5,
+        "screen_min": 187,
+        "unlocks": 55,
+        "first_unlock": "07:15",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "steps": 6045,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 282, 703, 422, 281, 281, 281, 422, 281, 281, 281, 281, 703, 422, 281, 281, 281, 281],
+        "feel": "ok"
+      },
+      {
+        "offset": -4,
+        "screen_min": 192,
+        "unlocks": 58,
+        "first_unlock": "11:40",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 17, 17, 17, 17, 16, 13, 13, 13, 13, 13, 13, 13],
+        "steps": 6414,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 414, 414, 620, 414, 414, 414, 414, 1034, 620, 414, 414, 414, 414],
+        "feel": "ok"
+      },
+      {
+        "offset": -3,
+        "screen_min": 196,
+        "unlocks": 53,
+        "first_unlock": "06:55",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 8],
+        "steps": 6491,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 289, 289, 721, 433, 289, 289, 289, 433, 289, 288, 288, 288, 721, 433, 288, 288, 288, 288],
+        "feel": "ok"
+      },
+      {
+        "offset": -2,
+        "screen_min": 183,
+        "unlocks": 53,
+        "first_unlock": "12:10",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 17, 17, 17, 17, 14, 14, 14, 14, 14, 14, 14],
+        "steps": 6325,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 436, 655, 436, 436, 436, 436, 1091, 655, 436, 436, 436, 436],
+        "feel": "meh"
+      },
+      {
+        "offset": -1,
+        "screen_min": 192,
+        "unlocks": 53,
+        "first_unlock": "08:30",
+        "last_unlock": "23:05",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 40},
+          {"package": "ru.sberbankmobile", "minutes": 12}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 15, 14, 14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "steps": 6292,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 767, 461, 307, 307, 307, 460, 307, 307, 307, 307, 767, 460, 307, 307, 307, 307],
+        "feel": "meh",
+        "note": "Неделя вразнос: то в шесть, то к полудню — режима нет"
+      }
+    ]
+  },
+  {
+    "id": "mock_drift",
+    "title": "Сползание: отбой каждый вечер позже, но полночь ни разу не перейдена",
+    "profile": {
+      "work_place": "Из дома",
+      "goal": "Лучше спать",
+      "wearable": "Да, каждый день"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 211,
+        "unlocks": 58,
+        "first_unlock": "07:20",
+        "last_unlock": "22:10",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 11, 11, 11, 11, 11, 11, 0],
+        "sleep_min": 430,
+        "bedtime": "22:10",
+        "wakeup": "07:10",
+        "steps": 5727,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 280, 699, 419, 280, 280, 279, 419, 279, 279, 279, 279, 699, 419, 279, 279, 279, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -6,
+        "screen_min": 195,
+        "unlocks": 57,
+        "first_unlock": "07:20",
+        "last_unlock": "22:35",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 13, 10, 10, 10, 10, 10, 10, 10, 0],
+        "sleep_min": 418,
+        "bedtime": "22:35",
+        "wakeup": "07:10",
+        "steps": 6266,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 306, 764, 458, 306, 306, 306, 458, 306, 306, 306, 306, 764, 458, 306, 305, 305, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -5,
+        "screen_min": 211,
+        "unlocks": 54,
+        "first_unlock": "07:20",
+        "last_unlock": "22:55",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 16, 15, 15, 15, 15, 15, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0],
+        "sleep_min": 406,
+        "bedtime": "22:55",
+        "wakeup": "07:10",
+        "steps": 5321,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 260, 649, 389, 260, 260, 260, 389, 260, 260, 260, 259, 649, 389, 259, 259, 259, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -4,
+        "screen_min": 190,
+        "unlocks": 56,
+        "first_unlock": "07:20",
+        "last_unlock": "23:20",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "sleep_min": 394,
+        "bedtime": "23:20",
+        "wakeup": "07:10",
+        "steps": 6159,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 287, 716, 430, 287, 287, 287, 430, 287, 286, 286, 286, 716, 430, 286, 286, 286, 286],
+        "feel": "ok"
+      },
+      {
+        "offset": -3,
+        "screen_min": 198,
+        "unlocks": 55,
+        "first_unlock": "07:20",
+        "last_unlock": "23:40",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 10],
+        "sleep_min": 382,
+        "bedtime": "23:40",
+        "wakeup": "07:10",
+        "steps": 5577,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 260, 649, 389, 260, 260, 260, 389, 259, 259, 259, 259, 649, 389, 259, 259, 259, 259],
+        "feel": "meh"
+      },
+      {
+        "offset": -2,
+        "screen_min": 210,
+        "unlocks": 61,
+        "first_unlock": "07:20",
+        "last_unlock": "23:52",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 10, 10, 10, 10, 10, 10, 10],
+        "sleep_min": 370,
+        "bedtime": "23:52",
+        "wakeup": "07:10",
+        "steps": 5903,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 275, 686, 412, 275, 275, 275, 412, 275, 275, 275, 274, 686, 412, 274, 274, 274, 274],
+        "feel": "ok"
+      },
+      {
+        "offset": -1,
+        "screen_min": 200,
+        "unlocks": 53,
+        "first_unlock": "07:20",
+        "last_unlock": "23:58",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 55},
+          {"package": "org.telegram.messenger", "minutes": 45},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "sleep_min": 358,
+        "bedtime": "23:58",
+        "wakeup": "07:10",
+        "steps": 5645,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 263, 656, 394, 263, 263, 263, 394, 263, 263, 263, 262, 656, 394, 262, 262, 262, 262],
+        "feel": "meh",
+        "note": "Каждый вечер ложусь чуть позже предыдущего, но до полуночи — вроде нормально"
+      }
+    ]
+  },
+  {
+    "id": "mock_newapp",
+    "title": "Новое приложение: два часа в маркетплейсе, которого обычно нет в топе",
+    "profile": {
+      "work_place": "В офисе",
+      "tone": "Коротко и по делу"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 177,
+        "unlocks": 52,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "steps": 6008,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 733, 440, 293, 293, 293, 440, 293, 293, 293, 293, 733, 439, 293, 293, 293, 293],
+        "feel": "meh"
+      },
+      {
+        "offset": -6,
+        "screen_min": 189,
+        "unlocks": 51,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+        "steps": 6005,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 732, 440, 293, 293, 293, 439, 293, 293, 293, 293, 732, 439, 293, 293, 293, 293],
+        "feel": "ok"
+      },
+      {
+        "offset": -5,
+        "screen_min": 175,
+        "unlocks": 52,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 13, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "steps": 5042,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 615, 369, 246, 246, 246, 369, 246, 246, 246, 246, 614, 369, 246, 246, 246, 246],
+        "feel": "meh"
+      },
+      {
+        "offset": -4,
+        "screen_min": 187,
+        "unlocks": 59,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 9, 9, 9, 9, 9],
+        "steps": 5134,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 626, 376, 251, 251, 251, 376, 251, 250, 250, 250, 626, 376, 250, 250, 250, 250],
+        "feel": "meh"
+      },
+      {
+        "offset": -3,
+        "screen_min": 201,
+        "unlocks": 50,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 17, 16, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+        "steps": 5910,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 721, 433, 289, 288, 288, 433, 288, 288, 288, 288, 721, 433, 288, 288, 288, 288],
+        "feel": "ok"
+      },
+      {
+        "offset": -2,
+        "screen_min": 180,
+        "unlocks": 50,
+        "first_unlock": "08:00",
+        "last_unlock": "23:00",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 60},
+          {"package": "ru.yandex.mail", "minutes": 35},
+          {"package": "ru.sberbankmobile", "minutes": 15}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 10, 10],
+        "steps": 5183,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 632, 379, 253, 253, 253, 379, 253, 253, 253, 253, 632, 379, 253, 253, 253, 252],
+        "feel": "ok"
+      },
+      {
+        "offset": -1,
+        "screen_min": 265,
+        "unlocks": 62,
+        "first_unlock": "08:10",
+        "last_unlock": "23:30",
+        "top_apps": [
+          {"package": "ru.wildberries.ru", "minutes": 140},
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "ru.yandex.mail", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 18, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 13],
+        "steps": 5300,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 646, 388, 259, 259, 259, 388, 259, 259, 259, 258, 646, 388, 258, 258, 258, 258],
+        "feel": "ok",
+        "note": "Залип в маркетплейсе на два часа — обычно его вообще не открываю"
+      }
+    ]
+  },
+  {
+    "id": "mock_commute",
+    "title": "Дорога: много экрана и 15 тысяч шагов одновременно",
+    "profile": {
+      "work_place": "По-разному",
+      "wearable": "Да, каждый день",
+      "tone": "Спокойно"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 175,
+        "unlocks": 48,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 15, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+        "steps": 5537,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 710, 426, 284, 284, 284, 426, 284, 284, 284, 284, 709, 426, 284, 284, 284, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -6,
+        "screen_min": 184,
+        "unlocks": 55,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 10, 10, 10, 10, 10, 0],
+        "steps": 4838,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 621, 372, 248, 248, 248, 372, 248, 248, 248, 248, 621, 372, 248, 248, 248, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -5,
+        "screen_min": 179,
+        "unlocks": 46,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 15, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 0],
+        "steps": 4887,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 626, 376, 251, 251, 251, 376, 251, 251, 251, 251, 626, 376, 250, 250, 250, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -4,
+        "screen_min": 177,
+        "unlocks": 51,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 11, 11, 11, 10, 10, 10, 10, 10, 10, 0],
+        "steps": 5009,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 642, 385, 257, 257, 257, 385, 257, 257, 257, 257, 642, 385, 257, 257, 257, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -3,
+        "screen_min": 182,
+        "unlocks": 50,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+        "steps": 4474,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 574, 344, 230, 230, 230, 344, 230, 229, 229, 229, 574, 344, 229, 229, 229, 0],
+        "feel": "ok"
+      },
+      {
+        "offset": -2,
+        "screen_min": 172,
+        "unlocks": 52,
+        "first_unlock": "08:30",
+        "last_unlock": "22:40",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.spotify.music", "minutes": 35},
+          {"package": "com.instagram.android", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 0, 14, 13, 13, 13, 13, 13, 13, 10, 10, 10, 10, 10, 10, 10, 10, 0],
+        "steps": 5482,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 0, 703, 422, 281, 281, 281, 422, 281, 281, 281, 281, 703, 422, 281, 281, 281, 0],
+        "feel": "meh"
+      },
+      {
+        "offset": -1,
+        "screen_min": 310,
+        "unlocks": 64,
+        "first_unlock": "06:40",
+        "last_unlock": "23:10",
+        "top_apps": [
+          {"package": "ru.yandex.yandexmaps", "minutes": 95},
+          {"package": "com.spotify.music", "minutes": 80},
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "ru.aeroflot", "minutes": 25}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 15, 15, 15, 15, 15, 15, 15, 15],
+        "steps": 15800,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 452, 2257, 1806, 677, 452, 452, 452, 1354, 452, 451, 451, 1806, 2257, 677, 451, 451, 451, 451],
+        "feel": "ok",
+        "tags": [
+          "Дорога"
+        ],
+        "note": "Весь день в разъездах: карты, музыка в дороге, много ходил — экран высокий, но это не диван"
+      }
+    ]
+  },
+  {
+    "id": "mock_nocharge",
+    "title": "Без зарядки: утром 14% там, где обычно 90",
+    "profile": {
+      "work_place": "Из дома",
+      "goal": "Лучше спать",
+      "tone": "Мягко, с поддержкой"
+    },
+    "days": [
+      {
+        "offset": -7,
+        "screen_min": 186,
+        "unlocks": 51,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 14, 14, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+        "steps": 5790,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 283, 706, 424, 283, 283, 283, 424, 282, 282, 282, 282, 706, 424, 282, 282, 282, 0],
+        "feel": "meh",
+        "battery_morning": 88
+      },
+      {
+        "offset": -6,
+        "screen_min": 190,
+        "unlocks": 55,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 14, 11, 11, 10, 10, 10, 10, 10, 10, 10, 0],
+        "steps": 5279,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 258, 644, 386, 258, 258, 258, 386, 258, 258, 257, 257, 644, 386, 257, 257, 257, 0],
+        "feel": "ok",
+        "battery_morning": 90
+      },
+      {
+        "offset": -5,
+        "screen_min": 192,
+        "unlocks": 52,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 15, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+        "steps": 5641,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 276, 688, 413, 275, 275, 275, 413, 275, 275, 275, 275, 688, 413, 275, 275, 275, 0],
+        "feel": "ok",
+        "battery_morning": 95
+      },
+      {
+        "offset": -4,
+        "screen_min": 189,
+        "unlocks": 54,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 11, 11, 11, 11, 11, 10, 10, 10, 10, 10, 0],
+        "steps": 5209,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 254, 636, 381, 254, 254, 254, 381, 254, 254, 254, 254, 636, 381, 254, 254, 254, 0],
+        "feel": "meh",
+        "battery_morning": 93
+      },
+      {
+        "offset": -3,
+        "screen_min": 176,
+        "unlocks": 53,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 14, 13, 13, 13, 13, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0],
+        "steps": 5388,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 263, 657, 394, 263, 263, 263, 394, 263, 263, 263, 263, 657, 394, 263, 263, 262, 0],
+        "feel": "meh",
+        "battery_morning": 88
+      },
+      {
+        "offset": -2,
+        "screen_min": 192,
+        "unlocks": 51,
+        "first_unlock": "07:25",
+        "last_unlock": "22:45",
+        "top_apps": [
+          {"package": "org.telegram.messenger", "minutes": 55},
+          {"package": "com.instagram.android", "minutes": 35},
+          {"package": "ru.yandex.mail", "minutes": 18}
+        ],
+        "hourly_unlocks": [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+        "hourly_screen": [0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+        "steps": 5867,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 286, 716, 430, 286, 286, 286, 430, 286, 286, 286, 286, 716, 429, 286, 286, 286, 0],
+        "feel": "ok",
+        "battery_morning": 93
+      },
+      {
+        "offset": -1,
+        "screen_min": 215,
+        "unlocks": 61,
+        "first_unlock": "07:50",
+        "last_unlock": "01:05",
+        "top_apps": [
+          {"package": "com.google.android.youtube", "minutes": 75},
+          {"package": "org.telegram.messenger", "minutes": 50},
+          {"package": "com.instagram.android", "minutes": 30}
+        ],
+        "hourly_unlocks": [3, 3, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        "hourly_screen": [11, 11, 0, 0, 0, 0, 0, 14, 14, 14, 14, 11, 11, 11, 11, 11, 11, 11, 10, 10, 10, 10, 10, 10],
+        "steps": 4900,
+        "hourly_steps": [0, 0, 0, 0, 0, 0, 0, 239, 598, 359, 239, 239, 239, 358, 239, 239, 239, 239, 598, 358, 239, 239, 239, 0],
+        "feel": "meh",
+        "note": "Уснул с телефоном в руке, на зарядку не поставил — утром 14 процентов",
+        "battery_morning": 14
+      }
+    ]
   }
 ]

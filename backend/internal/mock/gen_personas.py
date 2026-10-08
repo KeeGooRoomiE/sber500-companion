@@ -304,6 +304,138 @@ quiet_day_persona(
     None,
     {"work_place": "Из дома", "wearable": "Да, каждый день", "goal": "Больше двигаться"})
 
+# 12. Night checks: woke twice in the small hours and looked at the phone. No sleep data —
+#     the whole point is that this is visible without Health Connect. Targets: night_checks.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=195 + random.randint(-15, 15), unlocks=55 + random.randint(-5, 5),
+        first="07:30", last="23:00",
+        apps=[("org.telegram.messenger", 55), ("com.instagram.android", 40), ("ru.yandex.mail", 15)],
+        feel=random.choice(["ok", "meh"])))
+d.append(day(-1, screen=0, unlocks=0, first="02:10", last="23:15",
+    apps=[("org.telegram.messenger", 50), ("com.instagram.android", 45), ("com.google.android.youtube", 20)],
+    # 02:00 and 04:00 — brief wakings. Everything else is an ordinary day.
+    h_unlocks=flat({2: 2, 4: 2, 7: 4, 8: 5, 9: 5, 10: 4, 11: 5, 12: 5, 13: 4, 14: 5,
+                    15: 4, 16: 5, 17: 4, 18: 4, 19: 5, 20: 5, 21: 4, 22: 3}),
+    h_screen=flat({2: 4, 4: 6, 7: 10, 8: 13, 9: 12, 10: 10, 11: 12, 12: 13, 13: 9, 14: 12,
+                   15: 10, 16: 12, 17: 10, 18: 9, 19: 12, 20: 13, 21: 11, 22: 6}),
+    feel="hard", tags=["Сон"],
+    note="Просыпался ночью дважды, оба раза брал телефон; утром как будто не спал"))
+personas.append({"id": "mock_nightchecks", "title": "Ночные проверки: просыпался в 2 и в 4, брал телефон",
+    "profile": {"work_place": "В офисе", "goal": "Лучше спать", "wearable": "Нет", "tone": "Мягко, с поддержкой"},
+    "days": d})
+
+# 13. Day shift: usually the day peaks around midday, yesterday everything moved to the
+#     evening. Same totals, different centre of mass. Targets: day_shift, evening_ramp.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=210 + random.randint(-15, 15), unlocks=60 + random.randint(-5, 5),
+        first="07:40", last="22:50", weights={10: 2, 11: 2.5, 12: 2.5, 13: 2, 14: 2},
+        apps=[("com.bitrix24.android", 60), ("org.telegram.messenger", 50), ("com.instagram.android", 30)],
+        feel=random.choice(["ok", "ok", "meh"])))
+d.append(day(-1, screen=0, unlocks=0, first="11:30", last="00:40",
+    apps=[("org.telegram.messenger", 70), ("com.google.android.youtube", 60), ("com.bitrix24.android", 40)],
+    # Nothing before midday, the mass sits between 19:00 and midnight.
+    h_unlocks=flat({11: 2, 12: 3, 13: 3, 14: 2, 15: 3, 16: 3, 17: 4,
+                    18: 5, 19: 8, 20: 9, 21: 9, 22: 8, 23: 6, 0: 3}),
+    h_screen=flat({11: 6, 12: 8, 13: 7, 14: 5, 15: 8, 16: 7, 17: 10,
+                   18: 14, 19: 24, 20: 28, 21: 30, 22: 26, 23: 20, 0: 10}),
+    feel="meh",
+    note="Проспал, раскачался только к вечеру — и всё навалилось после девяти"))
+personas.append({"id": "mock_dayshift", "title": "Сдвинутый день: обычно пик в полдень, вчера всё ушло в вечер",
+    "profile": {"work_place": "Из дома", "bedtime": "После полуночи", "tone": "Спокойно"},
+    "days": d})
+
+# 14 and 15. Wake-time spread, as a pair: the same person-shape with a steady and a scattered
+#     week. Targets: steady_rhythm (positive) and start_jitter.
+def rhythm_persona(pid, title, firsts, note, profile):
+    d = []
+    for i, f in enumerate(firsts):
+        d.append(day(i - len(firsts), screen=195 + random.randint(-12, 12),
+            unlocks=56 + random.randint(-4, 4), first=f, last="23:05",
+            apps=[("org.telegram.messenger", 55), ("com.instagram.android", 40), ("ru.sberbankmobile", 12)],
+            steps=6000 + random.randint(-600, 600),
+            feel=random.choice(["ok", "ok", "meh"]),
+            note=note if i == len(firsts) - 1 else None))
+    personas.append({"id": pid, "title": title, "profile": profile, "days": d})
+
+rhythm_persona("mock_steady", "Ровный ритм: подъём в одно и то же время всю неделю",
+    ["07:05", "07:00", "07:10", "07:05", "06:58", "07:08", "07:02"],
+    "Неделя без сбоев, вставал в одно время даже в выходные",
+    {"work_place": "В офисе", "goal": "Лучше спать", "wearable": "Да, каждый день"})
+
+rhythm_persona("mock_jitter", "Рваный ритм: подъём гуляет на четыре часа",
+    ["06:40", "10:20", "07:15", "11:40", "06:55", "12:10", "08:30"],
+    "Неделя вразнос: то в шесть, то к полудню — режима нет",
+    {"work_place": "По-разному", "bedtime": "По-разному", "goal": "Лучше спать"})
+
+# 16. Bedtime drift: the last unlock creeps later each night without ever crossing midnight,
+#     so late_night_run never fires. Targets: bedtime_drift.
+d = []
+lasts = ["22:10", "22:35", "22:55", "23:20", "23:40", "23:52", "23:58"]
+for i, l in enumerate(lasts):
+    d.append(day(i - len(lasts), screen=200 + random.randint(-12, 12),
+        unlocks=57 + random.randint(-4, 4), first="07:20", last=l,
+        apps=[("com.google.android.youtube", 55), ("org.telegram.messenger", 45), ("com.instagram.android", 30)],
+        sleep=430 - i * 12, bed=l, wake="07:10", steps=5800 + random.randint(-500, 500),
+        feel=random.choice(["ok", "meh"]),
+        note="Каждый вечер ложусь чуть позже предыдущего, но до полуночи — вроде нормально" if i == len(lasts) - 1 else None))
+personas.append({"id": "mock_drift", "title": "Сползание: отбой каждый вечер позже, но полночь ни разу не перейдена",
+    "profile": {"work_place": "Из дома", "goal": "Лучше спать", "wearable": "Да, каждый день"},
+    "days": d})
+
+# 17. A new app in the top that is usually not there at all. Targets: new_app, one_app_day.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=190 + random.randint(-15, 15), unlocks=54 + random.randint(-5, 5),
+        first="08:00", last="23:00",
+        apps=[("org.telegram.messenger", 60), ("ru.yandex.mail", 35), ("ru.sberbankmobile", 15)],
+        steps=5500 + random.randint(-600, 600), feel=random.choice(["ok", "meh"])))
+d.append(day(-1, screen=265, unlocks=62, first="08:10", last="23:30",
+    apps=[("ru.wildberries.ru", 140), ("org.telegram.messenger", 55), ("ru.yandex.mail", 25)],
+    steps=5300, feel="ok",
+    note="Залип в маркетплейсе на два часа — обычно его вообще не открываю"))
+personas.append({"id": "mock_newapp", "title": "Новое приложение: два часа в маркетплейсе, которого обычно нет в топе",
+    "profile": {"work_place": "В офисе", "tone": "Коротко и по делу"},
+    "days": d})
+
+# 18. Screen and steps both high: the phone was in motion, not on the sofa. The case that
+#     stops «много экрана» from automatically meaning «залипал». Targets: commute_screen.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=180 + random.randint(-15, 15), unlocks=50 + random.randint(-5, 5),
+        first="08:30", last="22:40",
+        apps=[("org.telegram.messenger", 50), ("com.spotify.music", 35), ("com.instagram.android", 25)],
+        steps=5000 + random.randint(-600, 600), feel=random.choice(["ok", "meh"])))
+d.append(day(-1, screen=310, unlocks=64, first="06:40", last="23:10",
+    apps=[("ru.yandex.yandexmaps", 95), ("com.spotify.music", 80), ("org.telegram.messenger", 55), ("ru.aeroflot", 25)],
+    steps=15800, step_weights={7: 5, 8: 4, 13: 3, 17: 4, 18: 5}, feel="ok", tags=["Дорога"],
+    note="Весь день в разъездах: карты, музыка в дороге, много ходил — экран высокий, но это не диван"))
+personas.append({"id": "mock_commute", "title": "Дорога: много экрана и 15 тысяч шагов одновременно",
+    "profile": {"work_place": "По-разному", "wearable": "Да, каждый день", "tone": "Спокойно"},
+    "days": d})
+
+# 19. Did not charge overnight — the morning battery is low where it is usually high.
+#     A proxy for a broken evening routine. Targets: charged_overnight.
+d = []
+for off in range(-7, -1):
+    d.append(day(off, screen=185 + random.randint(-12, 12), unlocks=52 + random.randint(-4, 4),
+        first="07:25", last="22:45",
+        apps=[("org.telegram.messenger", 55), ("com.instagram.android", 35), ("ru.yandex.mail", 18)],
+        steps=5600 + random.randint(-500, 500), feel=random.choice(["ok", "meh"])))
+d[-1]["battery_morning"] = 93
+for x in d[:-1]:
+    x["battery_morning"] = 90 + random.randint(-4, 7)
+yd = day(-1, screen=215, unlocks=61, first="07:50", last="01:05",
+    apps=[("com.google.android.youtube", 75), ("org.telegram.messenger", 50), ("com.instagram.android", 30)],
+    steps=4900, feel="meh",
+    note="Уснул с телефоном в руке, на зарядку не поставил — утром 14 процентов")
+yd["battery_morning"] = 14
+d.append(yd)
+personas.append({"id": "mock_nocharge", "title": "Без зарядки: утром 14% там, где обычно 90",
+    "profile": {"work_place": "Из дома", "goal": "Лучше спать", "tone": "Мягко, с поддержкой"},
+    "days": d})
+
 # Compact output: number arrays and apps on one line each
 s = json.dumps(personas, ensure_ascii=False, indent=2)
 s = re.sub(r'\[\s+((?:-?\d+,\s+)*-?\d+)\s+\]', lambda m: '[' + re.sub(r'\s+', '', m.group(1)).replace(',', ', ') + ']', s)

@@ -257,7 +257,7 @@ func similarDays(in Input) *Answerable {
 	}
 	a.Facts = append(a.Facts, fmt.Sprintf("Вчера: %s", titles(target)))
 	a.Facts = append(a.Facts, fmt.Sprintf("Похожие дни за месяц (%d): %s — общее: %s",
-		len(found), strings.Join(dates, ", "), topKeys(sharedCount, 2)))
+		len(found), strings.Join(dates, ", "), topKeys(sharedCount, 3, titleOrder(target))))
 
 	// How the person marked those days, and the day after
 	var feels, nextFeels []string
@@ -583,7 +583,22 @@ func titles(s []signals.Signal) string {
 	return strings.Join(t, ", ")
 }
 
-func topKeys(count map[string]int, n int) string {
+// topKeys names the n most common shared titles.
+//
+// Ties are broken by how notable the thing was yesterday, not alphabetically. When three
+// signals are shared by the same number of days, «Плотное утро» losing to «День заглядываний»
+// because Д comes before П is arbitrary to the reader — the day's leading signal should lead.
+func topKeys(count map[string]int, n int, order []string) string {
+	rank := map[string]int{}
+	for i, t := range order {
+		rank[t] = i
+	}
+	rankOf := func(k string) int {
+		if r, ok := rank[k]; ok {
+			return r
+		}
+		return len(order) + 1
+	}
 	type kv struct {
 		k string
 		v int
@@ -592,7 +607,15 @@ func topKeys(count map[string]int, n int) string {
 	for k, v := range count {
 		list = append(list, kv{k, v})
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i].v > list[j].v || (list[i].v == list[j].v && list[i].k < list[j].k) })
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].v != list[j].v {
+			return list[i].v > list[j].v
+		}
+		if ri, rj := rankOf(list[i].k), rankOf(list[j].k); ri != rj {
+			return ri < rj
+		}
+		return list[i].k < list[j].k
+	})
 	var out []string
 	for i, x := range list {
 		if i == n {
@@ -610,4 +633,13 @@ func contains(s []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// titleOrder is yesterday's signal titles, strongest first — the tie-break for shared titles.
+func titleOrder(target []signals.Signal) []string {
+	out := make([]string, 0, len(target))
+	for _, s := range target {
+		out = append(out, s.Title)
+	}
+	return out
 }

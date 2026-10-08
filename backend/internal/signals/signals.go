@@ -24,7 +24,14 @@ type Signal struct {
 	strength float64 // how far from the person's norm; used for ordering
 }
 
-const maxSignals = 4
+// maxSignals caps what reaches the person — both the «На чём основано» list and the evidence
+// block in the prompt.
+//
+// Was 4 while there were thirteen signals. Adding the behavioural ones made the cap the thing
+// that decided what gets said: checking_day alone displaced «Плотное утро» from a day that
+// genuinely had both, and an existing explore test caught it. Six leaves room for a second
+// true thing about a day without drowning a two-sentence forecast in evidence.
+const maxSignals = 6
 
 // minMeaningfulScreen: below this the day has no data worth describing rather than a quiet one.
 const minMeaningfulScreen = 15
@@ -191,6 +198,110 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		// observation about them and is an artefact of the day not having happened.
 		if n >= 2 && usual >= 60 && *d.ScreenMin >= minMeaningfulScreen && float64(*d.ScreenMin) <= usual*0.7 {
 			add(Signal{Key: "calm_screen", Title: "Спокойный по экрану день", Detail: fmt.Sprintf("экран %s — обычно %s", minutes(*d.ScreenMin), minutes(round(usual))), Positive: true, strength: usual / math.Max(float64(*d.ScreenMin), 1)})
+		}
+	}
+
+	// ─── Форма дня, а не объём ────────────────────────────────────────────────
+	// Всё ниже считается из почасовых массивов и границ дня. Они заполнены у 100% и 87%
+	// пользователей соответственно, в отличие от сна (11%) — см. SIGNALS.md.
+
+	// Average session length: screen minutes per unlock. The same unlock count means
+	// opposite things at different session lengths — thirty one-minute glances are not
+	// thirty deliberate sessions, and `jumpy` cannot tell them apart because it counts
+	// only unlocks.
+	if sess, ok := sessionLen(d); ok {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return sessionLen(x) })
+		if n >= 2 && usual > 0 {
+			switch r := sess / usual; {
+			case r <= 0.6 && *d.Unlocks >= 30:
+				add(Signal{Key: "checking_day", Title: "День заглядываний",
+					Detail: fmt.Sprintf("в среднем %s за раз — обычно %s, а разблокировок %d",
+						minutesF(sess), minutesF(usual), *d.Unlocks),
+					strength: usual / math.Max(sess, 0.1)})
+			case r >= 1.8 && sess >= 8:
+				add(Signal{Key: "immersed_day", Title: "Долгие посадки",
+					Detail:   fmt.Sprintf("в среднем %s за раз — обычно %s", minutesF(sess), minutesF(usual)),
+					strength: r})
+			}
+		}
+	}
+
+	// Woke at the usual hour, looked at the phone briefly, went back to sleep: a short burst,
+	// then at least one completely empty hour, then the day proper. The empty hour is what
+	// makes it a false start rather than an ordinary morning — hour buckets are coarse, so
+	// without it a glance at 06:55 and a real start at 07:05 are indistinguishable.
+	if h, ok := falseStart(d.HourlyScreen); ok {
+		add(Signal{Key: "false_start", Title: "Проснулся и уснул снова",
+			Detail:   fmt.Sprintf("в %02d:00 несколько минут в телефоне, потом час тишины — день начался позже", h),
+			strength: 2.2})
+	}
+
+	// Unlocks between 01:00 and 06:00 — «просыпался ночью и проверял телефон». Deliberately
+	// not tied to the sleep window: that needs Health Connect, which 11% have, while this
+	// works for everyone.
+	if n := nightWakings(d.HourlyUnlocks); n >= 2 {
+		usual, m := avg(base, func(x *repo.DailyData) (float64, bool) {
+			if len(x.HourlyUnlocks) != 24 {
+				return 0, false
+			}
+			return float64(nightWakings(x.HourlyUnlocks)), true
+		})
+		if m >= 2 && float64(n) >= math.Max(usual*2, 2) {
+			detail := fmt.Sprintf("%d %s между часом и шестью утра", n, plural(n, "разблокировка", "разблокировки", "разблокировок"))
+			if usual < 0.5 {
+				detail += " — обычно ночью телефон не трогаешь"
+			}
+			add(Signal{Key: "night_checks", Title: "Ночные проверки телефона", Detail: detail,
+				strength: 1.8 + float64(n)/3})
+		}
+	}
+
+	// How long the person was up, by the phone's evidence. A proxy for the waking window at
+	// 87% coverage, where real wakeup/bedtime reach 11%. Not the same thing — the phone is
+	// also untouched while awake — but it compares like for like against the person's norm.
+	if span, ok := daySpan(d); ok {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return daySpan(x) })
+		if n >= 2 {
+			switch diff := span - usual; {
+			case diff >= 90:
+				add(Signal{Key: "long_day", Title: "Длинный день",
+					Detail: fmt.Sprintf("между первым и последним разблокированием %s — на %s больше обычного",
+						minutes(round(span)), minutes(round(diff))),
+					strength: diff / 90})
+			case diff <= -90:
+				add(Signal{Key: "short_day", Title: "Короткий день", Positive: true,
+					Detail: fmt.Sprintf("между первым и последним разблокированием %s — на %s меньше обычного",
+						minutes(round(span)), minutes(round(-diff))),
+					strength: -diff / 90})
+			}
+		}
+	}
+
+	// A quiet phone day means opposite things depending on the legs: out and about, or at a
+	// desk all day. Screen alone cannot tell them apart; steps can. Only fires when both the
+	// screen is below the person's norm and steps are clearly on one side of theirs.
+	if d.ScreenMin != nil && d.Steps != nil && *d.Steps > 0 {
+		usualScreen, nS := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
+		usualSteps, nW := avg(base, func(x *repo.DailyData) (float64, bool) {
+			if x.Steps == nil || *x.Steps <= 0 {
+				return 0, false
+			}
+			return float64(*x.Steps), true
+		})
+		quiet := nS >= 2 && usualScreen >= 60 && float64(*d.ScreenMin) <= usualScreen*0.7 && *d.ScreenMin >= minMeaningfulScreen
+		if quiet && nW >= 2 && usualSteps >= 2000 {
+			switch st := float64(*d.Steps); {
+			case st >= usualSteps*1.5:
+				add(Signal{Key: "away_day", Title: "День на ногах", Positive: true,
+					Detail: fmt.Sprintf("экран %s вместо обычных %s, зато %s шагов",
+						minutes(*d.ScreenMin), minutes(round(usualScreen)), thousands(*d.Steps)),
+					strength: 1.6 + st/math.Max(usualSteps, 1)})
+			case st <= usualSteps*0.6:
+				add(Signal{Key: "desk_day", Title: "День на месте",
+					Detail: fmt.Sprintf("и экран ниже обычного (%s), и шагов мало — %s",
+						minutes(*d.ScreenMin), thousands(*d.Steps)),
+					strength: 1.6 + usualSteps/math.Max(st, 1)})
+			}
 		}
 	}
 
@@ -420,3 +531,85 @@ func FormatClock(v int) string { return hhmm(v) }
 
 // IsWorkApp reports whether a package is a well-known work app (Slack, Zoom, Битрикс24…).
 func IsWorkApp(pkg string) bool { return knownWorkApps[pkg] != "" }
+
+// sessionLen is the average minutes of screen per unlock — the length of a typical sitting.
+// Research calls the short end «checking habits»; it separates people better than either
+// number on its own (see RESEARCH_USAGE.md).
+func sessionLen(d *repo.DailyData) (float64, bool) {
+	if d.ScreenMin == nil || d.Unlocks == nil || *d.Unlocks <= 0 || *d.ScreenMin <= 0 {
+		return 0, false
+	}
+	return float64(*d.ScreenMin) / float64(*d.Unlocks), true
+}
+
+// daySpan is the minutes between the first and the last unlock.
+func daySpan(d *repo.DailyData) (float64, bool) {
+	f, ok1 := clock(d.FirstUnlock)
+	l, ok2 := clock(d.LastUnlock)
+	if !ok1 || !ok2 || l <= f {
+		return 0, false
+	}
+	return float64(l - f), true
+}
+
+// falseStart finds a brief early-morning burst followed by a fully empty hour and then a day
+// that actually happened. Returns the hour of the burst.
+//
+// The empty hour is not optional: hourly buckets are an hour wide, so a glance at 06:55 and a
+// real start at 07:05 land in neighbouring buckets and look exactly like waking up normally.
+func falseStart(h []int) (int, bool) {
+	if len(h) != 24 {
+		return 0, false
+	}
+	for hour := 4; hour <= 9; hour++ {
+		if h[hour] < 1 || h[hour] > 10 || h[hour+1] != 0 {
+			continue
+		}
+		// The burst has to be the start of the day, not a waking in the middle of the night:
+		// without this a 02:00 check followed by a quiet 03:00 reads as a false start.
+		quietBefore := true
+		for i := hour - 3; i < hour; i++ {
+			if i >= 0 && h[i] != 0 {
+				quietBefore = false
+			}
+		}
+		if !quietBefore {
+			continue
+		}
+		rest := 0
+		for i := hour + 2; i < 24; i++ {
+			rest += h[i]
+		}
+		if rest >= 60 {
+			return hour, true
+		}
+	}
+	return 0, false
+}
+
+// minutesF renders a fractional number of minutes: 1.5 as «1.5 м», 18.4 as «18 м».
+func minutesF(v float64) string {
+	if v < 10 {
+		return strings.TrimSuffix(fmt.Sprintf("%.1f", v), ".0") + " м"
+	}
+	return minutes(round(v))
+}
+
+// nightWakings counts unlocks between 01:00 and 05:00 that follow a quiet hour.
+//
+// The quiet hour is the whole point: it separates waking up and reaching for the phone from
+// simply not having gone to bed yet. A night owl whose screen is still on at 01:30 is not
+// having a restless night, and counting them the same way makes the signal say the opposite
+// of what happened.
+func nightWakings(h []int) int {
+	if len(h) != 24 {
+		return 0
+	}
+	n := 0
+	for hour := 1; hour <= 4; hour++ {
+		if h[hour] > 0 && h[hour-1] == 0 {
+			n += h[hour]
+		}
+	}
+	return n
+}
