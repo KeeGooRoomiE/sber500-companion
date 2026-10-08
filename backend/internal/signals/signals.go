@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 )
@@ -71,7 +72,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Work load: unlocks in 9–18 + minutes in work apps
 	if w, ok := sumHours(d.HourlyUnlocks, 9, 18); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			v, ok := sumHours(x.HourlyUnlocks, 9, 18)
 			return float64(v), ok
 		})
@@ -89,7 +90,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Morning storm: 7–12 (Арина: «с утра 15 звонков — через 2 часа настроение не очень»)
 	if m, ok := sumHours(d.HourlyUnlocks, 7, 12); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			v, ok := sumHours(x.HourlyUnlocks, 7, 12)
 			return float64(v), ok
 		})
@@ -100,7 +101,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Calls: time in the dialer / in-call screen
 	if c := callMinutes(d); c >= 30 {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return float64(callMinutes(x)), true })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return float64(callMinutes(x)), true })
 		if n < 2 || float64(c) >= usual*1.5 {
 			add(Signal{Key: "calls", Title: "День звонков", Detail: fmt.Sprintf("в звонках %s", minutes(c)), strength: float64(c) / 30})
 		}
@@ -108,7 +109,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Late phone: last unlock after 00:30
 	if lu, ok := clock(d.LastUnlock); ok && lu >= 24*60+30 {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { v, ok := clock(x.LastUnlock); return float64(v), ok })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { v, ok := clock(x.LastUnlock); return float64(v), ok })
 		if n < 2 || float64(lu) >= usual+45 {
 			detail := "последнее разблокирование в " + *d.LastUnlock
 			if n >= 2 {
@@ -128,7 +129,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Sleep vs norm
 	if d.SleepMin != nil {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.SleepMin) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.SleepMin) })
 		if n >= 2 {
 			diff := float64(*d.SleepMin) - usual
 			switch {
@@ -149,7 +150,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		return float64(*x.Steps), true
 	}
 	if st, ok := stepsOf(d); ok {
-		usual, n := avg(base, stepsOf)
+		usual, n := avgLike(d, base, stepsOf)
 		switch {
 		case n >= 2 && usual >= 3000 && st <= usual*0.5:
 			add(Signal{Key: "low_move", Title: "Мало движения", Detail: fmt.Sprintf("%s шагов — обычно %s", thousands(int(st)), thousands(round(usual))), strength: usual / math.Max(st, 1)})
@@ -163,7 +164,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	}
 	// A still morning: almost no steps before noon when usually there are some
 	if m, ok := sumHours(d.HourlySteps, 6, 12); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			v, ok := sumHours(x.HourlySteps, 6, 12)
 			return float64(v), ok
 		})
@@ -186,13 +187,13 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// Jumpy day overall / calm day by screen
 	if d.Unlocks != nil {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.Unlocks) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.Unlocks) })
 		if n >= 2 && *d.Unlocks >= 40 && float64(*d.Unlocks) >= usual*1.5 && !has(out, "work_load") {
 			add(Signal{Key: "jumpy", Title: "Дёрганый день", Detail: fmt.Sprintf("%d разблокировок — обычно %d", *d.Unlocks, round(usual)), strength: float64(*d.Unlocks) / math.Max(usual, 1)})
 		}
 	}
 	if d.ScreenMin != nil {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
 		// A near-empty day is missing data, not a calm one. Someone who installed yesterday
 		// evening had «экран 0 м — обычно 3 ч 34 м» as their only signal, which reads as an
 		// observation about them and is an artefact of the day not having happened.
@@ -210,7 +211,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// thirty deliberate sessions, and `jumpy` cannot tell them apart because it counts
 	// only unlocks.
 	if sess, ok := sessionLen(d); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return sessionLen(x) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return sessionLen(x) })
 		if n >= 2 && usual > 0 {
 			switch r := sess / usual; {
 			case r <= 0.6 && *d.Unlocks >= 30:
@@ -240,7 +241,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// not tied to the sleep window: that needs Health Connect, which 11% have, while this
 	// works for everyone.
 	if n := nightWakings(d.HourlyUnlocks); n >= 2 {
-		usual, m := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, m := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			if len(x.HourlyUnlocks) != 24 {
 				return 0, false
 			}
@@ -260,7 +261,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// 87% coverage, where real wakeup/bedtime reach 11%. Not the same thing — the phone is
 	// also untouched while awake — but it compares like for like against the person's norm.
 	if span, ok := daySpan(d); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return daySpan(x) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return daySpan(x) })
 		if n >= 2 {
 			switch diff := span - usual; {
 			case diff >= 90:
@@ -281,8 +282,8 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// desk all day. Screen alone cannot tell them apart; steps can. Only fires when both the
 	// screen is below the person's norm and steps are clearly on one side of theirs.
 	if d.ScreenMin != nil && d.Steps != nil && *d.Steps > 0 {
-		usualScreen, nS := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
-		usualSteps, nW := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usualScreen, nS := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
+		usualSteps, nW := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			if x.Steps == nil || *x.Steps <= 0 {
 				return 0, false
 			}
@@ -308,7 +309,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// Longest unbroken stretch of screen hours, and the longest waking hour without any.
 	// Two sides of the same array: what the day was spent in, and whether it had a pause.
 	if run, start := longestRun(d.HourlyScreen, 20); run >= 3 {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			r, _ := longestRun(x.HourlyScreen, 20)
 			return float64(r), len(x.HourlyScreen) == 24
 		})
@@ -320,7 +321,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	}
 	// A real pause during the day. Positive: the person put the phone down.
 	if gap, start, ok := longestGap(d.HourlyScreen, 9, 22); ok && gap >= 4 {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			g, _, ok := longestGap(x.HourlyScreen, 9, 22)
 			return float64(g), ok
 		})
@@ -332,7 +333,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	}
 	// Not one hour of the working day without the phone.
 	if busy, ok := hoursWithScreen(d.HourlyScreen, 9, 19); ok && busy == 10 {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			v, ok := hoursWithScreen(x.HourlyScreen, 9, 19)
 			return float64(v), ok
 		})
@@ -353,7 +354,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// The day's centre of mass moved. Same totals, different day.
 	if cm, ok := centreOfMass(d); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return centreOfMass(x) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return centreOfMass(x) })
 		if n >= 2 {
 			if diff := cm - usual; math.Abs(diff) >= 2 {
 				word, title := "позже", "День сместился на вечер"
@@ -370,7 +371,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 
 	// The day started later than usual, by the phone rather than by Health Connect.
 	if f, ok := wakeUnlock(d); ok {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return wakeUnlock(x) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return wakeUnlock(x) })
 		if n >= 2 && f-usual >= 75 && !has(out, "false_start") && !has(out, "night_checks") {
 			add(Signal{Key: "late_start", Title: "Позднее начало дня",
 				Detail:   fmt.Sprintf("первая разблокировка в %s — обычно около %s", *d.FirstUnlock, hhmm(round(usual))),
@@ -428,8 +429,8 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// Screen and steps both high: the phone was in motion, not on the sofa. Stops «много
 	// экрана» from automatically reading as «залипал».
 	if d.ScreenMin != nil && d.Steps != nil && *d.Steps > 0 {
-		usualScreen, nS := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
-		usualSteps, nW := avg(base, func(x *repo.DailyData) (float64, bool) {
+		usualScreen, nS := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
+		usualSteps, nW := avgLike(d, base, func(x *repo.DailyData) (float64, bool) {
 			if x.Steps == nil || *x.Steps <= 0 {
 				return 0, false
 			}
@@ -453,7 +454,7 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 	// Morning battery far below the usual — the phone did not go on charge, which usually
 	// means the evening did not go as usual either.
 	if d.BatteryMorning != nil {
-		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.BatteryMorning) })
+		usual, n := avgLike(d, base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.BatteryMorning) })
 		if n >= 2 && usual >= 60 && float64(*d.BatteryMorning) <= usual*0.4 {
 			add(Signal{Key: "not_charged", Title: "Телефон не ставил на зарядку",
 				Detail:   fmt.Sprintf("утром %d%% — обычно около %d%%", *d.BatteryMorning, round(usual)),
@@ -975,4 +976,40 @@ func isTopTwo(d *repo.DailyData, pkg string) bool {
 		}
 	}
 	return false
+}
+
+// minSameKind is how many days of the same kind a split baseline needs before it is used.
+// Below it the comparison falls back to every day: an «обычно» built from one Sunday is worse
+// than one built from a mix.
+const minSameKind = 3
+
+// isWeekend reports whether the date is Saturday or Sunday.
+func isWeekend(t time.Time) bool {
+	wd := t.Weekday()
+	return wd == time.Saturday || wd == time.Sunday
+}
+
+// avgLike averages f over the days that resemble `d` — weekdays against weekdays, weekends
+// against weekends — and falls back to all of them when there are too few.
+//
+// Without the split a person's «обычно» is the average of two different regimes. Measured on
+// production data 2026-10-08: in aggregate weekdays and weekends look identical (342 against
+// 329 minutes of screen), which hides the effect entirely, because people differ in opposite
+// directions and cancel out. Per person the mean difference is 33%, and 20 of 37 users with
+// enough history differ by a quarter or more. Signal thresholds sit at 1.4x and 1.5x, so an
+// error of a third in the baseline moves them.
+func avgLike(d *repo.DailyData, base []*repo.DailyData, f func(*repo.DailyData) (float64, bool)) (float64, int) {
+	want := isWeekend(d.Date)
+	same := make([]*repo.DailyData, 0, len(base))
+	for _, x := range base {
+		if isWeekend(x.Date) == want {
+			same = append(same, x)
+		}
+	}
+	if len(same) >= minSameKind {
+		if v, n := avg(same, f); n >= minSameKind {
+			return v, n
+		}
+	}
+	return avg(base, f)
 }
