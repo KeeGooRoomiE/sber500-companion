@@ -9,6 +9,7 @@ package admin
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -90,6 +91,7 @@ func (s *Server) Start(ctx context.Context) {
 	r.Post("/admin/prompts/{name}/eval", s.eval)
 	r.Post("/admin/mock/seed", s.seedMock)
 	r.Post("/admin/mock/purge", s.purgeMock)
+	r.Get("/admin/export/call_log.csv", s.exportCallLog)
 	r.Get("/admin/accuracy", s.accuracy)
 	r.Post("/admin/reset-errors", s.resetErrors)
 
@@ -455,6 +457,62 @@ func (s *Server) purgeMock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "purged"})
+}
+
+// exportCallLog dumps the raw anti-fraud ledger as CSV — every logged LLM/tool/background call,
+// unfiltered (dev and mock rows included on purpose: this is for looking at raw data, not for
+// a KPI number). ?since=24h (a Go duration) limits it to recent rows; omitted means the whole
+// table.
+func (s *Server) exportCallLog(w http.ResponseWriter, r *http.Request) {
+	q := `SELECT id, user_id, ts, coalesce(session_id, ''), call_type, component, trigger,
+	             user_visible, result, coalesce(error_code, ''), coalesce(latency_ms, 0)
+	      FROM call_log`
+	var args []any
+	if since := r.URL.Query().Get("since"); since != "" {
+		d, err := time.ParseDuration(since)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad since (want a Go duration, e.g. 24h)"})
+			return
+		}
+		q += " WHERE ts >= $1"
+		args = append(args, time.Now().Add(-d))
+	}
+	q += " ORDER BY ts"
+
+	rows, err := s.daily.DB().Query(r.Context(), q, args...)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	defer rows.Close()
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="call_log.csv"`)
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"id", "user_id", "ts", "session_id", "call_type", "component", "trigger", "user_visible", "result", "error_code", "latency_ms"})
+	for rows.Next() {
+		var (
+			id                                           int64
+			userID, sessionID, callType, component, trig string
+			ts                                           time.Time
+			userVisible                                  bool
+			result, errorCode                            string
+			latencyMs                                    int
+		)
+		if err := rows.Scan(&id, &userID, &ts, &sessionID, &callType, &component, &trig, &userVisible, &result, &errorCode, &latencyMs); err != nil {
+			s.fail(w, err)
+			return
+		}
+		_ = cw.Write([]string{
+			strconv.FormatInt(id, 10), userID, ts.Format(time.RFC3339), sessionID, callType, component, trig,
+			strconv.FormatBool(userVisible), result, errorCode, strconv.Itoa(latencyMs),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		s.fail(w, err)
+		return
+	}
+	cw.Flush()
 }
 
 // accuracy: «Совпало / Не совсем» by prompt version — did the new prompt do better?

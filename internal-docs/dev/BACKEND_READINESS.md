@@ -140,6 +140,17 @@
 1. Таблица `prompts(id, name, version, body, is_active, created_at, created_by, note)`. Правка создаёт **новую версию**, старые не трогаются, откат — переключить `is_active`.
 2. `morning_messages.prompt_version` — видно, каким промптом сделан каждый текст. Это нужно и для метрик, и для A/B.
 3. Админ-эндпоинты (`GET/POST /admin/prompts`, `POST /admin/prompts/{id}/activate`, `POST /admin/prompts/preview` — собрать промпт для user_id и, по флагу, вызвать LLM) — **на отдельном порту, слушающем только `127.0.0.1`**. Caddy его не проксирует, доступ только через `ssh -L 9090:localhost:9090 server`. Наружу не торчит вообще.
+   - Тем же путём — выгрузка сырого `call_log` (антифрод-журнал каждого LLM/tool/background-вызова), без фильтрации дев/мок-пользователей специально: это для просмотра сырых данных, не для KPI.
+     ```bash
+     ssh -L 9090:localhost:9090 companion
+     # в другом терминале, или одной командой через ssh companion curl ... :
+     curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+       "http://localhost:9090/admin/export/call_log.csv" -o call_log.csv
+     # ?since=24h — только последние сутки (принимает Go-формат длительности: 24h, 168h, 30m…)
+     curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+       "http://localhost:9090/admin/export/call_log.csv?since=24h" -o call_log_24h.csv
+     ```
+     Колонки: `id, user_id, ts, session_id, call_type, component, trigger, user_visible, result, error_code, latency_ms`. Сам текст сообщений в `call_log` не хранится (это таблица метаданных, см. схему в `migrations/001_init.sql`) — он лежит в `reviews`/`morning_messages`, выгрузки для них пока нет.
 4. Плюс `ADMIN_TOKEN` (32+ байта, сравнение `subtle.ConstantTimeCompare`) — на случай, если порт когда-то откроют по ошибке.
 5. Каждое изменение и активация → запись в `call_log`/аудит и сообщение в Telegram-бот «промпт morning v7 активирован».
 6. Фолбэк: если активного промпта в БД нет, берётся встроенный из кода (`go:embed prompts/morning.md`) — сервер не падает на пустой таблице.
