@@ -35,22 +35,23 @@ type Persona struct {
 }
 
 type Day struct {
-	Offset        int             `json:"offset"` // -1 = yesterday
-	SleepMin      *int            `json:"sleep_min"`
-	Bedtime       *string         `json:"bedtime"`
-	Wakeup        *string         `json:"wakeup"`
-	Steps         *int            `json:"steps"`
-	ScreenMin     *int            `json:"screen_min"`
-	Unlocks       *int            `json:"unlocks"`
-	FirstUnlock   *string         `json:"first_unlock"`
-	LastUnlock    *string         `json:"last_unlock"`
-	TopApps       []repo.AppUsage `json:"top_apps"`
-	HourlyUnlocks []int           `json:"hourly_unlocks"`
-	HourlyScreen  []int           `json:"hourly_screen"`
-	HourlySteps   []int           `json:"hourly_steps"`
-	Feel          string          `json:"feel"` // evening check-in; "" = none
-	Tags          []string        `json:"tags"`
-	Note          string          `json:"note"` // what really happened — for the reviewer, never seeded
+	Offset         int             `json:"offset"` // -1 = yesterday
+	SleepMin       *int            `json:"sleep_min"`
+	Bedtime        *string         `json:"bedtime"`
+	Wakeup         *string         `json:"wakeup"`
+	Steps          *int            `json:"steps"`
+	BatteryMorning *int            `json:"battery_morning"`
+	ScreenMin      *int            `json:"screen_min"`
+	Unlocks        *int            `json:"unlocks"`
+	FirstUnlock    *string         `json:"first_unlock"`
+	LastUnlock     *string         `json:"last_unlock"`
+	TopApps        []repo.AppUsage `json:"top_apps"`
+	HourlyUnlocks  []int           `json:"hourly_unlocks"`
+	HourlyScreen   []int           `json:"hourly_screen"`
+	HourlySteps    []int           `json:"hourly_steps"`
+	Feel           string          `json:"feel"` // evening check-in; "" = none
+	Tags           []string        `json:"tags"`
+	Note           string          `json:"note"` // what really happened — for the reviewer, never seeded
 }
 
 // Personas returns the built-in test people.
@@ -120,10 +121,10 @@ func Seed(ctx context.Context, db *pgxpool.Pool, today time.Time) ([]Persona, er
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO daily_data (user_id, date, sleep_min, bedtime, wakeup, steps, screen_min, unlocks,
 				                        first_unlock, last_unlock, top_apps, hourly_unlocks, hourly_screen,
-				                        hourly_steps)
-				VALUES ($1, $2, $3, $4::time, $5::time, $6, $7, $8, $9::time, $10::time, $11, $12, $13, $14)
+				                        hourly_steps, battery_morning)
+				VALUES ($1, $2, $3, $4::time, $5::time, $6, $7, $8, $9::time, $10::time, $11, $12, $13, $14, $15)
 			`, p.ID, date, d.SleepMin, d.Bedtime, d.Wakeup, d.Steps, d.ScreenMin, d.Unlocks,
-				d.FirstUnlock, d.LastUnlock, apps, d.HourlyUnlocks, d.HourlyScreen, d.HourlySteps); err != nil {
+				d.FirstUnlock, d.LastUnlock, apps, d.HourlyUnlocks, d.HourlyScreen, d.HourlySteps, d.BatteryMorning); err != nil {
 				return nil, fmt.Errorf("%s %s: %w", p.ID, date.Format("2006-01-02"), err)
 			}
 			if d.Feel != "" {

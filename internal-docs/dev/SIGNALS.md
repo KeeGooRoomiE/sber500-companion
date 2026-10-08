@@ -166,30 +166,38 @@ type Signal struct {
 | 2 | ✅ `immersed_day` | длина сессии | 100% | **сделано** | `mock_immersed` |
 | 3 | ✅ `false_start` | форма дня | 100% | **сделано** | `mock_falsestart` |
 | 4 | ✅ `night_checks` | форма дня | 100% | **сделано** | `mock_nightchecks` |
-| 5 | `no_break` | форма дня | 100% | сейчас | `mock_checker` |
-| 6 | `quiet_block` | форма дня | 100% | сейчас | `mock_awayday` / `mock_deskday` |
-| 7 | `fragmented_day` | распределение | 100% | сейчас | `mock_checker` |
-| 8 | `long_stretch` | распределение | 100% | сейчас | `mock_immersed` |
-| 9 | `evening_gap` | форма дня, **позитивный** | 100% | сейчас | `mock_awayday` |
-| 10 | `day_shift` | форма дня | 100% | сейчас | `mock_dayshift` |
-| 11 | `evening_ramp` | распределение | 100% | сейчас | `mock_immersed` |
+| 5 | ✅ `no_break` | форма дня | 100% | **сделано** | `mock_checker` |
+| 6 | ✅ `quiet_block` | форма дня | 100% | **сделано** | `mock_awayday` / `mock_deskday` |
+| 7 | ⏭ `fragmented_day` | распределение | 100% | сейчас | `mock_checker` |
+| 8 | ✅ `long_stretch` | распределение | 100% | **сделано** | `mock_immersed` |
+| 9 | ✅ `evening_gap` | форма дня, **позитивный** | 100% | **сделано** | `mock_awayday` |
+| 10 | ✅ `day_shift` | форма дня | 100% | **сделано** | `mock_dayshift` |
+| 11 | ⏭ `evening_ramp` | распределение | 100% | сейчас | `mock_immersed` |
 | 12 | ✅ `long_day` / `short_day` | взаимосвязь | 87% | **сделано** | `mock_falsestart` |
-| 13 | `late_start` | — | 87% | сейчас | `mock_falsestart` |
-| 14 | `start_jitter` | многодневный | 87% | сейчас | `mock_jitter` |
-| 15 | `steady_rhythm` | многодневный, **позитивный** | 87% | сейчас | `mock_steady` |
-| 16 | `bedtime_drift` | многодневный | 87% | сейчас | `mock_drift` |
-| 17 | `new_app` | приложения | 85% | сейчас | `mock_newapp` |
-| 18 | `one_app_day` | приложения | 85% | сейчас | `mock_immersed` |
+| 13 | ✅ `late_start` | — | 87% | **сделано** | `mock_falsestart` |
+| 14 | ✅ `start_jitter` | многодневный | 87% | **сделано** | `mock_jitter` |
+| 15 | ✅ `steady_rhythm` | многодневный, **позитивный** | 87% | **сделано** | `mock_steady` |
+| 16 | ✅ `bedtime_drift` | многодневный | 87% | **сделано** | `mock_drift` |
+| 17 | ✅ `new_app` | приложения | 85% | **сделано** | `mock_newapp` |
+| 18 | ✅ `one_app_day` | приложения | 85% | **сделано** | `mock_immersed` |
 | 19 | ✅ `away_day` | экран × шаги | 46% | **сделано** | `mock_awayday` |
 | 20 | ✅ `desk_day` | экран × шаги | 46% | **сделано** | `mock_deskday` |
-| 21 | `commute_screen` | экран × шаги | 46% | сейчас | `mock_commute` |
-| 22 | `sedentary_streak` | шаги по часам | 46% | сейчас | `mock_deskday` |
-| 23 | `charged_overnight` | батарея | 45% | сейчас | `mock_nocharge` |
-| 24 | `restless_night` | сон × разблокировки | **11%** | сейчас, но мало кому | — нужна персона |
+| 21 | ✅ `commute_screen` | экран × шаги | 46% | **сделано** | `mock_commute` |
+| 22 | ✅ `sedentary_streak` | шаги по часам | 46% | **сделано** | `mock_deskday` |
+| 23 | ✅ `not_charged` | батарея | 45% | **сделано** | `mock_nocharge` |
+| 24 | ⏭ `restless_night` | сон × разблокировки | **11%** | сейчас, но мало кому | — нужна персона |
 | 25 | `after_late_start` | **закономерность** | — | ~17 октября | — нужна персона |
 | 26 | `weekend_recovery` | **закономерность** | — | ~17 октября | — нужна персона |
 | 27 | `screen_after_short_sleep` | **закономерность** | — | ~17 октября + сон | — нужна персона |
 | 28 | `hard_day_shape` | **закономерность, размеченная** | — | когда вырастут чек-ины | — нужна персона |
+
+Три сигнала (⏭) сознательно не делались:
+
+| | Почему |
+|---|---|
+| `fragmented_day` | Дублирует `checking_day` — оба про раздробленность дня, только с разных сторон |
+| `evening_ramp` | Дублирует `late_phone` и `late_night_run`, которые уже вышли в 0.9.9 |
+| `restless_night` | `night_checks` говорит почти то же самое при 100% охвата вместо 11% |
 
 Пояснения к столбцу «доступно»:
 

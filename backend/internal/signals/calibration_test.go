@@ -25,7 +25,7 @@ func TestSignalCalibrationAcrossPersonas(t *testing.T) {
 		for _, d := range p.Days {
 			days = append(days, &repo.DailyData{
 				Date: base.AddDate(0, 0, d.Offset+1), SleepMin: d.SleepMin,
-				Bedtime: d.Bedtime, Wakeup: d.Wakeup, Steps: d.Steps,
+				Bedtime: d.Bedtime, Wakeup: d.Wakeup, Steps: d.Steps, BatteryMorning: d.BatteryMorning,
 				ScreenMin: d.ScreenMin, Unlocks: d.Unlocks,
 				FirstUnlock: d.FirstUnlock, LastUnlock: d.LastUnlock, TopApps: d.TopApps,
 				HourlyUnlocks: d.HourlyUnlocks, HourlyScreen: d.HourlyScreen, HourlySteps: d.HourlySteps,
@@ -58,7 +58,7 @@ func TestNoFalsePositivesAcrossPersonas(t *testing.T) {
 		for _, d := range p.Days {
 			days = append(days, &repo.DailyData{
 				Date: base.AddDate(0, 0, d.Offset+1), SleepMin: d.SleepMin,
-				Bedtime: d.Bedtime, Wakeup: d.Wakeup, Steps: d.Steps,
+				Bedtime: d.Bedtime, Wakeup: d.Wakeup, Steps: d.Steps, BatteryMorning: d.BatteryMorning,
 				ScreenMin: d.ScreenMin, Unlocks: d.Unlocks,
 				FirstUnlock: d.FirstUnlock, LastUnlock: d.LastUnlock, TopApps: d.TopApps,
 				HourlyUnlocks: d.HourlyUnlocks, HourlyScreen: d.HourlyScreen, HourlySteps: d.HourlySteps,
@@ -96,6 +96,48 @@ func TestNoFalsePositivesAcrossPersonas(t *testing.T) {
 	for _, c := range mustFire {
 		if !fired[c.persona][c.key] {
 			t.Errorf("%s должен давать %s, но его нет среди четырёх сильнейших", c.persona, c.key)
+		}
+	}
+}
+
+// A signal nothing can trigger is not a feature, it is dead code that reads as one. Four of
+// them shipped in the second batch before this test existed: quiet_block, no_break,
+// evening_gap and sedentary_streak all looked finished and fired for nobody, because the
+// personas had no gaps for them to find and one threshold asked for more than any day had.
+func TestEverySignalFiresForSomePersona(t *testing.T) {
+	personas, err := mock.Personas()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+	seen := map[string]bool{}
+	for _, p := range personas {
+		days := make([]*repo.DailyData, 0, len(p.Days))
+		for _, d := range p.Days {
+			days = append(days, &repo.DailyData{
+				Date: base.AddDate(0, 0, d.Offset+1), SleepMin: d.SleepMin,
+				Bedtime: d.Bedtime, Wakeup: d.Wakeup, Steps: d.Steps, BatteryMorning: d.BatteryMorning,
+				ScreenMin: d.ScreenMin, Unlocks: d.Unlocks,
+				FirstUnlock: d.FirstUnlock, LastUnlock: d.LastUnlock, TopApps: d.TopApps,
+				HourlyUnlocks: d.HourlyUnlocks, HourlyScreen: d.HourlyScreen, HourlySteps: d.HourlySteps,
+			})
+		}
+		for _, g := range ForLastDay(days, map[string]bool{}, func(s string) string { return s }) {
+			seen[g.Key] = true
+		}
+	}
+
+	// Signals added for the behavioural work. The older ones are covered by signals_test.go.
+	for _, key := range []string{
+		"checking_day", "immersed_day", "false_start", "night_checks",
+		"long_day", "short_day", "away_day", "desk_day",
+		"long_stretch", "quiet_block", "no_break", "evening_gap", "day_shift",
+		"late_start", "start_jitter", "steady_rhythm", "bedtime_drift",
+		"new_app", "one_app_day", "commute_screen", "sedentary_streak", "not_charged",
+	} {
+		if !seen[key] {
+			t.Errorf("%s не срабатывает ни на одной из %d персон — нужна персона или порог завышен",
+				key, len(personas))
 		}
 	}
 }

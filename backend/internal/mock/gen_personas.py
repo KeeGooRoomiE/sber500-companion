@@ -231,9 +231,16 @@ personas.append({"id": "mock_falsestart", "title": "Ложное пробужд�
 #    Targets: checking_day, no_break. Contrast for jumpy, which sees only the counter.
 d = []
 for off in range(-7, -1):
-    d.append(day(off, screen=150 + random.randint(-12, 12), unlocks=48 + random.randint(-4, 4),
-        first="08:00", last="22:40",
+    j = random.randint(-2, 2)
+    # An ordinary day has pauses: lunch away from the desk and an hour in the evening. The
+    # derived spread fills every hour, so without authoring these the baseline has no gaps
+    # and «день без пауз» can never stand out against it.
+    d.append(day(off, screen=0, unlocks=0, first="08:00", last="22:40",
         apps=[("org.telegram.messenger", 45), ("com.vk.vkcompose", 30), ("ru.yandex.mail", 20)],
+        h_unlocks=flat({8: 4, 9: 6, 10: 6, 11: 5, 12: 4, 14: 6, 15: 5, 16: 5, 17: 4,
+                        18: 3, 20: 4, 21: 3, 22: 2}),
+        h_screen=flat({8: 10, 9: 14 + j, 10: 13, 11: 12, 12: 9, 14: 14, 15: 13, 16: 12,
+                       17: 10, 18: 8, 20: 11, 21: 9, 22: 5}),
         feel=random.choice(["ok", "meh"])))
 d.append(day(-1, screen=0, unlocks=0, first="08:05", last="22:50",
     apps=[("org.telegram.messenger", 50), ("com.vk.vkcompose", 35), ("ru.yandex.mail", 30), ("com.slack", 20)],
@@ -285,8 +292,11 @@ def quiet_day_persona(pid, title, steps_yesterday, step_weights, note, tags, pro
         apps=[("org.telegram.messenger", 25), ("ru.yandex.yandexmaps", 12), ("com.spotify.music", 10)],
         steps=steps_yesterday, step_weights=step_weights, feel="ok", tags=tags,
         # Little screen either way: a few short check-ins and nothing in the middle of the day.
-        h_unlocks=flat({9: 3, 10: 2, 13: 2, 15: 1, 18: 2, 20: 3, 21: 3, 22: 2}),
-        h_screen=flat({9: 8, 10: 5, 13: 7, 15: 3, 18: 6, 20: 9, 21: 10, 22: 4}),
+        # A real gap, not scattered minutes: nothing at all from 11:00 to 17:00, and an
+        # evening away from the phone. Identical for both personas on purpose — the point of
+        # the pair is that the phone cannot tell them apart and the steps can.
+        h_unlocks=flat({9: 3, 10: 2, 17: 2, 18: 2, 22: 3}),
+        h_screen=flat({9: 10, 10: 7, 17: 8, 18: 9, 22: 8}),
         note=note))
     personas.append({"id": pid, "title": title, "profile": profile, "days": d})
 

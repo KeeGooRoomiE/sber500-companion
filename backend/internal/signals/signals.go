@@ -305,6 +305,162 @@ func ForLastDay(days []*repo.DailyData, workApps map[string]bool, labelOf func(s
 		}
 	}
 
+	// Longest unbroken stretch of screen hours, and the longest waking hour without any.
+	// Two sides of the same array: what the day was spent in, and whether it had a pause.
+	if run, start := longestRun(d.HourlyScreen, 20); run >= 3 {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+			r, _ := longestRun(x.HourlyScreen, 20)
+			return float64(r), len(x.HourlyScreen) == 24
+		})
+		if n >= 2 && float64(run) >= usual*1.5 {
+			add(Signal{Key: "long_stretch", Title: "Долгий отрезок без пауз",
+				Detail:   fmt.Sprintf("с %02d:00 примерно %d %s подряд в телефоне", start, run, plural(run, "час", "часа", "часов")),
+				strength: 1.4 + float64(run)/3})
+		}
+	}
+	// A real pause during the day. Positive: the person put the phone down.
+	if gap, start, ok := longestGap(d.HourlyScreen, 9, 22); ok && gap >= 4 {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+			g, _, ok := longestGap(x.HourlyScreen, 9, 22)
+			return float64(g), ok
+		})
+		if n >= 2 && float64(gap) >= math.Max(usual*1.6, 4) {
+			add(Signal{Key: "quiet_block", Title: "Долгая пауза без телефона", Positive: true,
+				Detail:   fmt.Sprintf("с %02d:00 примерно %d %s не брал телефон", start, gap, plural(gap, "час", "часа", "часов")),
+				strength: 1.3 + float64(gap)/4})
+		}
+	}
+	// Not one hour of the working day without the phone.
+	if busy, ok := hoursWithScreen(d.HourlyScreen, 9, 19); ok && busy == 10 {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) {
+			v, ok := hoursWithScreen(x.HourlyScreen, 9, 19)
+			return float64(v), ok
+		})
+		// «Обычно хотя бы одна пауза есть, а вчера не было» — это и есть утверждение.
+		// Порог 8.5 требовал полутора пустых часов в среднем и поэтому не срабатывал никогда.
+		if n >= 2 && usual <= 9.3 {
+			add(Signal{Key: "no_break", Title: "Рабочий день без пауз",
+				Detail: "с девяти до семи не было ни одного часа без телефона", strength: 1.5})
+		}
+	}
+	// An evening truly away from the phone. Positive, and deliberately separate from
+	// quiet_block: the evening is when people say they want the phone down.
+	if gap, start, ok := longestGap(d.HourlyScreen, 18, 24); ok && gap >= 3 {
+		add(Signal{Key: "evening_gap", Title: "Вечер без телефона", Positive: true,
+			Detail:   fmt.Sprintf("с %02d:00 примерно %d %s без экрана", start, gap, plural(gap, "час", "часа", "часов")),
+			strength: 1.5 + float64(gap)/3})
+	}
+
+	// The day's centre of mass moved. Same totals, different day.
+	if cm, ok := centreOfMass(d); ok {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return centreOfMass(x) })
+		if n >= 2 {
+			if diff := cm - usual; math.Abs(diff) >= 2 {
+				word, title := "позже", "День сместился на вечер"
+				if diff < 0 {
+					word, title = "раньше", "День сместился на утро"
+				}
+				add(Signal{Key: "day_shift", Title: title,
+					Detail: fmt.Sprintf("основное время в телефоне примерно на %.0f %s %s обычного",
+						math.Abs(diff), plural(int(math.Abs(diff)), "час", "часа", "часов"), word),
+					strength: 1.3 + math.Abs(diff)/2})
+			}
+		}
+	}
+
+	// The day started later than usual, by the phone rather than by Health Connect.
+	if f, ok := wakeUnlock(d); ok {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return wakeUnlock(x) })
+		if n >= 2 && f-usual >= 75 && !has(out, "false_start") && !has(out, "night_checks") {
+			add(Signal{Key: "late_start", Title: "Позднее начало дня",
+				Detail:   fmt.Sprintf("первая разблокировка в %s — обычно около %s", *d.FirstUnlock, hhmm(round(usual))),
+				strength: (float64(f) - usual) / 75})
+		}
+	}
+
+	// How scattered the week's wake-ups are. Both directions: a steady rhythm is one of the
+	// few good things we can say to someone without Health Connect.
+	if sd, n := spreadOfFirstUnlock(days); n >= 5 {
+		switch {
+		case sd >= 75:
+			add(Signal{Key: "start_jitter", Title: "Режим гуляет",
+				Detail:   fmt.Sprintf("за неделю подъём разъезжается примерно на %s", minutes(round(sd))),
+				strength: 1.2 + sd/90})
+		case sd <= 12:
+			// Low weight on purpose. A steady week is worth saying, but it is a fact about
+			// the week, not about yesterday, and it must never outrank something that
+			// actually happened. The personas make this visible: most of them hold the wake
+			// time constant, so a looser threshold fired for almost everyone — and a signal
+			// that fires for everyone says nothing.
+			add(Signal{Key: "steady_rhythm", Title: "Ровный ритм недели", Positive: true,
+				Detail:   fmt.Sprintf("всю неделю встаёшь почти в одно время, разброс около %s", minutes(round(sd))),
+				strength: 1.05})
+		}
+	}
+
+	// Bedtime creeping later night after night, without ever crossing midnight — which is
+	// exactly the case late_night_run cannot see, because it only counts nights past 00:30.
+	if n, drift := bedtimeDrift(days); n >= 4 && !has(out, "late_night_run") {
+		add(Signal{Key: "bedtime_drift", Title: "Отбой сползает",
+			Detail: fmt.Sprintf("%d %s подряд ложишься позже предыдущего — всего на %s",
+				n, plural(n, "вечер", "вечера", "вечеров"), minutes(round(drift))),
+			strength: 1.6 + float64(n)/4})
+	}
+
+	// An app in the top that is usually not there at all, and a day eaten by a single app.
+	// Not for work or call apps: those already have their own signals, and saying the same
+	// app twice in one forecast reads as the model repeating itself.
+	if pkg, min := newcomerApp(d, base); min >= 60 && labelOf(pkg) != "" && isTopTwo(d, pkg) &&
+		!workApps[pkg] && knownWorkApps[pkg] == "" && !callApps[pkg] {
+		add(Signal{Key: "new_app", Title: "Новое в топе",
+			Detail:   fmt.Sprintf("%s — %s, обычно этого приложения в топе нет", labelOf(pkg), minutes(min)),
+			strength: 1.3 + float64(min)/90})
+	}
+	if d.ScreenMin != nil && *d.ScreenMin >= 90 && len(d.TopApps) > 0 {
+		top := d.TopApps[0]
+		if share := float64(top.Minutes) / float64(*d.ScreenMin); share >= 0.55 {
+			add(Signal{Key: "one_app_day", Title: "День одного приложения",
+				Detail:   fmt.Sprintf("%s — %s, больше половины всего экрана", labelOf(top.Package), minutes(top.Minutes)),
+				strength: 1.2 + share})
+		}
+	}
+
+	// Screen and steps both high: the phone was in motion, not on the sofa. Stops «много
+	// экрана» from automatically reading as «залипал».
+	if d.ScreenMin != nil && d.Steps != nil && *d.Steps > 0 {
+		usualScreen, nS := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.ScreenMin) })
+		usualSteps, nW := avg(base, func(x *repo.DailyData) (float64, bool) {
+			if x.Steps == nil || *x.Steps <= 0 {
+				return 0, false
+			}
+			return float64(*x.Steps), true
+		})
+		if nS >= 2 && nW >= 2 && usualSteps >= 2000 &&
+			float64(*d.ScreenMin) >= usualScreen*1.3 && float64(*d.Steps) >= usualSteps*1.6 {
+			add(Signal{Key: "commute_screen", Title: "Телефон в движении",
+				Detail: fmt.Sprintf("экран выше обычного (%s), но и %s шагов — это не диван",
+					minutes(*d.ScreenMin), thousands(*d.Steps)),
+				strength: 1.5})
+		}
+	}
+	// The longest run of waking hours with almost no steps.
+	if run, start := sedentaryRun(d.HourlySteps, 9, 22, 100); run >= 4 {
+		add(Signal{Key: "sedentary_streak", Title: "Долго на одном месте",
+			Detail:   fmt.Sprintf("с %02d:00 примерно %d %s почти без шагов", start, run, plural(run, "час", "часа", "часов")),
+			strength: 1.3 + float64(run)/5})
+	}
+
+	// Morning battery far below the usual — the phone did not go on charge, which usually
+	// means the evening did not go as usual either.
+	if d.BatteryMorning != nil {
+		usual, n := avg(base, func(x *repo.DailyData) (float64, bool) { return ptrf(x.BatteryMorning) })
+		if n >= 2 && usual >= 60 && float64(*d.BatteryMorning) <= usual*0.4 {
+			add(Signal{Key: "not_charged", Title: "Телефон не ставил на зарядку",
+				Detail:   fmt.Sprintf("утром %d%% — обычно около %d%%", *d.BatteryMorning, round(usual)),
+				strength: 1.4})
+		}
+	}
+
 	sort.SliceStable(out, func(i, j int) bool { return out[i].strength > out[j].strength })
 	if len(out) > maxSignals {
 		out = out[:maxSignals]
@@ -612,4 +768,211 @@ func nightWakings(h []int) int {
 		}
 	}
 	return n
+}
+
+// longestRun returns the longest run of consecutive hours holding at least `min` minutes of
+// screen, and the hour it starts. The day is treated as wrapping past midnight: an evening
+// that runs to 01:00 is one sitting, not two.
+func longestRun(h []int, min int) (int, int) {
+	if len(h) != 24 {
+		return 0, 0
+	}
+	best, bestStart, run, start := 0, 0, 0, 0
+	for i := 0; i < 48; i++ {
+		if h[i%24] >= min {
+			if run == 0 {
+				start = i % 24
+			}
+			run++
+			if run > best && run <= 24 {
+				best, bestStart = run, start
+			}
+		} else {
+			run = 0
+		}
+	}
+	return best, bestStart
+}
+
+// longestGap returns the longest run of hours in [from, to) with no screen at all.
+func longestGap(h []int, from, to int) (int, int, bool) {
+	if len(h) != 24 || from < 0 || to > 24 || from >= to {
+		return 0, 0, false
+	}
+	best, bestStart, run, start := 0, 0, 0, 0
+	for i := from; i < to; i++ {
+		if h[i] == 0 {
+			if run == 0 {
+				start = i
+			}
+			run++
+			if run > best {
+				best, bestStart = run, start
+			}
+		} else {
+			run = 0
+		}
+	}
+	return best, bestStart, true
+}
+
+// hoursWithScreen counts hours in [from, to) that hold any screen time.
+func hoursWithScreen(h []int, from, to int) (int, bool) {
+	if len(h) != 24 {
+		return 0, false
+	}
+	n := 0
+	for i := from; i < to && i < 24; i++ {
+		if h[i] > 0 {
+			n++
+		}
+	}
+	return n, true
+}
+
+// centreOfMass is the minute-weighted average hour of the day's screen time: one number for
+// «когда именно» the day happened. Hours before 05:00 count as the previous evening, so a day
+// ending at 01:00 does not drag the centre back to the morning.
+func centreOfMass(d *repo.DailyData) (float64, bool) {
+	h := d.HourlyScreen
+	if len(h) != 24 {
+		return 0, false
+	}
+	sum, weight := 0.0, 0.0
+	for i, v := range h {
+		if v == 0 {
+			continue
+		}
+		hour := float64(i)
+		if i < 5 {
+			hour += 24
+		}
+		sum += hour * float64(v)
+		weight += float64(v)
+	}
+	if weight < 30 {
+		return 0, false
+	}
+	return sum / weight, true
+}
+
+// spreadOfFirstUnlock is the mean absolute deviation of the week's wake-up times, in minutes.
+func spreadOfFirstUnlock(days []*repo.DailyData) (float64, int) {
+	var v []float64
+	for _, d := range days {
+		if f, ok := wakeUnlock(d); ok {
+			v = append(v, f)
+		}
+	}
+	if len(v) < 3 {
+		return 0, len(v)
+	}
+	mean := 0.0
+	for _, x := range v {
+		mean += x
+	}
+	mean /= float64(len(v))
+	dev := 0.0
+	for _, x := range v {
+		dev += math.Abs(x - mean)
+	}
+	return dev / float64(len(v)), len(v)
+}
+
+// bedtimeDrift counts the run of consecutive nights, ending with the last day, each of which
+// finished later than the one before, and by how much in total.
+//
+// late_night_run only sees nights past 00:30, so a week that creeps from 22:10 to 23:58 is
+// invisible to it — and that is precisely the week worth mentioning, before it crosses over.
+func bedtimeDrift(days []*repo.DailyData) (int, float64) {
+	last := len(days) - 1
+	if last < 1 {
+		return 0, 0
+	}
+	run := 0
+	for i := last; i > 0; i-- {
+		cur, ok1 := clock(days[i].LastUnlock)
+		prev, ok2 := clock(days[i-1].LastUnlock)
+		if !ok1 || !ok2 || cur-prev < 5 {
+			break
+		}
+		run++
+	}
+	if run == 0 {
+		return 0, 0
+	}
+	first, ok1 := clock(days[last-run].LastUnlock)
+	end, ok2 := clock(days[last].LastUnlock)
+	if !ok1 || !ok2 {
+		return 0, 0
+	}
+	return run, float64(end - first)
+}
+
+// newcomerApp finds the top app of the day that does not appear in the days before it.
+func newcomerApp(d *repo.DailyData, base []*repo.DailyData) (string, int) {
+	if len(base) < 3 {
+		return "", 0
+	}
+	seen := map[string]bool{}
+	for _, x := range base {
+		for _, a := range x.TopApps {
+			seen[a.Package] = true
+		}
+	}
+	bestPkg, bestMin := "", 0
+	for _, a := range d.TopApps {
+		if !seen[a.Package] && a.Minutes > bestMin {
+			bestPkg, bestMin = a.Package, a.Minutes
+		}
+	}
+	return bestPkg, bestMin
+}
+
+// sedentaryRun is the longest run of hours in [from, to) with fewer than `max` steps.
+func sedentaryRun(h []int, from, to, max int) (int, int) {
+	if len(h) != 24 {
+		return 0, 0
+	}
+	best, bestStart, run, start := 0, 0, 0, 0
+	for i := from; i < to && i < 24; i++ {
+		if h[i] < max {
+			if run == 0 {
+				start = i
+			}
+			run++
+			if run > best {
+				best, bestStart = run, start
+			}
+		} else {
+			run = 0
+		}
+	}
+	return best, bestStart
+}
+
+// wakeUnlock is the first unlock that plausibly starts the day, in minutes.
+//
+// clock() counts anything before 05:00 as the previous night (24:xx), which is right for a
+// last unlock and wrong for a first one: a 02:10 night check would otherwise read as waking
+// up at 26:10, i.e. nineteen hours late.
+func wakeUnlock(d *repo.DailyData) (float64, bool) {
+	f, ok := clock(d.FirstUnlock)
+	if !ok || f >= 24*60 {
+		return 0, false
+	}
+	return float64(f), true
+}
+
+// isTopTwo reports whether the package is among the two most used apps of the day.
+func isTopTwo(d *repo.DailyData, pkg string) bool {
+	for i, a := range d.TopApps {
+		if i == 2 {
+			return false
+		}
+		if a.Package == pkg {
+			return true
+		}
+	}
+	return false
 }
