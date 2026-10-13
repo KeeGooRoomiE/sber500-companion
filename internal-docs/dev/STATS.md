@@ -113,7 +113,21 @@ FROM call_log WHERE call_type='llm' AND ts>=now()-interval '24 hours' GROUP BY c
 
 ## 3. Как скачать сырьё (CSV)
 
-На сервере через `\copy` (клиентская выгрузка, без прав суперюзера):
+### Публичный эндпоинт (проще всего, без SSH)
+
+`GET /api/v1/export/call_log.csv` — весь `call_log` в CSV, **без авторизации**, CORS, **обновляется
+раз в час** (ленивый кэш). dev/mock/admin исключены — цифры совпадают с публичными `/metrics`.
+На странице `metrics.html` — кнопка «Скачать сырые данные». Код: `backend/internal/api/export.go`.
+
+```bash
+curl -s https://api.94-183-236-169.sslip.io/api/v1/export/call_log.csv -o call_log.csv
+```
+
+Колонки: `ts, user_id (SHA256-хеш), session_id, call_type, component, trigger, user_visible, result, latency_ms`.
+
+### Любая другая таблица/срез — через `\copy` на сервере
+
+Клиентская выгрузка (без прав суперюзера):
 
 ```bash
 ssh companion 'set -a; . /opt/companion/.env; set +a; \
