@@ -9,23 +9,39 @@
 - Logging: `log/slog` structured JSON
 - Migration: plain SQL files, applied via `migrate` CLI or manually
 
-## Endpoints (planned)
+## Endpoints (актуально)
 
 ```
-POST /api/v1/daily-data      Body: DailyDataRequest (UsageSnapshot + SleepSnapshot + BatterySnapshot)
-POST /api/v1/checkin         Body: CheckInRequest (feel: OK|MEH|HARD, tags[], note?)
-GET  /api/v1/morning         Returns: MorningResponse (content, date)
-GET  /api/v1/weekly          Returns: WeeklyResponse (content, week_start)
-GET  /api/v1/metrics         Returns: MetricsResponse (публичные метрики для судей, CORS: *)
-GET  /health                 Returns: 200 OK (liveness probe)
+POST /api/v1/register        регистрация устройства (публичный, 60/ч на IP)
+POST /api/v1/data/passive    дневной снапшот (usage + sleep + steps + battery + почасовки)
+POST /api/v1/checkin         feel: ok|meh|hard, tags[], note?
+GET  /api/v1/morning         утренний прогноз (пре-ген ночью или on-demand)
+POST /api/v1/ping            «приложение открыто» (DAU)
+GET/PUT /api/v1/profile      контекст о человеке
+GET  /api/v1/history         14 дней прогнозов (панели Home)
+POST /api/v1/review/day      разбор дня
+POST /api/v1/review/week     итоги недели
+POST /api/v1/followup        уточнение под инсайтом (follow-up чипы)
+POST /api/v1/insight         5 кейсов: midday/stat/retro/tag/question
+GET/POST /api/v1/explore     «Хочу ещё» (состояние + ответ)
+POST /api/v1/feedback        hit/miss по прогнозу/разбору
+POST /api/v1/event           продуктовые события
+GET  /api/v1/version         последняя версия APK
+GET  /api/v1/metrics         публичные агрегаты (без auth, CORS: *)
+GET  /health                 liveness
 ```
 
-All endpoints require `X-User-ID` header (SHA256 device fingerprint).
+Все кроме публичных требуют `X-User-ID` (SHA256 device fingerprint). Админ-эндпоинты
+(`/admin/prompts/*`) слушают локальный порт, наружу не торчат. Полная таблица — `ARCHITECTURE.md`.
 
 ## Database schema
 
+> ⚠️ Ниже — ранняя схема `001_init`. С тех пор миграции доросли до **014**; добавились таблицы
+> `reviews`, `feedback`, `explore_answers`, `user_activity`, `heartbeats`, `prompts`
+> (+ `002_fcm_token` — остаток пуш-инфры, мёртвая). Полный актуальный список — `ARCHITECTURE.md`.
+
 ```sql
--- 001_init.sql (already written, see backend/migrations/)
+-- 001_init.sql (see backend/migrations/)
 
 users (id TEXT PK, created_at TIMESTAMPTZ)
 
@@ -74,8 +90,8 @@ call_log (
   user_id TEXT,
   ts TIMESTAMPTZ,
   session_id TEXT,
-  call_type TEXT,          -- llm | tool | background
-  component TEXT,          -- llm_morning | llm_checkin | usagestats | health_connect | calendar
+  call_type TEXT,          -- llm | tool
+  component TEXT,          -- llm_morning | llm_day_review | llm_weekly | llm_explore | llm_followup | llm_insight | usagestats | checkin | scenario_completed | ...
   trigger TEXT,            -- user_action | scheduled | followup
   user_visible BOOL,
   result TEXT,
@@ -105,45 +121,35 @@ weekly_feedback (
 
 ## LLM integration
 
-Файл: `internal/llm/morning.go`
+Клиент: `internal/llm/` (`sashabaranov/go-openai`, BaseURL override). Генераторы — в
+`internal/forecast/` (morning, review day/week, explore, insight, followup).
 
-**Модель:** `GigaChat-3-Pro` (env: `LLM_MODEL`, default = `GigaChat-3-Pro`)
-> ⚠️ Старое имя `GigaChat-Pro` — не работает. Только `GigaChat-3-Pro`.
+**Провайдер/модель:** cloud.ru Foundation Models, `gigachat-3-pro` (env `LLM_MODEL`).
+Эндпоинт `https://shared1.multitool.works:4000/v1` (прокси к моделям cloud.ru).
 
-**Параметры:** MaxTokens=100, Temperature=0.75
+**Промты — в БД (`prompts`), не в коде.** Версии + hot-swap через админ-API (`deploy/prompt.sh`),
+плюс встроенные дефолты в бинарнике. Имена слотов: `morning_system`, `day_review_system`,
+`weekly_system`, `explore_system`.
+> ⚠️ `prompt.sh` по умолчанию пишет в `morning_system` — для остальных **обязательно** `PROMPT=<name>`.
 
-**Стоимость:** ~0.065₽/вызов (700 input + 80 output токенов). Подробнее в `LLM_BUDGET.md`.
+**Тон — НАБЛЮДАТЕЛЬ, не советчик.** Ключевое правило всех промтов: НИКОГДА советов, инструкций,
+повелительного наклонения — только наблюдения и объяснения. Причина (кастдев): прескриптивный
+тон → вина → отток, особенно у не-трекеров. Сравнение — с ЛИЧНОЙ нормой человека; приложения —
+по имени; причинность через предыдущие дни (накопленный недосып/экран).
 
-**System prompt — 5 правил:**
-1. Сравнивать с личными средними, не с "нормой здорового человека"
-2. Называть приложения по имени (Instagram, YouTube, Telegram) — не "соцсети"
-3. Одно конкретное действие, не список
-4. Замечать положительные отклонения и хвалить
-5. Если сон падает 3+ дней подряд — смягчать тон
+**Форматы по типам:**
+- Утро (`morning_system`): ровно 2 предложения, ≤220 символов, «что было вчера и что из этого
+  следует сегодня» как вероятность. `capMessage()` — hard cap по последней точке.
+- Разбор дня (`day_review_system`): 3–4 предложения, ≤500; хороший день = один механизм, не свалка
+  метрик (good-day фикс); причина в предыдущих днях.
+- Неделя (`weekly_system`): 4–5 предложений, ≤650.
+- Explore/insight/followup — короткие, по данным, без советов (см. `SIGNALS.md`).
 
-**Формат ответа:** 2 предложения, СТРОГО ≤200 символов. Первое — ключевой факт (≤80 символов). Без приветствий.
+**Что передаётся:** личные средние, флаг падения сна 3+ дней, данные по дням (экран/сон/unlocks/
+last_unlock/steps/battery/top-приложения), дельта wakeup→first_unlock, последний чек-ин, профиль.
+Каждый вызов логируется в `call_log` (`prompt_tokens + completion_tokens + latency_ms`, модель).
 
-**Hard cap:** `capMessage(s, 220)` — обрезает по последней точке/!/? в пределах 220 рун.
-
-**Что передаётся в промпт:**
-- Личные средние за период (экран, сон, шаги, разблокировки)
-- Флаг ⚠️ если сон падает 3+ дней подряд
-- 7 дней данных: дата, экран, сон, unlocks, last_unlock, steps, battery_morning (<75%), top-2 приложения
-- Дельта wakeup→first_unlock если >30 минут (положительный сигнал — не взял телефон сразу)
-- Последний чекин с переводом (ok→"хороший день" и т.д.)
-
-**Package→label резолвер:** 30 приложений (Instagram, YouTube, Telegram, VK, WhatsApp, TikTok, Chrome, Notion, Slack, Teams и др.)
-
-Morning message prompt structure:
-```
-[Личные средние]
-[⚠️ флаг тренда если нужен]
-[7 строк данных по дням]
-[Последний чекин]
-Составь утренний прогноз на сегодня.
-```
-
-Tokens: target ~80 completion tokens per call. Log `prompt_tokens + completion_tokens + latency_ms` per call.
+Стоимость — см. `LLM_BUDGET.md`.
 
 ## Deployment
 
@@ -155,12 +161,13 @@ See `deploy/` directory:
 
 Environment file: `/opt/companion/.env` on server (gitignored, never committed).
 
-## TODO — next backend steps
+## Статус (всё из раннего TODO — сделано)
 
-1. Implement handler stubs (currently placeholders)
-2. LLM morning generation cron (4:10 daily)
-3. Retrofit-compatible DTOs aligned with Android models
-4. ~~Push notification trigger (FCM)~~ — удалён 2026-10-02: Google-зависимость
-   не нужна в RuStore, доставка живёт на AlarmManager. См. NOTIFICATIONS.md
-5. 10 RPS stress test (wrk or k6)
-6. Metrics endpoint or Prometheus scrape for DAU/TPM
+Хендлеры, планировщик 04:10, DTO, метрики, 10 RPS (LOADTEST.md) — готово и в проде. FCM удалён
+2026-10-02 (доставка на AlarmManager, NOTIFICATIONS.md).
+
+Открытое / беклог:
+- Выгрузка статистики через `call_log` (методы на бэке) — см. `STATS.md` (пока доступ через psql).
+- Прод-ключ cloud.ru (выделенный) — сейчас общий прокси; его нестабильность = источник скачков
+  error_rate в утреннем батче. Митигатор (keep-alive + размазать батч) — в беклоге.
+- Чат (следующий месяц) — поднимет Calls/DAU.
