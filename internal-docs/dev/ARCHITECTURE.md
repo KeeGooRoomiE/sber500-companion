@@ -1,125 +1,124 @@
 # Architecture
 
+Актуально на 2026-10-13. Обзор системы; детали подсистем — в соседних доках
+(`BACKEND.md`, `ANDROID.md`, `SIGNALS.md`, `NOTIFICATIONS.md`, `STATS.md`).
+
 ## System overview
 
 ```
-Android App
-  ├── UI (Compose)
-  ├── WorkManager (batch, 4:00 night collect)
-  │     ├── UsageStatsCollector   → screen time, unlocks, top apps
-  │     ├── HealthConnectCollector → sleep, steps
-  │     └── BatteryLevel
-  ├── Evening check-in notification (3-button: OK / MEH / HARD)
+Android App (Kotlin / Compose)
+  ├── UI (Compose, MVVM) — онбординг → Home → профиль (орб), motion/Backdrop
+  ├── WorkManager
+  │     ├── DailyCollectWorker      — 12h periodic + runNowAndWait: usage/sleep/steps/battery → сервер
+  │     ├── ReviewNotificationWorker — после чек-ина: снапшот → /review/day → уведомление «разбор дня»
+  │     └── UpdateCheckWorker        — 12h: проверка новой версии APK
+  ├── Collectors: UsageStats (экран/разблокировки/приложения), HealthConnect (сон/шаги), Battery
+  ├── Notifications (ЛОКАЛЬНЫЕ, FCM удалён 2026-10-02)
+  │     каналы: ch_morning, ch_checkin, ch_review, ch_update
+  │     доставка: NotificationScheduler + AlarmManager (точный будильник на первую разблокировку)
+  ├── AppMetrica SDK — продуктовые события (онбординг, экраны), геолокация отключена
   └── Retrofit → Backend API
 
-Backend (Go)
-  ├── POST /api/v1/daily-data      ← passive data from Android
-  ├── POST /api/v1/checkin         ← evening 3-button mood
-  ├── GET  /api/v1/morning         ← morning forecast for Android
-  ├── GET  /api/v1/weekly          ← weekly summary
-  └── Internal jobs (scheduled)
-        ├── 4:10 — aggregate DailySnapshot → LLM call → store morning_message
-        └── Sunday 20:00 — weekly summary generation
+Backend (Go: chi, pgx/v5, slog, go-openai)
+  ├── HTTP API /api/v1/* (см. ниже)
+  ├── Планировщик 04:10 MSK — генерация утренних прогнозов для всех (4 воркера, ретрай)
+  ├── Prompts store — версии промтов в БД + админ-API (локальный порт), hot-swap без редеплоя
+  ├── call_log — anti-fraud: каждый LLM/tool-вызов логируется
+  └── LLM-клиент → cloud.ru Foundation Models
 
-LLM (cloud.ru Foundation Models, OpenAI-compatible)
-  └── Morning forecast: system prompt + last 7 DailySnapshots + last checkin → message
+LLM: cloud.ru Foundation Models, модель gigachat-3-pro
+  └── Эндпоинт: https://shared1.multitool.works:4000/v1 (OpenAI-совместимый прокси к моделям cloud.ru)
 
-GitHub Pages
-  └── Landing: APK download + links
+PostgreSQL (на VPS) — вся серверная персистентность (см. «Схема БД»)
+
+Web (GitHub Pages)
+  ├── index.html   — лендинг (APK, описание)
+  ├── metrics.html — живые метрики (тянет GET /api/v1/metrics)
+  └── privacy.html — политика конфиденциальности
 ```
 
-## Data flow (daily cycle)
+## HTTP API (`/api/v1`, auth по заголовку X-User-ID кроме публичных)
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| POST | `/register` | регистрация устройства (60/ч на IP) |
+| POST | `/data/passive` | дневной снапшот (экран, разблокировки, топ-приложений, сон, шаги, батарея, почасовки) |
+| POST | `/checkin` | вечерняя отметка (ok/meh/hard + теги) |
+| GET | `/morning` | утренний прогноз (пре-ген ночью или on-demand) |
+| POST | `/ping` | «приложение открыто» (DAU) |
+| GET/PUT | `/profile` | контекст о человеке |
+| GET | `/history` | 14 дней утренних прогнозов (для панелей Home) |
+| POST | `/review/day` | разбор дня (`day_review_system`) |
+| POST | `/review/week` | итоги недели (`weekly_system`) |
+| POST | `/followup` | уточнение под инсайтом (follow-up чипы) |
+| POST | `/insight` | 5 кейсов: midday/stat/retro/tag/question |
+| GET/POST | `/explore` | «Хочу ещё» — состояние и ответ на вопрос (`explore_system`) |
+| POST | `/feedback` | «Совпало / Не совсем» по прогнозу/разбору |
+| POST | `/event` | продуктовые события (напр. `notification_opened:*`) |
+| GET | `/version` | последняя версия APK (для in-app «обновиться») |
+| GET | `/metrics` | **публичные агрегаты** (без auth, CORS) — для `metrics.html` |
+| GET | `/health` | healthcheck |
+
+Админ (локальный порт на сервере, наружу не торчит): `/admin/prompts/*` — list/push/activate/reset
+промтов (`deploy/prompt.sh`), `/admin/push` (заглушка), `errors_reset`.
+
+## Схема БД (PostgreSQL, миграции 001–014)
+
+| Таблица | Назначение |
+|---|---|
+| `users` | устройства (id = SHA256(ANDROID_ID+salt)), `is_dev`, created_at |
+| `daily_data` | дневной снапшот на дату (экран, разблокировки, top_apps jsonb, сон, шаги, батарея, почасовки) |
+| `checkins` | вечерние отметки (feel, tags, note) |
+| `morning_messages` | утренние прогнозы + токены/латентность/модель |
+| `reviews` | кэш разборов (day/week; составной kind для follow-up) |
+| `feedback` | hit/miss по прогнозам и разборам |
+| `explore_answers` | ответы «Хочу ещё» (кэш на день) |
+| `call_log` | **anti-fraud**: каждый вызов (call_type=llm/tool, component, trigger, user_visible, result, latency_ms) |
+| `user_activity` | активность по дням (DAU/ретеншн) |
+| `heartbeats` | аптайм-пинги |
+| `prompts` | версии системных промтов (hot-swap) |
+| `weekly_feedback` | legacy (ранняя схема) |
+
+(Миграция `004_device_tokens` — остаток пуш-инфры; FCM удалён, таблица мёртвая.)
+
+## Поток данных (суточный цикл)
 
 ```
-23:00–23:59  UsageStats window closes (Android collects retroactively on wake)
-04:00        WorkManager fires DailyCollectWorker
-              → UsageStats (yesterday 00:00–23:59)
-              → Health Connect (sleep from 20:00 prev day to 10:00 today)
-              → Battery level
-              → POST /api/v1/daily-data
-04:10        Backend cron: LLM call → morning_message stored
-07:40        Android push notification: morning forecast displayed
-19:30        Evening check-in push notification (3 buttons from notification action)
-             → POST /api/v1/checkin (feel: OK/MEH/HARD)
-Sunday 20:00 Weekly summary generated, pushed to user
+ночь        DailyCollectWorker собирает вчера (полностью) + сегодня (пока) → POST /data/passive
+04:10 MSK   Планировщик: LLM-вызов → morning_message сохранён (trigger=scheduled, фон)
+утро        Первая разблокировка → локальное уведомление с прогнозом (AlarmManager)
+вечер       Чек-ин из уведомления (3 кнопки) → POST /checkin
+            → ReviewNotificationWorker: снапшот сегодня → POST /review/day → уведомление «разбор дня»
+по запросу  Разбор дня/недели, follow-up, «Хочу ещё», инсайты — user_action LLM-вызовы
 ```
 
-## User identity / privacy
+Home читает данные **на устройстве** (локальный прогноз `LocalForecast`, без бэкенда); бэкенд нужен
+для LLM-текста и серверных метрик. Подробности — `HOME_UX.md`.
 
-- `user_id = SHA256(device_id + server_salt)` — one-way, rotating salt planned
-- No geolocation
-- No notification content reading
-- No foreground service (WorkManager only — avoids battery complaints)
-- Health Connect data stays on device; only aggregates sent (duration, bedtime/wakeup, step count)
-- `PACKAGE_USAGE_STATS` requested on Day 3–4 of onboarding (show value first)
+## Идентичность / приватность
 
-## Database schema (PostgreSQL)
+- `user_id = SHA256(ANDROID_ID + salt)` — односторонний, без имени/телефона/почты.
+- Нет геолокации (в т.ч. отключена в AppMetrica), не читается содержимое уведомлений/переписок.
+- Нет foreground-сервиса (только WorkManager/AlarmManager) — меньше претензий к батарее.
+- Health Connect — только чтение сна/шагов, на устройстве; на сервер уходят агрегаты.
+- `PACKAGE_USAGE_STATS` запрашивается в онбординге с объяснением ценности.
+- В cloud.ru уходят **посчитанные показатели** (числа + имена приложений), без идентификатора устройства.
 
-```sql
-users           (id TEXT PK, created_at)
-daily_data      (user_id, date UNIQUE, screen_minutes, unlocks, top_apps jsonb, sleep_minutes, bedtime, wakeup, steps, battery_pct)
-checkins        (user_id, date UNIQUE, feel TEXT, tags TEXT[], note_text)
-morning_messages(user_id, date UNIQUE, content TEXT, generated_at, model, prompt_tokens, completion_tokens, latency_ms)
-call_log        (id, user_id, ts, session_id, call_type, component, trigger, user_visible, result TEXT, latency_ms)
-weekly_feedback (user_id, week_start UNIQUE, content TEXT)
-```
+## LLM-интеграция
 
-## Android module structure
+- Библиотека `sashabaranov/go-openai` (OpenAI-совместимость через BaseURL override).
+- Провайдер: **cloud.ru Foundation Models**, модель **gigachat-3-pro**.
+- Эндпоинт (прод): `https://shared1.multitool.works:4000/v1` — прокси к моделям cloud.ru.
+- Промты — в БД (`prompts`) с версиями и hot-swap; имена: `morning_system`, `day_review_system`,
+  `weekly_system`, `explore_system` (+ встроенные дефолты в бинарнике).
+- Anti-fraud: каждый вызов в `call_log`; dev-пользователи исключаются из метрик (`DEV_USER_IDS`,
+  `is_dev`, префикс `mock_`).
 
-```
-ru.keegoo.companion
-  ├── CompanionApp.kt          (Hilt app, WorkManager + HiltWorkerFactory, schedules reminders)
-  ├── ui/
-  │    ├── MainActivity.kt
-  │    ├── NavHost.kt          (backdrop + SharedTransitionLayout: onboarding → home → profile)
-  │    ├── HomeScreen.kt
-  │    ├── home/               (HomeViewModel, HomeStats, HomeCheckIn)
-  │    ├── onboarding/OnboardingScreen.kt
-  │    ├── profile/ProfileScreen.kt   («Расскажи о себе», by tapping the orb)
-  │    ├── motion/             (Backdrop waves, CompanionOrb, shared keys)
-  │    └── theme/Theme.kt
-  ├── domain/
-  │    ├── model/              (DailySnapshot, CheckIn)
-  │    ├── forecast/LocalForecast.kt  (rule-based summary of today, no LLM)
-  │    └── profile/ProfileQuestions.kt
-  ├── data/
-  │    ├── collector/          (UsageStats, HealthConnect, app labels)
-  │    ├── local/TodayRepository.kt   (today + week on device for Home)
-  │    ├── prefs/AppPrefs.kt   (DataStore: onboarded, today's check-in, profile answers)
-  │    └── api/, repository/   (Retrofit → backend)
-  ├── notifications/           (copies, NotificationScheduler + ReminderWorker, CheckInReceiver)
-  └── work/
-       └── DailyCollectWorker.kt   (PeriodicWork 12h, CoroutineWorker+Hilt)
-```
+## Соответствие метрикам конкурса
 
-Home reads data **on the device** (no backend needed to show the day); the backend still receives
-passive data and check-ins for the LLM forecast. Details: [HOME_UX.md](HOME_UX.md).
-
-## Backend module structure
-
-```
-backend/
-  ├── cmd/server/main.go
-  ├── internal/
-  │    ├── analytics/call_log.go   (anti-fraud logging, dev-user filter)
-  │    ├── handler/                (chi routes — stub implementations)
-  │    └── llm/                    (cloud.ru via go-openai BaseURL override)
-  ├── migrations/001_init.sql
-  └── .env.example
-```
-
-## LLM integration
-
-- Library: `sashabaranov/go-openai` — works with any OpenAI-compatible API via `BaseURL` override
-- Endpoint: `https://api.cloud.ru/v1`
-- Budget: 50k₽ for Stage 1 (first ~2 weeks)
-- Anti-fraud: every call logged to `call_log` with `call_type=llm`, `user_visible=true/false`
-- Dev user IDs excluded from metrics via `DEV_USER_IDS` env var
-
-## Competition metrics compliance
-
-The competition verifies:
-- **Tool calls / model queries + DAU** — every backend LLM call counted
-- **TPM, TPS, token count** — logged per call in `morning_messages` table
-- **LLM-cost / DAU** — derivable from token counts + pricing
-- Background calls (`trigger=scheduled`) logged with `user_visible=false` to prove they're legitimate
+- **Calls/DAU** — считается по `call_log` **только по LLM-вызовам** (`call_type='llm'`, без admin/dev);
+  tool-вызовы (usagestats/checkin/scenario) в KPI не идут.
+- `scenario_completed` — утро получено + вечерний чек-ин в один день.
+- Фоновые вызовы (`trigger=scheduled`) логируются отдельно (`user_visible=false`) — честность фона.
+- DAU/ретеншн — из `user_activity`; дубль-источник AppMetrica (продуктовая аналитика).
+- Детали доступа к статистике и выгрузки — `STATS.md`.
