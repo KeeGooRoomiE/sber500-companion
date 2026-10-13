@@ -116,7 +116,7 @@ FROM call_log WHERE call_type='llm' AND ts>=now()-interval '24 hours' GROUP BY c
 ### Публичный эндпоинт (проще всего, без SSH)
 
 `GET /api/v1/export/call_log.csv` — весь `call_log` в CSV, **без авторизации**, CORS, **обновляется
-раз в час** (ленивый кэш). dev/mock/admin исключены — цифры совпадают с публичными `/metrics`.
+раз в 5 минут** (ленивый кэш). dev/mock/admin исключены — цифры совпадают с публичными `/metrics`.
 На странице `metrics.html` — кнопка «Скачать сырые данные». Код: `backend/internal/api/export.go`.
 
 ```bash

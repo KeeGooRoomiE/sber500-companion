@@ -15,12 +15,12 @@ import (
 )
 
 // exportTTL is how long a built CSV is served before a new request rebuilds it.
-const exportTTL = time.Hour
+const exportTTL = 5 * time.Minute
 
 // Export serves the raw call_log as a public CSV for transparency — the same anti-fraud log the
 // aggregate /metrics are computed from, so anyone (judges included) can recompute Calls/DAU etc.
 // Rows are anonymous (user_id is a SHA256 fingerprint); dev/mock/admin rows are excluded so the
-// download matches the public metrics. Built at most once an hour and cached in memory.
+// download matches the public metrics. Rebuilt at most once every 5 minutes, cached in memory.
 type Export struct {
 	db     *pgxpool.Pool
 	devIDs []string
@@ -69,7 +69,7 @@ func (e *Export) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="call_log.csv"`)
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	w.Header().Set("Last-Modified", builtAt.UTC().Format(http.TimeFormat))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
