@@ -27,26 +27,24 @@
 - [x] Android: онбординг, домашний экран, уведомления (morning + checkin), data collectors
 - [x] Backend: все эндпоинты, планировщик 04:10, LLM prompting
 - [x] **VPS задеплоен** — `https://api.94-183-236-169.sslip.io/`, живой, метрики отдаёт
-- [x] **45 пользователей, 28 DAU, calls/DAU 13.3, retention D1 73%** (02.10.2026)
+- [x] **61 пользователь, DAU ~30 (7-дн 29.7), D1 90%, D7 ~53% (тёплые 76%)** — на 09.10.2026
+- [x] **#1 на батчкемпе Sber500** (динамика стартапов)
 - [x] MVP раньше дедлайна 06.10 ✅
 
-### Ждём внешнего
-- [x] ~~cloud.ru API key~~ — получен, LLM работает (282 вызова, 22 ₽ из 50 000)
-- [ ] ⚠️ **AppMetrica ключ** → SDK init в CompanionApp. **Главный открытый риск:**
-      чекпоинт Недели 2 требует «аналитика подключена», а DAU для организатора
-      считается по AppMetrica. Ключ пустой → наш DAU для них равен нулю,
-      хотя на своей странице метрик он 28.
+### Внешнее — закрыто
+- [x] cloud.ru API key — получен, LLM работает. Эндпоинт `https://shared1.multitool.works:4000/v1`
+      (прокси к моделям cloud.ru), модель `gigachat-3-pro`. Потрачено ~121₽ из 50 000.
+- [x] **AppMetrica** — ✅ активна (ключ из CI-секрета, геолокация отключена). События онбординга
+      собираются (funnel дозреет на новых инсталлах — инструментовка на старых билдах рваная).
 
-### Осталось сделать
-- [x] README.md в репозитории
-- [x] Архитектура указана в README
-- [x] 10 RPS на живом сервере — 100% успешных при load average 0,07, отчёт в LOADTEST.md
-- [x] 20 custdev интервью ✅ **ВЫПОЛНЕНО ПОЛНОСТЬЮ (20/20)**
-- [ ] 50 пользователей к 13.10 — **49/50**
-- [x] ~~Промт v2 залить в БД~~ — пункт устарел. Ключ давно пришёл, а встроенный
-      промт (2989 симв., с правилами про шаблонность, тон и причинность) новее обеих
-      версий в БД (v1 1185, v2 1882). Активировать их значит откатиться. Версии в БД
-      остаются для A/B и отката, заливать нечего
+### Условия Стадии 1 (по инфе ментора — проход = выполнить, не ранжирование)
+- [x] Звонки с ментором — Н1/Н2 прошли, Н3 ожидается
+- [x] 20 кастдевов ✅ **27 проведено** (формально 28, 28-й не внесён)
+- [x] Завершение MVP — 1.0.0
+- [x] MVP в открытый доступ — лендинг + APK (RuStore 1.0.3 — для чистоты, см. RUSTORE.md)
+- [~] Пользователи (кап 100) — **61**, добор к 100 тёплыми (GROWTH.md). Выше 100 очков не даёт.
+- [x] 10 RPS на живом сервере — 100% успешных, отчёт в LOADTEST.md
+- [x] README.md + архитектура в репозитории
 
 ## Metrics the competition measures
 
@@ -56,13 +54,18 @@
 | Calls/DAU | `call_log` table — every LLM call logged |
 | TPM / TPS | logged per call in `morning_messages.prompt_tokens + completion_tokens` |
 | LLM-cost/DAU | token counts × pricing from cloud.ru |
-| User retention | AppMetrica + morning message streak |
+| User retention | AppMetrica + `user_activity` (D1 90%, D7 ~53%) |
+
+**Calls/DAU (истинный, только LLM):** сейчас **~3.8–6.9** (не 13/18 — те считали весь `call_log`,
+включая tool-вызовы; метрика починена на llm-only). KPI номинации ≥10 — цель; добор через
+вовлечённость механик 1.0.0 (insight/follow-up/explore) и планируемый **чат** (следующий месяц).
+Детали доступа к статистике — `STATS.md`.
 
 ## LLM API
 
-- Provider: cloud.ru Foundation Models
-- API: OpenAI-compatible (`https://api.cloud.ru/v1`)
-- Budget: 50,000₽ for Stage 1
+- Provider: cloud.ru Foundation Models (модель `gigachat-3-pro`)
+- API: OpenAI-compatible, эндпоинт `https://shared1.multitool.works:4000/v1` (прокси к моделям cloud.ru)
+- Budget: 50,000₽ for Stage 1 (потрачено ~121₽)
 - Key delivered via submission form (PAT + API key form submitted)
 - Never commit to repo — goes into server's `/opt/companion/.env` as `LLM_API_KEY`
 
@@ -93,7 +96,7 @@
 
 ## Custdev status
 
-- Script: `internal-docs/custdev-script.md`
+- **Проведено 27 интервью** (формально 28, 28-й не внесён) — условие «20 кастдевов» перевыполнено.
+- Script + расшифровки всех 27: `internal-docs/custdev-script.md`
 - Sources: `internal-docs/custdev-sources.md`
-- Target: 10 interviews by 2026-09-29
 - Questions for organizers: `internal-docs/questions.md`
