@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Онбординг — проявляющаяся фраза</title>
+<style>
+  :root {
+    --bg: #eef0f4;
+    --card: #ffffff;
+    --ink: #15171c;
+    --muted: #6b7280;
+    --faint: #9aa1ad;
+    --line: #e4e7ec;
+    --accent: #3b6ef5;
+    --accent-soft: #e8efff;
+    --ok: #1f9d6b;
+    --ok-soft: #e3f6ee;
+    --lock: #c3c8d2;
+    --radius: 18px;
+    --shadow: 0 10px 30px rgba(20,23,28,.10);
+    font-synthesis: none;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #0e1013;
+      --card: #171a20;
+      --ink: #eef1f6;
+      --muted: #99a2b1;
+      --faint: #6b7483;
+      --line: #262b33;
+      --accent: #6b93ff;
+      --accent-soft: #1b2542;
+      --ok: #44c58c;
+      --ok-soft: #14301f;
+      --lock: #3a414d;
+      --shadow: 0 10px 34px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1013;
+    --card: #171a20;
+    --ink: #eef1f6;
+    --muted: #99a2b1;
+    --faint: #6b7483;
+    --line: #262b33;
+    --accent: #6b93ff;
+    --accent-soft: #1b2542;
+    --ok: #44c58c;
+    --ok-soft: #14301f;
+    --lock: #3a414d;
+    --shadow: 0 10px 34px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+    gap: 18px;
+  }
+
+  .toolbar {
+    display: flex; gap: 8px; align-items: center;
+    font-size: 13px; color: var(--muted);
+  }
+  .toolbar button {
+    font: inherit; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .toolbar button:hover { color: var(--ink); }
+
+  .phone {
+    width: 100%; max-width: 380px;
+    background: var(--card);
+    border-radius: 30px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .screen { padding: 26px 22px 22px; display: flex; flex-direction: column; gap: 20px; }
+
+  .progress-row { display: flex; align-items: center; justify-content: space-between; }
+  .step-label { font-size: 12.5px; color: var(--faint); letter-spacing: .02em; }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: block; }
+  .dots i.on { background: var(--accent); }
+
+  h1 { font-size: 21px; line-height: 1.25; margin: 0; letter-spacing: -.01em; }
+  .sub { margin: -8px 0 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+
+  /* Проявляющаяся фраза */
+  .reveal-card {
+    background: linear-gradient(180deg, var(--accent-soft), transparent 140%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 16px 16px;
+  }
+  .reveal-kicker { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 10px; }
+  .phrase { font-size: 17.5px; line-height: 1.65; }
+  .frag {
+    display: inline-block;
+    border-radius: 7px;
+    padding: 1px 8px;
+    margin: 0 1px;
+    transition: all .5s cubic-bezier(.22,.61,.36,1);
+    font-weight: 600;
+  }
+  .frag.locked {
+    color: transparent;
+    background: var(--lock);
+    filter: blur(.3px);
+    user-select: none;
+    position: relative;
+  }
+  .frag.locked::after {
+    content: "●●";
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: color-mix(in srgb, var(--faint) 70%, transparent);
+    font-size: 11px; letter-spacing: 2px;
+  }
+  .frag.revealed { color: var(--ink); background: color-mix(in srgb, var(--ok-soft) 80%, transparent); }
+  .frag.reading { color: var(--muted); background: var(--accent-soft); font-weight: 500; }
+  .frag .tag {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--accent);
+    vertical-align: 12%; margin-left: 4px; opacity: .85;
+  }
+
+  /* Шкала точности */
+  .accuracy { display: flex; flex-direction: column; gap: 8px; }
+  .accuracy .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .accuracy .cap { font-size: 13.5px; color: var(--muted); }
+  .accuracy .pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 25%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--ok) 70%, var(--accent)));
+    transition: width .7s cubic-bezier(.22,.61,.36,1); }
+
+  /* Разрешения */
+  .perms { display: flex; flex-direction: column; gap: 10px; }
+  .perm {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px; display: flex; gap: 12px; align-items: flex-start;
+    background: var(--card); transition: border-color .3s, background .3s;
+  }
+  .perm.done { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok-soft) 35%, var(--card)); }
+  .perm .ic {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .perm.done .ic { background: var(--ok-soft); color: var(--ok); }
+  .perm .body { flex: 1; min-width: 0; }
+  .perm .title { font-size: 15px; font-weight: 600; }
+  .perm .benefit { font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .perm .nope { font-size: 12px; color: var(--faint); margin-top: 6px; line-height: 1.4; }
+  .perm .nope b { color: var(--muted); font-weight: 600; }
+  .perm .act { margin-top: 11px; }
+  .btn {
+    font: inherit; font-size: 13.5px; font-weight: 600;
+    border-radius: 10px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--accent); color: #fff; background: var(--accent);
+    transition: transform .08s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .perm.done .btn { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: transparent; color: var(--ok); cursor: default; }
+
+  .footer { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+  .cta { font: inherit; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 14px;
+    border: none; cursor: pointer; background: var(--ink); color: var(--card); }
+  .later { font: inherit; font-size: 13.5px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px; }
+
+  .note { font-size: 12px; color: var(--faint); text-align: center; max-width: 380px; line-height: 1.5; }
+  .svg-ic { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>Мок онбординга · «проявляющаяся фраза» + live-peek</span>
+    <button id="theme">◐ тема</button>
+    <button id="reset">↺ сброс</button>
+  </div>
+
+  <div class="phone">
+    <div class="screen">
+      <div class="progress-row">
+        <span class="step-label">Доступы · шаг 3 из 4</span>
+        <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+      </div>
+
+      <div>
+        <h1>Что я смогу тебе показывать</h1>
+        <p class="sub">Открывай доступы по одному — фраза ниже собирается из них. Числа появляются из твоих же данных, не из примера.</p>
+      </div>
+
+      <div class="reveal-card">
+        <div class="reveal-kicker">Пример сегодняшнего дня</div>
+        <div class="phrase">
+          Сегодня&nbsp;—
+          <span class="frag locked" data-frag="usage"></span>,
+          ночью&nbsp;<span class="frag locked" data-frag="sleep"></span>,
+          и&nbsp;<span class="frag locked" data-frag="steps"></span>.
+          После коротких ночей утро у&nbsp;тебя обычно&nbsp;медленнее.
+        </div>
+      </div>
+
+      <div class="accuracy">
+        <div class="top">
+          <span class="cap">Насколько точно пойму твои дни</span>
+          <span class="pct" id="pct">25%</span>
+        </div>
+        <div class="bar"><span id="barfill"></span></div>
+      </div>
+
+      <div class="perms">
+        <div class="perm" data-perm="usage">
+          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg></div>
+          <div class="body">
+            <div class="title">Статистика использования</div>
+            <div class="benefit">Разблокировки и экранное время за день — живьём, сразу после включения.</div>
+            <div class="nope">Что я <b>не вижу</b>: что на экране, переписки, фото. Только <b>сколько</b> горел экран.</div>
+            <div class="act"><button class="btn">Разрешить</button></div>
+          </div>
+        </div>
+
+        <div class="perm" data-perm="sleep">
+          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><path d="M20 14.5A7.5 7.5 0 1 1 9.5 4 6 6 0 0 0 20 14.5Z"/></svg></div>
+          <div class="body">
+            <div class="title">Сон</div>
+            <div class="benefit">Длина ночи и во сколько ты лёг — связывает плохое утро с коротким сном.</div>
+            <div class="nope">Что я <b>не вижу</b>: где ты и что делал. Только длительность сна из Health Connect.</div>
+            <div class="act"><button class="btn">Разрешить</button></div>
+          </div>
+        </div>
+
+        <div class="perm" data-perm="steps">
+          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><path d="M8 20c0-3 1-5 1-8M8 6a2 2 0 1 0 0-.1M15 20c0-4 1.5-5 1.5-9M16 7a2 2 0 1 0 0-.1"/></svg></div>
+          <div class="body">
+            <div class="title">Движение</div>
+            <div class="benefit">Шаги за день — отличает «был на ногах» от «просидел за экраном».</div>
+            <div class="nope">Что я <b>не вижу</b>: маршруты и геолокацию. Только количество шагов.</div>
+            <div class="act"><button class="btn">Разрешить</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <button class="cta" id="cta">Продолжить</button>
+        <button class="later" id="later">Можно позже — покажу, что получится</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">Прототип. «Статистика» наполняется реальным числом сразу (live-peek), сон и шаги на онбординге показаны примером и дозреют за пару дней — чтобы не обещать персональный инсайт там, где данных ещё нет.</p>
+
+<script>
+(function () {
+  // usage = живое чтение реального числа; sleep/steps = пример, "дозреет"
+  const DATA = {
+    usage: { live: true,  value: "47 разблокировок", weight: 30 },
+    sleep: { live: false, value: "6 ч 10 мин",       weight: 25, tag: "пример" },
+    steps: { live: false, value: "8 200 шагов",       weight: 20, tag: "пример" },
+  };
+  const BASE = 25;
+  const granted = new Set();
+
+  const pctEl = document.getElementById('pct');
+  const barEl = document.getElementById('barfill');
+
+  function recompute() {
+    let pct = BASE;
+    granted.forEach(k => pct += DATA[k].weight);
+    pct = Math.min(pct, 100);
+    pctEl.textContent = pct + '%';
+    barEl.style.width = pct + '%';
+  }
+
+  function reveal(key) {
+    const frag = document.querySelector('.frag[data-frag="' + key + '"]');
+    const d = DATA[key];
+    if (d.live) {
+      frag.className = 'frag reading';
+      frag.textContent = 'читаю…';
+      setTimeout(() => {
+        frag.className = 'frag revealed';
+        frag.innerHTML = d.value;
+      }, 650);
+    } else {
+      frag.className = 'frag revealed';
+      frag.innerHTML = d.value + (d.tag ? ' <span class="tag">' + d.tag + '</span>' : '');
+    }
+  }
+
+  document.querySelectorAll('.perm').forEach(perm => {
+    const key = perm.dataset.perm;
+    const btn = perm.querySelector('.btn');
+    btn.addEventListener('click', () => {
+      if (granted.has(key)) return;
+      granted.add(key);
+      perm.classList.add('done');
+      btn.textContent = 'Разрешено ✓';
+      reveal(key);
+      recompute();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    granted.clear();
+    document.querySelectorAll('.perm').forEach(p => {
+      p.classList.remove('done');
+      p.querySelector('.btn').textContent = 'Разрешить';
+    });
+    document.querySelectorAll('.frag').forEach(f => {
+      f.className = 'frag locked';
+      f.textContent = '';
+    });
+    recompute();
+  });
+
+  document.getElementById('theme').addEventListener('click', () => {
+    const r = document.documentElement;
+    const cur = r.getAttribute('data-theme');
+    r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  });
+
+  recompute();
+})();
+</script>
+</body>
+</html>

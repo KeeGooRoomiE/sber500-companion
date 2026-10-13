@@ -5,11 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Companion — экраны 1.0.0 (мок)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  @font-face { font-family: Roboto; font-weight: 100 900; font-display: swap; src: url(../screens/fonts/roboto-cyrillic.woff2) format("woff2");
-               unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: Roboto; font-weight: 100 900; font-display: swap; src: url(../screens/fonts/roboto-latin.woff2) format("woff2");
-               unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122, U+2212; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg:#F7F6FF; --surface:#FFFFFF; --surface-variant:#F0EEFF; --text:#1A1525; --muted:#6E6A85;
@@ -103,6 +102,8 @@
           font-size:14px; font-weight:600; color:var(--primary); }
   .pill.filled { background:var(--primary); color:#fff; } body.dark .pill.filled { color:#1A1A2E; }
   .pill.sm { flex:none; padding:8px 14px; font-size:13px; border-radius:12px; }
+  .card.light { background:transparent; box-shadow:none; padding:2px 2px 0; gap:6px; }
+  .tllink { align-self:flex-start; color:var(--primary); font-size:14px; font-weight:600; padding:4px 0; }
 
   .feels { display:flex; gap:10px; }
   .feel { flex:1; border-radius:12px; background:var(--chip-bg); padding:14px 4px; display:flex; flex-direction:column;
@@ -182,6 +183,9 @@
       <label class="row"><input type="checkbox" data-o="chips"> Чек-ин: причины (ответ дан)</label>
       <label class="row"><input type="checkbox" data-o="textfeel"> Чек-ин текстом (без эмодзи)</label>
       <label class="row"><input type="checkbox" data-o="history" checked> История прогнозов</label>
+      <div class="lbl" style="margin-top:14px">Эксперимент</div>
+      <label class="row" style="color:var(--primary);font-weight:600"><input type="checkbox" data-o="compact"> ✦ Разгрузка (вариант)</label>
+      <div style="font-size:11px;opacity:.55;line-height:1.5;padding-left:25px">Карточка прогноза = прогноз + одна петля, «почему»/«хочу ещё» → одно «Узнать больше», «как идёт день» строкой, разбор тихой ссылкой, чек-ин текстом.</div>
     </div>
     <div class="optgrp" data-for="onboarding">
       <div class="lbl">Шаг онбординга</div>
@@ -215,9 +219,9 @@
           <div class="hero">
             <div class="label"><span>Прогноз на сегодня</span></div>
             <div class="text">Твои дни обычно с экраном 3–4 часа, вчера был ближе к нижней границе. После таких ровных дней у тебя обычно спокойное утро и плавный переход к работе.</div>
-            <div class="why" id="whyToggle">Почему такой прогноз <span>▾</span></div>
+            <div class="why" id="whyToggle"><span id="whyLabel">Почему такой прогноз</span> <span>▾</span></div>
             <div class="whybody hidden" id="whyBody"><span class="wl">НА ЧЁМ ОСНОВАНО</span>Спокойный по экрану день — экран 1ч27м при обычных 3ч. Вечер без позднего телефона второй день подряд.</div>
-            <div class="more">Хочу ещё ✦</div>
+            <div class="more" id="heroMore">Хочу ещё ✦</div>
             <div class="loop" id="loop"><span class="q">Совпало с днём?</span><span class="pill2 filled">Совпало</span><span class="pill2">Не совсем</span></div>
           </div>
           <div class="card" id="midday">
@@ -233,7 +237,8 @@
             <div class="row"><div class="title-s">Сегодня по часам</div><div class="label-s">экран, минут в час</div></div>
             <canvas id="chart" style="width:100%;height:64px"></canvas>
             <div class="hours"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
-            <div class="pills"><div class="pill filled">Разбор вчера</div><div class="pill">Разбор сегодня</div></div>
+            <div class="pills" id="tlPills"><div class="pill filled">Разбор вчера</div><div class="pill">Разбор сегодня</div></div>
+            <div class="tllink hidden" id="tlLink">Разбор дня →</div>
           </div>
           <div class="card" id="checkin">
             <div class="title-s">Как прошёл день?</div>
@@ -380,7 +385,7 @@ const QS=[
 
 // ─── renderers ────────────────────────────────────────────────────────────────
 function renderFeels(){
-  const text=opts.textfeel, chips=opts.chips;
+  const text=opts.textfeel||opts.compact, chips=opts.chips;
   document.getElementById('feels').innerHTML=FEELS.map((f,i)=>{
     const sel=chips&&i===2?' sel':''; const face=text?`<span class="et">${f[1]}</span>`:`<span class="e emoji">${f[0]}</span><span class="l">${f[1]}</span>`;
     return `<div class="feel${sel}">${face}</div>`; }).join('');
@@ -440,7 +445,7 @@ function renderOb(){
 
 // ─── state ─────────────────────────────────────────────────────────────────────
 let theme='light', screen='home', obStep=0;
-const opts={ name:false,loop:true,why:false,midday:true,stats:true,timeline:true,checkin:true,chips:false,textfeel:false,history:true,
+const opts={ name:false,loop:true,why:false,midday:true,stats:true,timeline:true,checkin:true,chips:false,textfeel:false,history:true,compact:false,
              ob_note:true,ob_sat:true, q_gen:true,q_free:false,q_profile:true };
 function apply(){
   document.body.classList.toggle('dark', theme==='dark'); dark=(theme==='dark');
@@ -453,6 +458,12 @@ function apply(){
   document.getElementById('loop').classList.toggle('hidden',!opts.loop);
   document.getElementById('whyBody').classList.toggle('hidden',!opts.why);
   for(const id of ['midday','stats','timeline','checkin','history']) document.getElementById(id).classList.toggle('hidden',!opts[id]);
+  const C=opts.compact;
+  document.getElementById('whyLabel').textContent = C?'Узнать больше':'Почему такой прогноз';
+  document.getElementById('heroMore').classList.toggle('hidden', C);
+  document.getElementById('midday').classList.toggle('light', C && opts.midday);
+  document.getElementById('tlPills').classList.toggle('hidden', C);
+  document.getElementById('tlLink').classList.toggle('hidden', !C);
   renderFeels(); renderChart(); renderHistory();
   // questions / onboarding
   renderQ(); renderOb();
