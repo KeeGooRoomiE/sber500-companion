@@ -51,6 +51,12 @@ func Mount(r chi.Router, d Deps) {
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)
 
+		// Public raw call_log as CSV (no auth, CORS) — transparency/anti-fraud: rebuilt hourly,
+		// dev/mock/admin excluded so it matches the aggregate /metrics.
+		exportH := NewExport(d.DB, d.DevUserIDs)
+		r.Method(http.MethodGet, "/export/call_log.csv", exportH)
+		r.Method(http.MethodOptions, "/export/call_log.csv", exportH)
+
 		// New device identity: a phone registers once; 60/h per IP leaves room for CGNAT, throttles bots.
 		r.With(httprate.Limit(60, time.Hour, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
 			Post("/register", h.Register)
