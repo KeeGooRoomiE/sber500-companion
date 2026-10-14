@@ -281,6 +281,11 @@
     const callsToday = d.calls_per_dau;
     const calls = callsAvg ?? callsToday;
     const llm   = d.llm_calls_total ?? 0;
+    // Tool-call activity per DAU — same today/period shape as LLM, but call_type='tool'
+    // (the app reading its own data: usagestats, checkin, scenario). Informational, no KPI gate.
+    const toolAvg = d.tool_calls_per_dau_avg;
+    const toolToday = d.tool_calls_per_dau;
+    const tool = toolAvg ?? toolToday;
 
     const cards = [
       {
@@ -303,6 +308,17 @@
         pct: calls == null ? 0 : Math.min(100, calls / KPI_CALLS_TARGET * 100),
         ok: calls != null && calls >= KPI_CALLS_TARGET,
         color: '#10B981',
+      },
+      {
+        label: 'Tool-вызовов / DAU',
+        value: tool == null ? '—' : nf(tool, 1),
+        target: toolAvg == null
+          ? 'сбор данных + фон · за сегодня'
+          : 'сбор данных + фон · в среднем за период' +
+            (toolToday == null ? '' : ` (сегодня ${nf(toolToday, 1)})`),
+        pct: 100,
+        ok: true,
+        color: '#6B5CE7',
       },
       {
         label: 'LLM calls total',

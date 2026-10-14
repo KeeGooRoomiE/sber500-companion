@@ -89,6 +89,11 @@ type MetricsResponse struct {
 	// Averaged over the whole chart window, not just today: with a handful of users a
 	// single active person swings the daily figure, and this is a competition KPI.
 	CallsPerDAUAvg *float64 `json:"calls_per_dau_avg"`
+	// Tool calls per active user — same shape (today + window average) as the LLM figure, but
+	// call_type='tool' (the app reading its own data: usagestats, checkin, scenario). Shown so
+	// the broad per-component number (Прил. 2 п.2.2) is visible next to the LLM-only KPI.
+	ToolCallsPerDAU    *float64 `json:"tool_calls_per_dau"`
+	ToolCallsPerDAUAvg *float64 `json:"tool_calls_per_dau_avg"`
 
 	// «Совпало / Не совсем» under the morning forecast, last 30 days.
 	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.
@@ -377,6 +382,20 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		dauDays += p.DAU
 	}
 	out.CallsPerDAUAvg = ratio(float64(callsWindow), dauDays, 1)
+
+	// Tool calls per active user — same today/window shape as the LLM figure, call_type='tool'.
+	var toolToday, toolWindow int
+	if err := m.db.QueryRow(ctx, `
+		SELECT
+		  (SELECT count(*) FROM call_log WHERE ts >= $3 AND call_type = 'tool'
+		     AND user_id <> 'admin' AND NOT (user_id = ANY($1))),
+		  (SELECT count(*) FROM call_log WHERE ts >= $2::date - $4::int AND call_type = 'tool'
+		     AND user_id <> 'admin' AND NOT (user_id = ANY($1)))
+	`, devs, today, dayStart, historyDays-1).Scan(&toolToday, &toolWindow); err != nil {
+		return nil, err
+	}
+	out.ToolCallsPerDAU = ratio(float64(toolToday), out.DAUToday, 1)
+	out.ToolCallsPerDAUAvg = ratio(float64(toolWindow), dauDays, 1)
 
 	// Which builds are in the wild. Only people seen in the last week, so a phone that was
 	// installed once in September does not keep an old version on the board forever.
