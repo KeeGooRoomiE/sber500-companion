@@ -275,6 +275,8 @@
   // ─── KPI row ───────────────────────────────────────────────────────────────
   function renderKpis(d) {
     const dau   = d.dau_today ?? 0;
+    const stick = d.stickiness_pct;
+    const mau   = d.mau ?? 0;
     // Averaged over the chart window. The daily figure swings wildly while the user count is
     // small — one active person can double it — so the KPI is judged on the period.
     const callsAvg = d.calls_per_dau_avg;
@@ -295,6 +297,14 @@
         pct: Math.min(100, dau / KPI_DAU_TARGET * 100),
         ok: dau >= KPI_DAU_TARGET,
         color: '#6B5CE7',
+      },
+      {
+        label: 'Stickiness (DAU/MAU)',
+        value: stick == null ? '—' : nf(stick, 0) + '%',
+        target: mau ? `MAU ${nf(mau)} · 20% норма, 50%+ сильно` : 'DAU / MAU за 30 дней',
+        pct: stick == null ? 0 : Math.min(100, stick),
+        ok: stick != null && stick >= 25,
+        color: '#F59E0B',
       },
       {
         label: 'LLM-вызовов / DAU',
@@ -574,6 +584,39 @@
     </div></div>`;
   }
 
+  // ─── Calls by mechanic ───────────────────────────────────────────────────────
+  const COMPONENT_LABELS = {
+    llm_insight: 'Орб · insight',
+    llm_morning: 'Утренний прогноз',
+    llm_day_review: 'Разбор дня',
+    llm_followup: 'Follow-up',
+    llm_explore: '«Хочу ещё» · explore',
+    llm_weekly: 'Итоги недели',
+  };
+  function renderComponents(list) {
+    if (!Array.isArray(list) || !list.length) return '';
+    const total = list.reduce((a, c) => a + (c.count || 0), 0) || 1;
+    const rows = list.map(c => {
+      const pct = Math.round(c.count / total * 100);
+      return `<div class="funnel-row">
+        <span class="funnel-label">${COMPONENT_LABELS[c.component] || c.component}</span>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${Math.max(pct, 4)}%;background:#10B981">
+            <span class="funnel-bar-text">${nf(c.count)}</span>
+          </div>
+        </div>
+        <span class="funnel-pct">${pct}%</span>
+      </div>`;
+    }).join('');
+    return `<div class="section"><div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Вызовы по механикам</span>
+        <span class="chart-note">LLM-вызовы за период · задействованы все фичи</span>
+      </div>
+      <div class="funnel">${rows}</div>
+    </div></div>`;
+  }
+
   // ─── LLM + budget ──────────────────────────────────────────────────────────
   function renderLlm(d) {
     const spend  = d.budget_spend ?? 0;
@@ -655,6 +698,7 @@
       renderFunnel(d) +
       renderVersions(Array.isArray(d.app_versions) ? d.app_versions : []) +
       `<div class="two-col">${renderCohorts(cohorts)}${renderCheckins(ciHistory)}</div>` +
+      renderComponents(d.calls_by_component) +
       renderLlm(d) +
       renderInfra(d);
 

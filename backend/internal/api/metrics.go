@@ -41,6 +41,13 @@ type VersionShare struct {
 	Users   int    `json:"users"`
 }
 
+// ComponentShare is one LLM mechanic and how many calls it drew — shows engagement spread
+// across features, so Calls/DAU is visibly carried by many mechanics, not one.
+type ComponentShare struct {
+	Component string `json:"component"`
+	Count     int    `json:"count"`
+}
+
 // Cohort is one weekly sign-up group and how much of it came back. A window is null until the
 // whole cohort is old enough to have had the chance — otherwise D7 of a two-day-old cohort
 // reads as a catastrophic drop instead of "too early to say".
@@ -64,6 +71,10 @@ type MetricsResponse struct {
 	RetentionD1Pct *float64   `json:"retention_d1_pct"`
 	RetentionD7Pct *float64   `json:"retention_d7_pct"`
 	Cohorts        []Cohort   `json:"retention_cohorts"`
+	// Stickiness — how «daily» the product is. MAU = distinct users active in the last 30 days;
+	// stickiness = dau_7d_avg / MAU. Young product, so MAU ≈ all active users for now.
+	MAU           int      `json:"mau"`
+	StickinessPct *float64 `json:"stickiness_pct"`
 
 	// Retention funnel — absolute counts for the visual funnel
 	FunnelTotal     int `json:"funnel_total"`
@@ -94,6 +105,8 @@ type MetricsResponse struct {
 	// the broad per-component number (Прил. 2 п.2.2) is visible next to the LLM-only KPI.
 	ToolCallsPerDAU    *float64 `json:"tool_calls_per_dau"`
 	ToolCallsPerDAUAvg *float64 `json:"tool_calls_per_dau_avg"`
+	// LLM calls split by mechanic over the chart window — engagement spread across features.
+	CallsByComponent []ComponentShare `json:"calls_by_component"`
 
 	// «Совпало / Не совсем» under the morning forecast, last 30 days.
 	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.
@@ -269,6 +282,20 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		out.DAU7dAvg = round(float64(sum)/float64(len(week)), 1)
 	}
 
+	// Stickiness: MAU = distinct users active in the last 30 days, stickiness = dau_7d_avg / MAU.
+	var mau int
+	if err := m.db.QueryRow(ctx, `
+		SELECT count(DISTINCT user_id) FROM user_activity
+		WHERE date > $2::date - 30 AND NOT (user_id = ANY($1))
+	`, devs, today).Scan(&mau); err != nil {
+		return nil, err
+	}
+	out.MAU = mau
+	if mau > 0 {
+		s := round(out.DAU7dAvg/float64(mau)*100, 1)
+		out.StickinessPct = &s
+	}
+
 	// Retention D1: users who signed up 1–6 days ago and had any activity after registration day
 	var retD1, cohortD1 int
 	if err := m.db.QueryRow(ctx, `
@@ -396,6 +423,29 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 	out.ToolCallsPerDAU = ratio(float64(toolToday), out.DAUToday, 1)
 	out.ToolCallsPerDAUAvg = ratio(float64(toolWindow), dauDays, 1)
+
+	// LLM calls split by mechanic over the window — shows Calls/DAU is carried by many features.
+	out.CallsByComponent = []ComponentShare{}
+	compRows, err := m.db.Query(ctx, `
+		SELECT component, count(*) FROM call_log
+		WHERE ts >= $2::date - $3::int AND call_type = 'llm'
+		  AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		GROUP BY component ORDER BY count(*) DESC
+	`, devs, today, historyDays-1)
+	if err != nil {
+		return nil, err
+	}
+	defer compRows.Close()
+	for compRows.Next() {
+		var c ComponentShare
+		if err := compRows.Scan(&c.Component, &c.Count); err != nil {
+			return nil, err
+		}
+		out.CallsByComponent = append(out.CallsByComponent, c)
+	}
+	if err := compRows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Which builds are in the wild. Only people seen in the last week, so a phone that was
 	// installed once in September does not keep an old version on the board forever.
