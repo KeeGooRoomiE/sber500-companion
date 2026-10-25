@@ -162,7 +162,12 @@
     .budget-values { font-size: 13px; font-weight: 600; color: var(--text); }
     .budget-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
     .budget-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
-    .budget-fill { height: 100%; border-radius: 99px; transition: width .4s ease; background: linear-gradient(90deg, var(--primary), var(--primary-mid)); }
+    .budget-track { display: flex; }
+    .budget-fill { height: 100%; transition: width .4s ease; background: linear-gradient(90deg, var(--primary), var(--primary-mid)); border-radius: 99px 0 0 99px; }
+    .budget-fill:last-child { border-radius: 99px; }
+    /* Spend on the same key that is not the product: agent-assisted development. Shown, so the
+       key's real consumption is visible, but grey and excluded from every product figure. */
+    .budget-dev { height: 100%; background: repeating-linear-gradient(45deg, #D4D4D8, #D4D4D8 4px, #E4E4E7 4px, #E4E4E7 8px); border-radius: 0 99px 99px 0; }
     .budget-fill.warn   { background: linear-gradient(90deg, var(--warn), #FCD34D); }
     .budget-fill.danger { background: linear-gradient(90deg, var(--danger), #F97316); }
 
@@ -619,11 +624,17 @@
 
   // ─── LLM + budget ──────────────────────────────────────────────────────────
   function renderLlm(d) {
-    const spend  = d.budget_spend ?? 0;
     const maxBud = d.budget_max || LLM_BUDGET_RUB;
+    // The key is shared with agent-assisted development, so the proxy's total is not what the
+    // product costs. Every product figure here uses our own token-based number; the rest is
+    // shown separately in grey so the key's real consumption stays visible.
+    const keyTotal = d.budget_spend ?? 0;
+    const spend = d.llm_cost_rub_total ?? 0;
+    const dev = Math.max(0, keyTotal - spend);
     const usedPct = Math.min(spend / maxBud * 100, 100);
+    const devPct = Math.min(dev / maxBud * 100, Math.max(0, 100 - usedPct));
     const cls = usedPct >= 80 ? 'danger' : usedPct >= 50 ? 'warn' : '';
-    const remain = Math.max(0, maxBud - spend);
+    const remain = Math.max(0, maxBud - spend - dev);
 
     // What the current per-user cost would mean at the competition's DAU target.
     const perDAU = d.llm_cost_rub_per_dau;
@@ -632,7 +643,7 @@
     const tiles = [
       { label: 'LLM calls total', value: fmt(d.llm_calls_total), unit: 'вызовов' },
       { label: 'Сегодня',         value: fmt(d.llm_calls_today), unit: 'вызовов' },
-      { label: 'Потрачено',       value: nf(spend, 2) + ' ₽',    unit: `из ${nf(maxBud)} ₽` },
+      { label: 'Потрачено продуктом', value: nf(spend, 2) + ' ₽', unit: `из ${nf(maxBud)} ₽` },
       { label: 'Остаток',         value: nf(remain, 0) + ' ₽',   unit: 'бюджета' },
       { label: 'Cost / DAU',      value: perDAU == null ? '—' : nf(perDAU, 3) + ' ₽', unit: 'на активного' },
       { label: `При ${nf(KPI_DAU_TARGET)} DAU`, value: atTarget, unit: 'в месяц по текущей цене' },
@@ -652,7 +663,14 @@
           <span class="budget-label">Расход бюджета</span>
           <span class="budget-values">${nf(spend, 2)} ₽ <span class="budget-sub">из ${nf(maxBud)} ₽</span></span>
         </div>
-        <div class="budget-track"><div class="budget-fill ${cls}" style="width:${usedPct.toFixed(2)}%"></div></div>
+        <div class="budget-track">
+          <div class="budget-fill ${cls}" style="width:${usedPct.toFixed(2)}%"></div>
+          ${dev > 0 ? `<div class="budget-dev" style="width:${devPct.toFixed(2)}%" title="Разработка на том же ключе — в метрики продукта не входит"></div>` : ''}
+        </div>
+        ${dev > 0 ? `<div class="budget-sub" style="margin-top:8px">
+          Серым — ${nf(dev, 0)} ₽ на агентную разработку: тот же ключ, но не продукт.
+          В стоимость обращений и в прогноз на ${nf(KPI_DAU_TARGET)} DAU не входит.
+        </div>` : ''}
       </div>
       <div class="stat-grid">${grid}</div>
     </div>`;
