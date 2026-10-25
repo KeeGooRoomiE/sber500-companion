@@ -70,7 +70,7 @@ func NewGenerator(db *pgxpool.Pool, daily *repo.DailyRepo, checkin *repo.CheckIn
 	morning *repo.MorningRepo, llmClient *llm.Client, callLog *analytics.Logger, store *prompts.Store) *Generator {
 	dailyCap, err := strconv.Atoi(os.Getenv("LLM_DAILY_CAP"))
 	if err != nil || dailyCap <= 0 {
-		dailyCap = 300
+		dailyCap = 5000
 	}
 	return &Generator{db: db, users: repo.NewUserRepo(db), reviews: repo.NewReviewRepo(db), explore: repo.NewExploreRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
 }
