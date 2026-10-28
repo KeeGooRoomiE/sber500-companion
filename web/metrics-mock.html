@@ -375,10 +375,12 @@ const cohorts = [
   { week: 'Нед. 4 (23 сент)',    size: 9,                    d1: 77, d7: null, d14: null },
 ];
 
-function retClass(v) {
+const RET_THRESHOLDS = { d1: [40, 25], d7: [20, 10], d14: [15, 8] };
+function retClass(v, win) {
   if (v === null) return '<span style="color:var(--muted)">—</span>';
-  if (v >= 70) return `<span class="ret-cell ret-high">${v}%</span>`;
-  if (v >= 45) return `<span class="ret-cell ret-mid">${v}%</span>`;
+  const [good, ok] = RET_THRESHOLDS[win];
+  if (v >= good) return `<span class="ret-cell ret-high">${v}%</span>`;
+  if (v >= ok) return `<span class="ret-cell ret-mid">${v}%</span>`;
   return `<span class="ret-cell ret-low">${v}%</span>`;
 }
 
@@ -390,9 +392,9 @@ document.getElementById('ret-table').innerHTML = `
     ${cohorts.map(c => `<tr>
       <td style="font-size:11px;color:var(--muted)">${c.week}</td>
       <td style="font-weight:600">${c.size}</td>
-      <td>${retClass(c.d1)}</td>
-      <td>${retClass(c.d7)}</td>
-      <td>${retClass(c.d14)}</td>
+      <td>${retClass(c.d1, 'd1')}</td>
+      <td>${retClass(c.d7, 'd7')}</td>
+      <td>${retClass(c.d14, 'd14')}</td>
     </tr>`).join('')}
   </tbody>`;
 

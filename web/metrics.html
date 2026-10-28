@@ -486,9 +486,13 @@
   }
 
   // ─── Cohorts + check-in ────────────────────────────────────────────────────
-  function retCell(v) {
+  // Thresholds [good, ok] per window: retention decays with age, so one scale for D1/D7/D14
+  // painted a healthy D14 red. Roughly mobile-app benchmarks (D1 ~25%, D7 ~10%, D14 ~8%).
+  const RET_THRESHOLDS = { d1: [40, 25], d7: [20, 10], d14: [15, 8] };
+  function retCell(v, win) {
     if (v == null) return '<span style="color:var(--muted)">—</span>';
-    const cls = v >= 70 ? 'ret-high' : v >= 45 ? 'ret-mid' : 'ret-low';
+    const [good, ok] = RET_THRESHOLDS[win];
+    const cls = v >= good ? 'ret-high' : v >= ok ? 'ret-mid' : 'ret-low';
     return `<span class="ret-cell ${cls}">${Math.round(v)}%</span>`;
   }
 
@@ -506,9 +510,9 @@
       return `<tr>
         <td style="font-size:11px;color:var(--muted)">${lbl}</td>
         <td style="font-weight:600">${nf(c.size)}</td>
-        <td>${retCell(c.d1_pct)}</td>
-        <td>${retCell(c.d7_pct)}</td>
-        <td>${retCell(c.d14_pct)}</td>
+        <td>${retCell(c.d1_pct, 'd1')}</td>
+        <td>${retCell(c.d7_pct, 'd7')}</td>
+        <td>${retCell(c.d14_pct, 'd14')}</td>
       </tr>`;
     }).join('');
 
