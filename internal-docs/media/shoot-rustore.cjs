@@ -1,12 +1,13 @@
 const puppeteer = require('/Users/xandergusarov/.npm/_npx/ffe2131771d88588/node_modules/puppeteer-core');
-const out = '/Users/xandergusarov/Documents/GitHub/sber500-companion/internal-docs/media';
+const NO_STATUS = process.argv.includes('--no-status'); // --no-status: hide status bar, write to no-statusbar/
+const out = '/Users/xandergusarov/Documents/GitHub/sber500-companion/internal-docs/media' + (NO_STATUS ? '/no-statusbar' : '');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new' });
   const p = await b.newPage();
   await p.setViewport({ width: 1000, height: 900, deviceScaleFactor: 1080 / 412 });
   await p.goto('file:///Users/xandergusarov/Documents/GitHub/sber500-companion/web/editor/screens.html', { waitUntil: 'networkidle2' });
-  await p.addStyleTag({ content: '.phone{height:733.2px!important;border-radius:0!important;box-shadow:none!important}' });
+  await p.addStyleTag({ content: '.phone{height:733.2px!important;border-radius:0!important;box-shadow:none!important}' + (NO_STATUS ? ' .status{display:none!important} .screen{padding-top:24px!important}' : '') });
   const click = s => p.click(s);
   const scroll = y => p.evaluate(y => { document.querySelector('.content').scrollTop = y; }, y);
   const shot = async name => { await sleep(900); const el = await p.$('.phone'); await el.screenshot({ path: `${out}/${name}.png` }); };
