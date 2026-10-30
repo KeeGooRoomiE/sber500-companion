@@ -320,12 +320,17 @@ AGENT_SYSTEM = """Ты независимый исследователь моб�
 Когда достаточно материала, напиши итоговый отчёт по формату из задания, без вызова инструментов."""
 
 
-def llm_patient(model, msgs, tools=None, max_tokens=6000, rounds=6):
-    """Прокси роняет долгие вызовы: после исчерпания повторов в post() ждём минуту и пробуем снова."""
+def llm_patient(model, msgs, tools=None, max_tokens=6000, rounds=6, fallback="gpt-5.1"):
+    """Прокси роняет вызовы: после исчерпания повторов в post() ждём минуту и пробуем снова.
+    Если модель недоступна два раунда подряд, переключаемся на запасную (по умолчанию gpt-5.1, самая стабильная на этом прокси)."""
     last = None
+    cur = model
     for i in range(rounds):
+        if i == 2 and fallback and fallback != model:
+            log(f"  {model} недоступна, переключаюсь на {fallback}")
+            cur = fallback
         try:
-            return llm(model, msgs, tools=tools, max_tokens=max_tokens)
+            return llm(cur, msgs, tools=tools, max_tokens=max_tokens)
         except CapExceeded:
             raise
         except Exception as e:
@@ -333,7 +338,7 @@ def llm_patient(model, msgs, tools=None, max_tokens=6000, rounds=6):
             msg = str(e)
             if msg.startswith("HTTP 4") and not msg.startswith("HTTP 429"):
                 raise
-            log(f"  {model}: сбой вызова ({msg[:90]}), пауза 60с, попытка {i + 1}/{rounds}")
+            log(f"  {cur}: сбой вызова ({msg[:90]}), пауза 60с, попытка {i + 1}/{rounds}")
             time.sleep(60)
     raise last
 
@@ -422,7 +427,7 @@ def run_agent(name, model, brief, images, out, mode, steps=None):
             if used > AGENT_TOKEN_CAP:
                 msgs.append({"role": "user", "content": "Лимит токенов исчерпан. Немедленно напиши итоговый отчёт по тому, что успел осмотреть."})
                 break
-            resp = llm_patient(model, compact_view(msgs), tools=TOOLS)
+            resp = llm_patient(model, compact_view(msgs), tools=TOOLS, fallback=None)
             used += resp.get("usage", {}).get("prompt_tokens", 0)
             m = resp["choices"][0]["message"]
             calls = m.get("tool_calls") or []
@@ -462,7 +467,7 @@ def run_agent(name, model, brief, images, out, mode, steps=None):
             log(f"агент {name} шаг {step + 1}/{steps}: {stats}, prompt-токенов {used}")
         if final is None:
             msgs.append({"role": "user", "content": "Напиши итоговый отчёт сейчас, без инструментов."})
-            final = llm_patient(model, compact_view(msgs), tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
+            final = llm_patient(model, compact_view(msgs), tools=None, max_tokens=8000, fallback=None)["choices"][0]["message"].get("content") or ""
     except CapExceeded as e:
         log(f"агент {name}: остановлен по лимиту спенда ({e})")
         final = (final or "") + f"\n\n[остановлено по лимиту спенда: {e}]"
