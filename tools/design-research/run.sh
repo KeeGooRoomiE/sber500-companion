@@ -4,6 +4,7 @@
 #   bash tools/design-research/run.sh selftest         проверка инструментов и моделей (дёшево, ~2 мин)
 #   bash tools/design-research/run.sh start [icon|design|both]   запустить в фоне (по умолчанию both)
 #   bash tools/design-research/run.sh status           что сделано, лог, текущий спенд прогона
+#   bash tools/design-research/run.sh ask "задание" [--model M] [--ctx icon] [--steps N]   точечное поручение модели
 #   bash tools/design-research/run.sh stop             остановить (start продолжит с места остановки)
 #   bash tools/design-research/run.sh open [icon|design]   открыть gallery.html и REPORT.md
 #
@@ -35,6 +36,7 @@ case "${1:-}" in
       echo "[$m] агентов-отчётов: $(ls "$d"/agent_*.md 2>/dev/null | wc -l | tr -d ' ') | синтез: $([ -f "$d/synth.json" ] && echo да || echo нет) | картинок: $(ls "$d"/gen/*.png 2>/dev/null | grep -vc '\.s[0-9]*\.png' || true) | оценок: $(cat "$d"/panel_*.jsonl 2>/dev/null | wc -l | tr -d ' ') | готово: $([ -f "$d/DONE" ] && echo да || echo нет)"
     done
     echo "--- лог ---"; tail -6 "$DATA/run.log" 2>/dev/null || true ;;
+  ask) shift; python3 -u "$HERE/ask.py" "$@" ;;
   stop) pkill -f "design-research/research.py" && echo "остановлен" || echo "не был запущен" ;;
   open)
     m="${2:-icon}"; d="$DATA/$m"
