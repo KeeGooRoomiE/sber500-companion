@@ -35,3 +35,7 @@ tools/llm-audit/data/
 
 # Исследование иконки/дизайна: картинки, отчёты и логи агентов
 tools/design-research/data/
+# prompt-lab: входы персон и результаты прогонов — только локально
+tools/prompt-lab/data/
+# signal-rd: реальные агрегаты пользователей по дням — только локально
+tools/signal-rd/data/
