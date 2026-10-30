@@ -287,6 +287,7 @@ def tool_view_image(url, ctx):
     refs.mkdir(parents=True, exist_ok=True)
     fn = refs / f"{ctx['name']}_{n:02d}.png"
     fn.write_bytes(dst.read_bytes())
+    ctx["last_file"] = fn.name
     with open(ctx["out"] / "refs.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"file": fn.name, "agent": ctx["name"], "url": final}, ensure_ascii=False) + "\n")
     return f"Изображение №{n} загружено (источник {final}). Оно приложено следующим сообщением.", \
@@ -316,35 +317,98 @@ AGENT_SYSTEM = """Ты независимый исследователь моб�
 Когда достаточно материала, напиши итоговый отчёт по формату из задания, без вызова инструментов."""
 
 
+def llm_patient(model, msgs, tools=None, max_tokens=6000, rounds=6):
+    """Прокси роняет долгие вызовы: после исчерпания повторов в post() ждём минуту и пробуем снова."""
+    last = None
+    for i in range(rounds):
+        try:
+            return llm(model, msgs, tools=tools, max_tokens=max_tokens)
+        except CapExceeded:
+            raise
+        except Exception as e:
+            last = e
+            msg = str(e)
+            if msg.startswith("HTTP 4") and not msg.startswith("HTTP 429"):
+                raise
+            log(f"  {model}: сбой вызова ({msg[:90]}), пауза 60с, попытка {i + 1}/{rounds}")
+            time.sleep(60)
+    raise last
+
+
+def serialize_msgs(msgs, img_files):
+    out = []
+    for m in msgs:
+        c = m.get("content")
+        if isinstance(c, list):
+            parts = []
+            for p in c:
+                if p.get("type") == "image_url":
+                    f = img_files.get(p["image_url"]["url"])
+                    parts.append({"type": "ref", "file": f} if f else {"type": "text", "text": "[изображение недоступно после перезапуска]"})
+                else:
+                    parts.append(p)
+            m = {**m, "content": parts}
+        out.append(m)
+    return out
+
+
+def deserialize_msgs(msgs, refs_dir):
+    out = []
+    for m in msgs:
+        c = m.get("content")
+        if isinstance(c, list):
+            parts = []
+            for p in c:
+                if p.get("type") == "ref":
+                    fp = refs_dir / p["file"]
+                    parts.append(img_part("data:image/png;base64," + base64.b64encode(fp.read_bytes()).decode()) if fp.exists()
+                                 else {"type": "text", "text": "[изображение потеряно]"})
+                else:
+                    parts.append(p)
+            m = {**m, "content": parts}
+        out.append(m)
+    return out
+
+
 def run_agent(name, model, brief, images, out, mode):
     rep = out / f"agent_{name}.md"
     if rep.exists():
         log(f"агент {name}: готов, пропускаю")
         return rep.read_text()
-    ctx = {"name": name, "out": out, "n_img": 0}
+    ctx = {"name": name, "out": out, "n_img": 0, "last_file": None}
     logf = out / f"agent_{name}.log.jsonl"
+    statef = out / f"agent_{name}.state.json"
     msgs = [{"role": "system", "content": AGENT_SYSTEM.replace("{steps}", str(MAX_STEPS))},
             {"role": "user", "content": [{"type": "text", "text": brief}] + [img_part(u) for u in images]}]
-    used = 0
+    used, step0 = 0, 0
     final = None
     stats = {"search": 0, "fetch": 0, "image": 0, "errors": 0}
+    img_files = {}
+    if statef.exists():
+        st = json.loads(statef.read_text())
+        msgs += deserialize_msgs(st["msgs"], out / "refs")
+        step0, used, stats, ctx["n_img"] = st["step"], st["used"], st["stats"], st["n_img"]
+        log(f"агент {name}: продолжаю с шага {step0 + 1} ({stats})")
     try:
-        for step in range(MAX_STEPS):
+        for step in range(step0, MAX_STEPS):
             if step == MAX_STEPS - 3:
                 msgs.append({"role": "user", "content": "Осталось 3 шага. Заверши осмотр и напиши итоговый отчёт."})
             if used > AGENT_TOKEN_CAP:
                 msgs.append({"role": "user", "content": "Лимит токенов исчерпан. Немедленно напиши итоговый отчёт по тому, что успел осмотреть."})
                 break
-            resp = llm(model, msgs, tools=TOOLS)
+            resp = llm_patient(model, msgs, tools=TOOLS)
             used += resp.get("usage", {}).get("prompt_tokens", 0)
             m = resp["choices"][0]["message"]
             calls = m.get("tool_calls") or []
+            if not calls:
+                if (m.get("content") or "").strip():
+                    final = m["content"]
+                    break
+                msgs.append({"role": "user", "content": "Ответ пуст. Напиши итоговый отчёт по формату из задания."})
+                continue
             echo = {"role": "assistant", "tool_calls": calls}
             if m.get("content"):
                 echo["content"] = m["content"]
-            if not calls:
-                final = m.get("content") or ""
-                break
             msgs.append(echo)
             pending = []
             for c in calls:
@@ -362,21 +426,23 @@ def run_agent(name, model, brief, images, out, mode):
                 msgs.append({"role": "tool", "tool_call_id": c["id"], "content": text[:FETCH_CHARS + 600]})
                 if img:
                     pending.append(img)
+                    img_files[img] = ctx["last_file"]
                 with open(logf, "a", encoding="utf-8") as f:
                     f.write(json.dumps({"step": step, "tool": fn, "args": c["function"].get("arguments"), "result": text[:300]}, ensure_ascii=False) + "\n")
             if pending:
                 msgs.append({"role": "user", "content": [{"type": "text", "text": "Изображения из view_image (по порядку вызовов):"}] + [img_part(u) for u in pending]})
+            statef.write_text(json.dumps({"step": step + 1, "used": used, "stats": stats, "n_img": ctx["n_img"],
+                                          "msgs": serialize_msgs(msgs[2:], img_files)}, ensure_ascii=False))
             log(f"агент {name} шаг {step + 1}/{MAX_STEPS}: {stats}, prompt-токенов {used}")
         if final is None:
             msgs.append({"role": "user", "content": "Напиши итоговый отчёт сейчас, без инструментов."})
-            final = llm(model, [x for x in msgs], tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
+            final = llm_patient(model, msgs, tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
     except CapExceeded as e:
         log(f"агент {name}: остановлен по лимиту спенда ({e})")
         final = (final or "") + f"\n\n[остановлено по лимиту спенда: {e}]"
     except Exception as e:
-        log(f"агент {name}: ошибка {e.__class__.__name__}: {str(e)[:200]}")
-        if final is None:
-            return None
+        log(f"агент {name}: ошибка {e.__class__.__name__}: {str(e)[:200]} (состояние сохранено, будет повтор)")
+        return None
     rep.write_text(final + f"\n\n<!-- статистика инструментов: {json.dumps(stats)}, prompt-токенов {used} -->\n", encoding="utf-8")
     return final
 
@@ -619,10 +685,21 @@ def card_for(out, cid, rank, rec):
 
 # ───────────────────────── режимы ─────────────────────────
 def research_stage(out, brief, images, mode):
-    log(f"исследование: агенты {AGENT_MODELS}")
     names = [m.replace(".", "-") for m in AGENT_MODELS]
-    with ThreadPoolExecutor(len(AGENT_MODELS)) as ex:
-        list(ex.map(lambda t: run_agent(t[0], t[1], brief, images, out, mode), zip(names, AGENT_MODELS)))
+    for rnd in range(4):
+        pending = [(n, m) for n, m in zip(names, AGENT_MODELS) if not (out / f"agent_{n}.md").exists()]
+        if not pending:
+            break
+        if rnd:
+            log(f"раунд {rnd + 1}: повтор для {[n for n, _ in pending]} после паузы")
+            time.sleep(120)
+        log(f"исследование: агенты {[n for n, _ in pending]}")
+        with ThreadPoolExecutor(len(pending)) as ex:
+            list(ex.map(lambda t: run_agent(t[0], t[1], brief, images, out, mode), pending))
+    done = [n for n in names if (out / f"agent_{n}.md").exists()]
+    if not done:
+        raise RuntimeError("ни один агент не дошёл до отчёта")
+    log(f"отчёты готовы: {done}")
 
 
 def run_icon():
