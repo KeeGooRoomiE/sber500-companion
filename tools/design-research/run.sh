@@ -5,6 +5,7 @@
 #   bash tools/design-research/run.sh start [icon|design|both]   запустить в фоне (по умолчанию both)
 #   bash tools/design-research/run.sh status           что сделано, лог, текущий спенд прогона
 #   bash tools/design-research/run.sh ask "задание" [--model M] [--ctx icon] [--steps N]   точечное поручение модели
+#   bash tools/design-research/run.sh ux --model M --round N --task "вектор"   раунд UX-лестницы одной модели
 #   bash tools/design-research/run.sh stop             остановить (start продолжит с места остановки)
 #   bash tools/design-research/run.sh open [icon|design]   открыть gallery.html и REPORT.md
 #
@@ -37,6 +38,7 @@ case "${1:-}" in
     done
     echo "--- лог ---"; tail -6 "$DATA/run.log" 2>/dev/null || true ;;
   ask) shift; python3 -u "$HERE/ask.py" "$@" ;;
+  ux) shift; python3 -u "$HERE/ux_ladder.py" "$@" ;;
   stop) pkill -f "design-research/research.py" && echo "остановлен" || echo "не был запущен" ;;
   open)
     m="${2:-icon}"; d="$DATA/$m"
