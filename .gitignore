@@ -39,3 +39,7 @@ tools/design-research/data/
 tools/prompt-lab/data/
 # signal-rd: реальные агрегаты пользователей по дням — только локально
 tools/signal-rd/data/
+# followup-rd: реальные инсайты и цепочки диалогов — только локально
+tools/followup-rd/data/
+# budget-guard: лог и флаг cutoff — локально
+tools/budget-guard/data/
