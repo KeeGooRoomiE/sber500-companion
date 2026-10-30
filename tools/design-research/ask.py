@@ -30,7 +30,7 @@ def main():
     ap.add_argument("--model", default="gpt-5.1")
     ap.add_argument("--steps", type=int, default=10)
     ap.add_argument("--name", default=None)
-    ap.add_argument("--ctx", choices=["none", "icon", "design"], default="none")
+    ap.add_argument("--ctx", choices=["none", "icon", "design", "home"], default="none")
     ap.add_argument("--img", action="append", default=[], help="путь к картинке (можно несколько)")
     a = ap.parse_args()
 
@@ -39,10 +39,12 @@ def main():
     R.init_spend(out)
     name = a.name or f"{a.model.replace('.', '-')}_{int(time.time())}"
     ctx, imgs = "", []
-    if a.ctx in ("icon", "design"):
+    if a.ctx in ("icon", "design", "home"):
         ctx = (R.HERE / f"briefs/{a.ctx}.md").read_text(encoding="utf-8").split("## Что нужно сделать")[0].replace("{PRIOR}", "(нет)") + "\n"
         if a.ctx == "icon":
             imgs.append(R.data_url(R.ROOT / "internal-docs/dev/rustore/icon-512.png", 384))
+        if a.ctx == "home":
+            imgs.append(R.data_url(R.ROOT / "web/screens/home-screen.png", 600, quality=65))
     for p in a.img:
         imgs.append(R.data_url(Path(p), 600, quality=65))
     brief = ctx + "## Задание\n" + a.task + TAIL
