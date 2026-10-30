@@ -8,7 +8,7 @@
 #   bash tools/llm-audit/run.sh stop      остановить (ничего не теряется, start продолжит)
 #
 # Ключ и адрес прокси берутся из backend/.env (в репозиторий не попадают).
-# Параметры: WORKERS (по умолчанию 4), WAVE (по 50 текстов на категорию за волну), JUDGES.
+# Параметры: WORKERS (по умолчанию 4), WAVE (по 10 текстов на категорию за волну), JUDGES.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -29,7 +29,7 @@ case "${1:-}" in
     if pgrep -f "audit_waves.py" >/dev/null; then echo "уже запущен (run.sh status)"; exit 0; fi
     export LLM_API_KEY="$(env_get LLM_API_KEY)" LLM_BASE_URL="$(env_get LLM_BASE_URL)"
     [ -n "$LLM_API_KEY" ] || { echo "LLM_API_KEY не найден в backend/.env"; exit 1; }
-    : "${WORKERS:=4}" "${WAVE:=50}"; export WORKERS WAVE
+    : "${WORKERS:=4}" "${WAVE:=10}"; export WORKERS WAVE
     # caffeinate не даёт маку уснуть, пока идёт аудит
     nohup caffeinate -i bash -c "for p in 1 2 3 4 5 6; do python3 -u '$HERE/audit_waves.py'; done" >> "$DATA/waves.log" 2>&1 &
     echo "запущен (PID $!). Прогресс: bash tools/llm-audit/run.sh status"

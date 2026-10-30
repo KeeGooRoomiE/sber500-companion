@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Аудит волнами: по 50 случайных текстов из каждой категории за волну, категории по кругу.
 Использует judge/парсер/чекпоинты из audit.py (тот же OUT, готовые пары пропускаются)."""
-import os, sys, json, random, time
+import os, sys, json, random, time, subprocess
 from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import audit
 
-WAVE = int(os.getenv("WAVE", "50"))
+WAVE = int(os.getenv("WAVE", "10"))
 WORKERS = int(os.getenv("WORKERS", "4"))
 
 def cat(kind):
@@ -55,6 +55,17 @@ def main():
                 if not rec.get("err"): done.add((rec["id"], rec["judge"]))
                 if n % 100 == 0: print(f"  волна {w + 1}: {n}/{len(items)}  ({time.time() - t0:.0f}с всего)", flush=True)
         print(f"=== ВОЛНА {w + 1} завершена ({time.time() - t0:.0f}с) ===", flush=True)
+        # автосводка: файл на каждую волну + строка «ВСЕ» в лог, чтобы динамику видно без запуска вручную
+        try:
+            here = os.path.dirname(os.path.abspath(__file__))
+            out = subprocess.run([sys.executable, os.path.join(here, "summarize.py")], capture_output=True, text=True, timeout=120).stdout
+            os.makedirs(os.path.join(here, "data", "summaries"), exist_ok=True)
+            open(os.path.join(here, "data", "summaries", f"wave_{w + 1:02d}.txt"), "w", encoding="utf-8").write(out)
+            first = out.splitlines()[0] if out else ""
+            total = next((l.strip() for l in out.splitlines() if l.strip().startswith("ВСЕ")), "")
+            print(f"  СВОДКА ВОЛНЫ {w + 1}: {first} | {total}", flush=True)
+        except Exception as e:
+            print(f"  (автосводка не удалась: {e})", flush=True)
 
 if __name__ == "__main__":
     main()
