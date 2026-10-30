@@ -27,8 +27,9 @@ JUDGES = [m for m in os.getenv("JUDGES", "claude-opus-4.8,gemini-3.1-pro-preview
 IMG_MODELS = [m for m in os.getenv("IMG_MODELS", "gemini-3-pro-image-preview,gemini-3.1-flash-image-preview").split(",") if m]
 MAX_STEPS = int(os.getenv("MAX_STEPS", "24"))
 FETCH_CHARS = int(os.getenv("FETCH_CHARS", "10000"))
-AGENT_TOKEN_CAP = int(os.getenv("AGENT_TOKEN_CAP", "1500000"))
+AGENT_TOKEN_CAP = int(os.getenv("AGENT_TOKEN_CAP", "500000"))
 SPEND_CAP = float(os.getenv("SPEND_CAP", "15000"))
+UNIT_STEPS = int(os.getenv("UNIT_STEPS", "8"))
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
 
@@ -393,7 +394,8 @@ def deserialize_msgs(msgs, refs_dir):
     return out
 
 
-def run_agent(name, model, brief, images, out, mode):
+def run_agent(name, model, brief, images, out, mode, steps=None):
+    steps = steps or MAX_STEPS
     rep = out / f"agent_{name}.md"
     if rep.exists():
         log(f"агент {name}: готов, пропускаю")
@@ -401,7 +403,7 @@ def run_agent(name, model, brief, images, out, mode):
     ctx = {"name": name, "out": out, "n_img": 0, "last_file": None}
     logf = out / f"agent_{name}.log.jsonl"
     statef = out / f"agent_{name}.state.json"
-    msgs = [{"role": "system", "content": AGENT_SYSTEM.replace("{steps}", str(MAX_STEPS))},
+    msgs = [{"role": "system", "content": AGENT_SYSTEM.replace("{steps}", str(steps))},
             {"role": "user", "content": [{"type": "text", "text": brief}] + [img_part(u) for u in images]}]
     used, step0 = 0, 0
     final = None
@@ -414,8 +416,8 @@ def run_agent(name, model, brief, images, out, mode):
         msgs.append({"role": "user", "content": "Контекст сжат: старые картинки и страницы удалены, остались последние. Сначала кратко (до 15 строк) зафиксируй в тексте всё важное, что видишь выше, затем продолжай исследование или пиши отчёт."})
         log(f"агент {name}: продолжаю с шага {step0 + 1} ({stats})")
     try:
-        for step in range(step0, MAX_STEPS):
-            if step == MAX_STEPS - 3:
+        for step in range(step0, steps):
+            if step == steps - 3:
                 msgs.append({"role": "user", "content": "Осталось 3 шага. Заверши осмотр и напиши итоговый отчёт."})
             if used > AGENT_TOKEN_CAP:
                 msgs.append({"role": "user", "content": "Лимит токенов исчерпан. Немедленно напиши итоговый отчёт по тому, что успел осмотреть."})
@@ -457,7 +459,7 @@ def run_agent(name, model, brief, images, out, mode):
                 msgs.append({"role": "user", "content": [{"type": "text", "text": "Изображения из view_image (по порядку вызовов):"}] + [img_part(u) for u in pending]})
             statef.write_text(json.dumps({"step": step + 1, "used": used, "stats": stats, "n_img": ctx["n_img"],
                                           "msgs": serialize_msgs(msgs[2:], img_files)}, ensure_ascii=False))
-            log(f"агент {name} шаг {step + 1}/{MAX_STEPS}: {stats}, prompt-токенов {used}")
+            log(f"агент {name} шаг {step + 1}/{steps}: {stats}, prompt-токенов {used}")
         if final is None:
             msgs.append({"role": "user", "content": "Напиши итоговый отчёт сейчас, без инструментов."})
             final = llm_patient(model, compact_view(msgs), tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
@@ -564,7 +566,7 @@ def stage_panel(out, tag, cands, prompt, criteria, base_imgs, extra_imgs, side="
             imgs.append(img_part(data_url(p.with_name(p.stem + ".s48.png"), fmt="png")))
         imgs += extra_imgs
         try:
-            resp = llm(judge, [{"role": "system", "content": JUDGE_SYS}, {"role": "user", "content": [{"type": "text", "text": prompt}] + imgs}], max_tokens=1500)
+            resp = llm_patient(judge, [{"role": "system", "content": JUDGE_SYS}, {"role": "user", "content": [{"type": "text", "text": prompt}] + imgs}], max_tokens=1500)
             sc = extract_json(resp["choices"][0]["message"].get("content") or "")
             if not sc or not all(k in sc for k in criteria):
                 raise ValueError("нет оценок в ответе")
@@ -661,7 +663,7 @@ def stage_synth(out, kind):
                '"recommendations": [{"title":"","screen":"","change":"","why":"","impact":1,"effort":1,"evidence_urls":[""]}], '
                '"concepts": [{"id": "c1", "name": "...", "rationale": "...", "image_prompt": "English: redesign of the attached Android home screen applying ..."}]}. '
                'Рекомендации отсортируй по impact/effort. Концептов 4-5, каждый на основе набора конкретных рекомендаций. Опирайся только на то, что агенты реально осмотрели.')
-    resp = llm(SYNTH_MODEL, [{"role": "user", "content": ask + "\n\n" + "\n\n".join(reports) + "\n\nСсылки на осмотренные изображения:\n" + "\n".join(refs[:80])}], max_tokens=9000)
+    resp = llm_patient(SYNTH_MODEL, [{"role": "user", "content": ask + "\n\n" + "\n\n".join(reports) + "\n\nСсылки на осмотренные изображения:\n" + "\n".join(refs[:80])}], max_tokens=9000)
     d = extract_json(resp["choices"][0]["message"].get("content") or "")
     if not d:
         raise RuntimeError("синтез не вернул JSON")
@@ -708,22 +710,59 @@ def card_for(out, cid, rank, rec):
 
 
 # ───────────────────────── режимы ─────────────────────────
-def research_stage(out, brief, images, mode):
-    names = [m.replace(".", "-") for m in AGENT_MODELS]
-    for rnd in range(4):
-        pending = [(n, m) for n, m in zip(names, AGENT_MODELS) if not (out / f"agent_{n}.md").exists()]
+UNIT_TAIL = """## Твой участок: {title}
+
+{focus}
+
+Исследуй именно этот участок. Найди и реально осмотри (view_image) не менее 5 иконок или экранов приложений участка. Если приложены изображения, это наши (изображение 1 и далее): сравнивай с ними.
+Затем напиши КОРОТКИЕ заметки (до 30 строк), без JSON:
+- `## Что я реально осмотрел`: приложение, URL страницы, URL изображения.
+- `## Паттерны участка`: что повторяется, что отличается.
+- `## Выводы для Companion`: 3-5 конкретных пунктов (что взять, чего избегать, где свободная ниша).
+"""
+
+ICON_UNITS = [
+    {"id": "ru", "title": "Российский рынок", "focus": "Приложения, популярные в России на Android (RuStore и русскоязычный Google Play): трекеры настроения и самочувствия, сон, экранное время и цифровое благополучие, медитации, AI-помощники. Ищи по-русски: «приложение трекер настроения RuStore», «лучшие приложения для сна», «цифровое благополучие приложения»."},
+    {"id": "mood", "title": "Трекеры настроения и дневники", "focus": "Daylio, Bearable, Reflectly, Stoic, How We Feel, Finch, Moodnotes, Youper и похожие."},
+    {"id": "screen", "title": "Экранное время и цифровое благополучие", "focus": "Digital Wellbeing, Opal, ScreenZen, one sec, Freedom, Forest, StayFree, AppBlock."},
+    {"id": "sleep", "title": "Сон и восстановление", "focus": "Sleep Cycle, AutoSleep, Oura, Whoop, Gentler Streak, Rise, SleepScore."},
+    {"id": "ai", "title": "AI-компаньоны и чаты поддержки", "focus": "Replika, Wysa, Woebot, Pi, Character.AI и похожие."},
+    {"id": "calm", "title": "Спокойствие и медитации", "focus": "Calm, Headspace, Insight Timer, Balance, Waking Up, Tide."},
+]
+
+DESIGN_UNITS = [
+    {"id": "home", "title": "Главный экран: сводка дня", "focus": "Как трекеры настроения, сна и здоровья строят главный экран (иерархия, плотность карточек, главное сообщение дня).", "screens": ["web/screens/home-screen.png"]},
+    {"id": "checkin", "title": "Чек-ин и ввод настроения", "focus": "Как приложения собирают оценку дня одним касанием: формы ввода, эмодзи против текста, теги, состояния после ответа.", "screens": ["internal-docs/media/03-home-checkin-light.png"]},
+    {"id": "insight", "title": "Инсайты, графики и объяснения", "focus": "Как подают объяснения, графики по часам и карточки инсайтов, как избегают перегруза.", "screens": ["internal-docs/media/02-home-stats-light.png"]},
+    {"id": "onboarding", "title": "Онбординг и первая ценность", "focus": "Запрос разрешений, объяснение приватности, как быстро показать первую пользу.", "screens": ["internal-docs/media/05-onboarding-1.png", "internal-docs/media/05-onboarding-3.png"]},
+    {"id": "ru", "title": "Российский рынок", "focus": "Как выглядят приложения для самочувствия, сна, настроения и AI-помощники в RuStore и русскоязычном Google Play; чем они отличаются по визуальному языку. Ищи по-русски.", "screens": []},
+    {"id": "ai", "title": "AI-компаньоны: тон и оформление", "focus": "Replika, Wysa, Woebot, Pi, Finch: как оформляют реплики модели, объяснения и персонажа; как не давить и не геймифицировать.", "screens": []},
+    {"id": "m3", "title": "Тренды Material 3 Expressive 2025-2026", "focus": "Что нового в Material 3 Expressive и в лучших Android-приложениях Google Play 2025 года: формы, цвет, типографика, движение. Опирайся на официальные страницы Material Design и Google.", "screens": ["internal-docs/media/04-home-dark.png"]},
+]
+
+
+def research_stage(out, ctx_text, units, mode):
+    """Короткие независимые участки: небольшой контекст, быстрые вызовы, сбой одного не теряет остальных."""
+    jobs = []
+    for i, u in enumerate(units):
+        model = AGENT_MODELS[i % len(AGENT_MODELS)]
+        name = f"{u['id']}__{model.replace('.', '-')}"
+        brief = ctx_text + UNIT_TAIL.replace("{title}", u["title"]).replace("{focus}", u["focus"])
+        jobs.append((name, model, brief, u.get("images", [])))
+    for rnd in range(5):
+        pending = [j for j in jobs if not (out / f"agent_{j[0]}.md").exists()]
         if not pending:
             break
         if rnd:
-            log(f"раунд {rnd + 1}: повтор для {[n for n, _ in pending]} после паузы")
-            time.sleep(120)
-        log(f"исследование: агенты {[n for n, _ in pending]}")
-        with ThreadPoolExecutor(len(pending)) as ex:
-            list(ex.map(lambda t: run_agent(t[0], t[1], brief, images, out, mode), pending))
-    done = [n for n in names if (out / f"agent_{n}.md").exists()]
+            log(f"раунд {rnd + 1}: повтор для {[j[0] for j in pending]} после паузы")
+            time.sleep(90)
+        log(f"исследование ({mode}): {[j[0] for j in pending]}")
+        with ThreadPoolExecutor(min(3, len(pending))) as ex:
+            list(ex.map(lambda j: run_agent(j[0], j[1], j[2], j[3], out, mode, UNIT_STEPS), pending))
+    done = [p.stem[6:] for p in sorted(out.glob("agent_*.md"))]
     if not done:
-        raise RuntimeError("ни один агент не дошёл до отчёта")
-    log(f"отчёты готовы: {done}")
+        raise RuntimeError("ни один участок не дошёл до отчёта")
+    log(f"отчёты готовы ({len(done)}): {done}")
 
 
 def run_icon():
@@ -733,7 +772,7 @@ def run_icon():
     cur = ROOT / "internal-docs/dev/rustore/icon-512.png"
     cur_small = data_url(cur, 384)
     brief = (HERE / "briefs/icon.md").read_text(encoding="utf-8")
-    research_stage(out, brief, [cur_small], "icon")
+    research_stage(out, brief.split("## Что нужно сделать")[0], [{**u, "images": [cur_small]} for u in ICON_UNITS], "icon")
     synth = stage_synth(out, "icon")
     dirs = synth["directions"][:8]
     names = {d["id"]: d["name"] for d in dirs}
@@ -760,7 +799,7 @@ def run_icon():
                 crit = "\n".join(f"- {x['judge']}: {x['critique']}" for x in rank1[cid]["votes"])
                 ask = (f"Это кандидат в иконку (изображение). Исходный промт: {c1[cid]['prompt'][:600]}\nКритика судей:\n{crit}\n"
                        'Предложи 4 улучшенных варианта промта, которые устраняют критику и сохраняют сильные стороны. Верни ТОЛЬКО JSON: {"variants": [{"image_prompt": "English artwork-only prompt", "change": "что изменено"}]}')
-                resp = llm(SYNTH_MODEL, [{"role": "user", "content": [{"type": "text", "text": ask}, img_part(data_url(Path(c1[cid]["path"]).with_name(Path(c1[cid]["path"]).stem + ".s512.png"), 384))]}], max_tokens=2500)
+                resp = llm_patient(SYNTH_MODEL, [{"role": "user", "content": [{"type": "text", "text": ask}, img_part(data_url(Path(c1[cid]["path"]).with_name(Path(c1[cid]["path"]).stem + ".s512.png"), 384))]}], max_tokens=2500)
                 v = (extract_json(resp["choices"][0]["message"].get("content") or "") or {}).get("variants", [])
                 f2.write_text(json.dumps(v, ensure_ascii=False))
             for j, var in enumerate(v[:4]):
@@ -800,15 +839,18 @@ def run_design():
     out = DATA / "design"
     out.mkdir(parents=True, exist_ok=True)
     init_spend(out)
-    shots = [ROOT / "web/screens/home-screen.png"] + sorted((ROOT / "internal-docs/media").glob("*.png"))[:5]
-    shots = [s for s in shots if s.exists()]
-    images = [data_url(s, 700, quality=65) for s in shots]
     prior = ""
     pf = ROOT / "internal-docs/UX_DESIGN_RESEARCH.md"
     if pf.exists():
-        prior = pf.read_text(encoding="utf-8")[:6000]
+        prior = pf.read_text(encoding="utf-8")[:4000]
     brief = (HERE / "briefs/design.md").read_text(encoding="utf-8").replace("{PRIOR}", prior or "(нет)")
-    research_stage(out, brief, images, "design")
+    units = []
+    for u in DESIGN_UNITS:
+        imgs = [data_url(ROOT / sp, 600, quality=65) for sp in u["screens"] if (ROOT / sp).exists()]
+        units.append({**u, "images": imgs})
+    research_stage(out, brief.split("## Что нужно сделать")[0], units, "design")
+    home_png = ROOT / "web/screens/home-screen.png"
+    images = [data_url(home_png, 700, quality=65)]
     synth = stage_synth(out, "design")
     concepts = synth.get("concepts", [])[:5]
     orig = images[0]
