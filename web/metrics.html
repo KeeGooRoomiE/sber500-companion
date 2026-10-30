@@ -113,6 +113,7 @@
     .stat-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
     .delta-up   { color: var(--ok); }
     .delta-down { color: var(--danger); }
+    .delta-flat { color: var(--muted); }
 
     /* ── CHART ── */
     .chart-card {
@@ -363,9 +364,22 @@
   }
 
   // ─── Stat tiles ────────────────────────────────────────────────────────────
+  // Mean check-in rate over finished days. Today's bar is still live, so it is left out unless
+  // it is all there is.
+  function checkinAvg(history) {
+    const withData = history.filter(p => p.pct != null);
+    const past = withData.slice(0, -1);
+    const src = past.length ? past : withData;
+    return src.length ? src.reduce((a, p) => a + p.pct, 0) / src.length : null;
+  }
+
   function renderStats(d) {
     const dauDelta = (d.dau_7d_avg > 0 && d.dau_today != null)
       ? Math.round((d.dau_today - d.dau_7d_avg) / d.dau_7d_avg * 100) : null;
+
+    const ciHist = Array.isArray(d.checkin_history) ? d.checkin_history : [];
+    const ciAvg = checkinAvg(ciHist);
+    const ciDays = Math.max(ciHist.filter(p => p.pct != null).length - 1, 1);
 
     const tiles = [
       { label: 'Всего пользователей', value: fmt(d.users_total), unit: 'зарегистрировано',
@@ -376,7 +390,10 @@
       { label: 'D1 Retention',  value: d.retention_d1_pct == null ? '—' : fmt(d.retention_d1_pct, 1) + '%', unit: 'вернулись на д.1' },
       { label: 'D7 Retention',  value: d.retention_d7_pct == null ? '—' : fmt(d.retention_d7_pct, 1) + '%', unit: 'активны через 7д' },
       { label: 'Утренних сообщений', value: fmt(d.morning_delivered_today), unit: 'доставлено сегодня' },
-      { label: 'Check-in rate', value: d.checkin_rate_pct == null ? '—' : fmt(d.checkin_rate_pct, 1) + '%', unit: '% DAU отметились' },
+      // Window average, like Calls/DAU: «today» is a morning snapshot of an evening event and read
+      // as a collapse from ~29% to ~6% every day until people had a chance to check in.
+      { label: 'Check-in rate', value: ciAvg == null ? '—' : fmt(ciAvg, 1) + '%', unit: `% DAU отметились, среднее за ${ciDays} дн.`,
+        delta: d.checkin_rate_pct == null ? '' : `сегодня ${fmt(d.checkin_rate_pct, 1)}% (день не закончен)`, flat: true },
       { label: 'Точность прогноза', value: d.forecast_accuracy_pct == null ? '—' : fmt(d.forecast_accuracy_pct, 1) + '%',
         unit: `«Совпало», оценок: ${fmt(d.forecast_rated_30d)}` },
       { label: 'Полных сценариев', value: fmt(d.scenario_completed_total), unit: 'утро + чек-ин, всего' },
@@ -387,7 +404,7 @@
         <span class="stat-label">${s.label}</span>
         <span class="stat-value">${s.value}</span>
         <span class="stat-unit">${s.unit}</span>
-        ${s.delta ? `<span class="stat-delta ${s.up ? 'delta-up' : 'delta-down'}">${s.delta}</span>` : ''}
+        ${s.delta ? `<span class="stat-delta ${s.flat ? 'delta-flat' : s.up ? 'delta-up' : 'delta-down'}">${s.delta}</span>` : ''}
       </div>`).join('');
 
     return `<div class="section">
@@ -545,9 +562,7 @@
     const maxPct = Math.max(...withData.map(p => p.pct), 1);
     // Today's bar is still live — most check-ins land after 20:00 MSK, so including it in the
     // average drags it down for most of the day. Average over finished days only.
-    const past = withData.slice(0, -1);
-    const avgSource = past.length ? past : withData;
-    const avg = avgSource.reduce((a, p) => a + p.pct, 0) / avgSource.length;
+    const avg = checkinAvg(history);
     const bars = history.map((p, i) => {
       const last = i === history.length - 1;
       const h = p.pct == null ? 0 : Math.max(2, Math.round(p.pct / maxPct * 56));
