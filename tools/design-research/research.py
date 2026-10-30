@@ -123,21 +123,23 @@ def extract_json(txt):
 
 
 # ───────────────────────── картинки (sips встроен в macOS) ─────────────────────────
-def sips(src, dst, size=None, fmt="png"):
+def sips(src, dst, size=None, fmt="png", quality=None):
     cmd = ["sips", "-s", "format", fmt]
+    if fmt == "jpeg" and quality:
+        cmd += ["-s", "formatOptions", str(quality)]
     if size:
         cmd += ["-Z", str(size)]
     cmd += [str(src), "--out", str(dst)]
     subprocess.run(cmd, capture_output=True, check=True)
 
 
-def data_url(path, size=None):
+def data_url(path, size=None, fmt="jpeg", quality=70):
+    """Всё, что уходит моделям, по умолчанию JPEG: тело запроса с PNG большого размера не проходило через туннель."""
     path = Path(path)
-    if size:
-        tmp = Path(tempfile.mkdtemp()) / "x.png"
-        sips(path, tmp, size)
-        path = tmp
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+    tmp = Path(tempfile.mkdtemp()) / ("x." + ("jpg" if fmt == "jpeg" else "png"))
+    sips(path, tmp, size, fmt, quality)
+    mime = "image/jpeg" if fmt == "jpeg" else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(tmp.read_bytes()).decode()
 
 
 def img_part(url):
@@ -290,8 +292,7 @@ def tool_view_image(url, ctx):
     ctx["last_file"] = fn.name
     with open(ctx["out"] / "refs.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"file": fn.name, "agent": ctx["name"], "url": final}, ensure_ascii=False) + "\n")
-    return f"Изображение №{n} загружено (источник {final}). Оно приложено следующим сообщением.", \
-        "data:image/png;base64," + base64.b64encode(dst.read_bytes()).decode()
+    return f"Изображение №{n} загружено (источник {final}). Оно приложено следующим сообщением.", data_url(fn, 224)
 
 
 TOOL_IMPL = {"web_search": (tool_web_search, "query"), "fetch_page": (tool_fetch_page, "url"), "view_image": (tool_view_image, "url")}
@@ -313,7 +314,8 @@ AGENT_SYSTEM = """Ты независимый исследователь моб�
 4. Шагов у тебя немного (до {steps}). Планируй: сначала широкий поиск, затем осмотр реальных изображений, затем выводы. Не трать шаги на повторы.
 5. В одном шаге можно вызывать несколько инструментов сразу (например, открыть 5 страниц или 5 картинок параллельно): так ты экономишь шаги.
 6. Не застревай в поиске: после 2-3 запросов открывай найденные страницы и картинки. За весь прогон нужно реально осмотреть через view_image не менее 10 изображений; выводы без осмотренных изображений не принимаются.
-7. Иконки Google Play удобно брать из мета-тега og:image страницы приложения (замени хвост параметра на =s256). Страницы RuStore часто рендерятся скриптами: если текста нет, ищи через поиск.
+7. Твой контекст сжимается: старые страницы и картинки из него удаляются, остаются только твои тексты. Поэтому вместе с каждым вызовом инструментов пиши 1-3 строки заметок о том, что ты увидел на только что открытых иконках и страницах (приложение, цвет, форма, стиль, вывод). Итоговый отчёт составляй по этим заметкам.
+8. Иконки Google Play удобно брать из мета-тега og:image страницы приложения (замени хвост параметра на =s256). Страницы RuStore часто рендерятся скриптами: если текста нет, ищи через поиск.
 Когда достаточно материала, напиши итоговый отчёт по формату из задания, без вызова инструментов."""
 
 
@@ -333,6 +335,27 @@ def llm_patient(model, msgs, tools=None, max_tokens=6000, rounds=6):
             log(f"  {model}: сбой вызова ({msg[:90]}), пауза 60с, попытка {i + 1}/{rounds}")
             time.sleep(60)
     raise last
+
+
+KEEP_IMGS = int(os.getenv("KEEP_IMGS", "6"))
+
+
+def compact_view(msgs, keep_msgs=10, tool_chars=2500):
+    """Что реально уходит в API: без старых картинок и с укороченными старыми результатами инструментов.
+    Полная история остаётся в чекпоинте. Первые два сообщения (система и бриф с вложениями) не трогаем."""
+    n = len(msgs)
+    pos = [(i, j) for i, m in enumerate(msgs) if i >= 2 and isinstance(m.get("content"), list)
+           for j, p in enumerate(m["content"]) if p.get("type") == "image_url"]
+    drop = set(pos[:-KEEP_IMGS]) if len(pos) > KEEP_IMGS else set()
+    out = []
+    for i, m in enumerate(msgs):
+        c = m.get("content")
+        if i >= 2 and m.get("role") == "tool" and i < n - keep_msgs and isinstance(c, str) and len(c) > tool_chars:
+            m = {**m, "content": c[:tool_chars] + " …[сокращено]"}
+        elif i >= 2 and isinstance(c, list) and any((i, j) in drop for j in range(len(c))):
+            m = {**m, "content": [{"type": "text", "text": "[ранее осмотренное изображение удалено из контекста]"} if (i, j) in drop else p for j, p in enumerate(c)]}
+        out.append(m)
+    return out
 
 
 def serialize_msgs(msgs, img_files):
@@ -361,7 +384,7 @@ def deserialize_msgs(msgs, refs_dir):
             for p in c:
                 if p.get("type") == "ref":
                     fp = refs_dir / p["file"]
-                    parts.append(img_part("data:image/png;base64," + base64.b64encode(fp.read_bytes()).decode()) if fp.exists()
+                    parts.append(img_part(data_url(fp, 224)) if fp.exists()
                                  else {"type": "text", "text": "[изображение потеряно]"})
                 else:
                     parts.append(p)
@@ -388,6 +411,7 @@ def run_agent(name, model, brief, images, out, mode):
         st = json.loads(statef.read_text())
         msgs += deserialize_msgs(st["msgs"], out / "refs")
         step0, used, stats, ctx["n_img"] = st["step"], st["used"], st["stats"], st["n_img"]
+        msgs.append({"role": "user", "content": "Контекст сжат: старые картинки и страницы удалены, остались последние. Сначала кратко (до 15 строк) зафиксируй в тексте всё важное, что видишь выше, затем продолжай исследование или пиши отчёт."})
         log(f"агент {name}: продолжаю с шага {step0 + 1} ({stats})")
     try:
         for step in range(step0, MAX_STEPS):
@@ -396,7 +420,7 @@ def run_agent(name, model, brief, images, out, mode):
             if used > AGENT_TOKEN_CAP:
                 msgs.append({"role": "user", "content": "Лимит токенов исчерпан. Немедленно напиши итоговый отчёт по тому, что успел осмотреть."})
                 break
-            resp = llm_patient(model, msgs, tools=TOOLS)
+            resp = llm_patient(model, compact_view(msgs), tools=TOOLS)
             used += resp.get("usage", {}).get("prompt_tokens", 0)
             m = resp["choices"][0]["message"]
             calls = m.get("tool_calls") or []
@@ -436,7 +460,7 @@ def run_agent(name, model, brief, images, out, mode):
             log(f"агент {name} шаг {step + 1}/{MAX_STEPS}: {stats}, prompt-токенов {used}")
         if final is None:
             msgs.append({"role": "user", "content": "Напиши итоговый отчёт сейчас, без инструментов."})
-            final = llm_patient(model, msgs, tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
+            final = llm_patient(model, compact_view(msgs), tools=None, max_tokens=8000)["choices"][0]["message"].get("content") or ""
     except CapExceeded as e:
         log(f"агент {name}: остановлен по лимиту спенда ({e})")
         final = (final or "") + f"\n\n[остановлено по лимиту спенда: {e}]"
@@ -535,9 +559,9 @@ def stage_panel(out, tag, cands, prompt, criteria, base_imgs, extra_imgs, side="
         if (cid, judge) in done:
             return
         p = Path(rec["path"])
-        imgs = list(base_imgs) + [img_part(data_url(p.with_name(p.stem + f".{side}.png")))]
+        imgs = list(base_imgs) + [img_part(data_url(p.with_name(p.stem + f".{side}.png"), 384))]
         if with_small and (p.with_name(p.stem + ".s48.png")).exists():
-            imgs.append(img_part(data_url(p.with_name(p.stem + ".s48.png"))))
+            imgs.append(img_part(data_url(p.with_name(p.stem + ".s48.png"), fmt="png")))
         imgs += extra_imgs
         try:
             resp = llm(judge, [{"role": "system", "content": JUDGE_SYS}, {"role": "user", "content": [{"type": "text", "text": prompt}] + imgs}], max_tokens=1500)
@@ -776,9 +800,9 @@ def run_design():
     out = DATA / "design"
     out.mkdir(parents=True, exist_ok=True)
     init_spend(out)
-    shots = [ROOT / "web/screens/home-screen.png"] + sorted((ROOT / "internal-docs/media").glob("*.png"))[:8]
+    shots = [ROOT / "web/screens/home-screen.png"] + sorted((ROOT / "internal-docs/media").glob("*.png"))[:5]
     shots = [s for s in shots if s.exists()]
-    images = [data_url(s, 900) for s in shots]
+    images = [data_url(s, 700, quality=65) for s in shots]
     prior = ""
     pf = ROOT / "internal-docs/UX_DESIGN_RESEARCH.md"
     if pf.exists():
