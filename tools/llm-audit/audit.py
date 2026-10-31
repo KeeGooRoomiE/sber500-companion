@@ -79,18 +79,42 @@ def parse(txt):
         k = s.rfind("{", 0, k)
     return None
 
+WD = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+
 def compact(days):
     out = []
     for d in days:
         apps = ", ".join(f"{a.get('package','?').split('.')[-1]} {a.get('minutes')}м" for a in (d.get("apps") or [])[:4])
-        out.append(f"{d['d']}: экран {d.get('screen')}м, сон {d.get('sleep')}м, разблок {d.get('unlocks')}, "
-                   f"шаги {d.get('steps')}, подъём {d.get('wake')}, [{apps}], чек-ин {d.get('feel')}")
+        try:
+            from datetime import date as _d
+            day = f"{d['d']} ({WD[_d.fromisoformat(str(d['d'])[:10]).weekday()]})"
+        except Exception:
+            day = d['d']
+        tags = d.get("tags")
+        tag_s = f", теги чек-ина: {', '.join(tags)}" if tags else ""
+        out.append(f"{day}: экран {d.get('screen')}м, сон {d.get('sleep')}м, разблок {d.get('unlocks')}, "
+                   f"шаги {d.get('steps')}, подъём {d.get('wake')}, [{apps}], чек-ин {d.get('feel')}{tag_s}")
     return "\n".join(out)
+
+V2_NOTE = ("Это полный контекст, который видел и сам генератор текста: ТЕГИ чек-инов, ПРОФИЛЬ человека и НОРМЫ за всю историю тоже являются фактами. "
+           "Упоминание тега, рабочего контекста из профиля или сравнение с нормой не выдумка, если согласуется с ними. Дни недели проверяй по датам в скобках; "
+           "не называй выдумкой фразы, которые верны в этом контексте. Выдумка это только то, чего нет ни в фактах дней, ни в тегах, ни в профиле, ни в нормах.")
+
+def v2_block(row):
+    parts = []
+    if row.get("profile"):
+        pr = {k: v for k, v in row["profile"].items() if v}
+        if pr:
+            parts.append("ПРОФИЛЬ: " + "; ".join(f"{k}={v}" for k, v in pr.items()))
+    if row.get("norms"):
+        n = row["norms"]
+        parts.append(f"НОРМЫ по всей истории до даты текста ({n.get('days')} дней): экран {n.get('screen')}м, сон {n.get('sleep')}м, разблок {n.get('unlocks')}, шаги {n.get('steps')}")
+    return ("\n\n" + "\n".join(parts) + "\n\n" + V2_NOTE) if parts else ""
 
 def task(item):
     i, row, judge = item
     quiet_wait()
-    user = f"ТИП: {row['kind']} (дата текста {row['date']})\n\nТЕКСТ:\n{row['text']}\n\nФАКТЫ:\n{compact(row['days'])}"
+    user = f"ТИП: {row['kind']} (дата текста {row['date']})\n\nТЕКСТ:\n{row['text']}\n\nФАКТЫ:\n{compact(row['days'])}{v2_block(row)}"
     txt, err = call(judge, SYS, user)
     rec = {"id": i, "judge": judge, "kind": row["kind"], "date": row["date"], "chars": len(row["text"])}
     sc = parse(txt) if txt else None

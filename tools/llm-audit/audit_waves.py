@@ -58,7 +58,7 @@ def main():
         # автосводка: файл на каждую волну + строка «ВСЕ» в лог, чтобы динамику видно без запуска вручную
         try:
             here = os.path.dirname(os.path.abspath(__file__))
-            out = subprocess.run([sys.executable, os.path.join(here, "summarize.py")], capture_output=True, text=True, timeout=120).stdout
+            out = subprocess.run([sys.executable, os.path.join(here, "compare_v2.py" if str(audit.INP).endswith("_v2.jsonl") else "summarize.py")], capture_output=True, text=True, timeout=120).stdout
             os.makedirs(os.path.join(here, "data", "summaries"), exist_ok=True)
             open(os.path.join(here, "data", "summaries", f"wave_{w + 1:02d}.txt"), "w", encoding="utf-8").write(out)
             first = out.splitlines()[0] if out else ""

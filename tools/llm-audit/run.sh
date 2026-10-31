@@ -2,6 +2,7 @@
 # Аудит качества LLM-выходов. Запускается с вашего компьютера, без Claude.
 #
 #   bash tools/llm-audit/run.sh export    выгрузить выходы+факты с сервера (ssh companion) в data/
+#   bash tools/llm-audit/run.sh export2   то же с полным контекстом для judge (теги, профиль, нормы) -> data/audit_input_v2.jsonl
 #   bash tools/llm-audit/run.sh start     запустить аудит волнами в фоне (докачивает с места остановки)
 #   bash tools/llm-audit/run.sh status    прогресс и последние строки лога
 #   bash tools/llm-audit/run.sh summary   сводка: категории, динамика по неделям, согласие judge
@@ -24,6 +25,12 @@ case "${1:-}" in
     ssh companion 'rm -f /tmp/audit_export.jsonl /tmp/export.sql'
     echo "выгружено: $(wc -l < "$DATA/audit_input.jsonl") текстов -> $DATA/audit_input.jsonl"
     ;;
+  export2)
+    scp -q -o ConnectTimeout=20 "$HERE/export_v2.sql" companion:/tmp/export_v2.sql
+    ssh -o ConnectTimeout=30 companion 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -q -f /tmp/export_v2.sql && wc -l /tmp/audit_export_v2.jsonl'
+    scp -q -o ConnectTimeout=30 companion:/tmp/audit_export_v2.jsonl "$DATA/audit_input_v2.jsonl"
+    ssh companion 'rm -f /tmp/audit_export_v2.jsonl /tmp/export_v2.sql'
+    echo "выгружено: $(wc -l < "$DATA/audit_input_v2.jsonl") текстов -> $DATA/audit_input_v2.jsonl" ;;
   start)
     [ -f "$DATA/audit_input.jsonl" ] || { echo "нет data/audit_input.jsonl — сначала: run.sh export"; exit 1; }
     if pgrep -f "audit_waves.py" >/dev/null; then echo "уже запущен (run.sh status)"; exit 0; fi
