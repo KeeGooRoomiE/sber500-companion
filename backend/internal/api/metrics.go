@@ -576,6 +576,8 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 
 	// Weekly sign-up cohorts and how much of each came back. Each window counts only the
 	// users old enough to have had the chance, so a fresh cohort shows «—», not 0%.
+	// No sign-up cutoff: a sliding 28-day window silently dropped the launch-week cohort (~50
+	// people) as it aged out, leaving a table of the last three or four tiny weeks.
 	cohRows, err := m.db.Query(ctx, `
 		SELECT date_trunc('week', u.created_at AT TIME ZONE $2)::date AS week,
 		       count(*),
@@ -593,7 +595,6 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		                                      AND a.date >= (u.created_at AT TIME ZONE $2)::date + 14))
 		FROM users u
 		WHERE NOT (u.id = ANY($1))
-		  AND (u.created_at AT TIME ZONE $2)::date >= $3::date - 27
 		GROUP BY week ORDER BY week
 	`, devs, tz, today)
 	if err != nil {
