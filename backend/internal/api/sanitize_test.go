@@ -57,3 +57,21 @@ func TestCleanNote(t *testing.T) {
 		t.Fatal("blank note must be nil")
 	}
 }
+
+func TestCleanSlug(t *testing.T) {
+	cases := map[string]string{
+		"RuStore":                "rustore",
+		" yandex direct ":        "yandex_direct",
+		"telegram_ads":           "telegram_ads",
+		"a;DROP TABLE users--":   "adrop_table_users--",
+		"<script>x</script>":     "scriptxscript",
+		"":                       "",
+		"реклама":                "",
+		strings.Repeat("a", 500): strings.Repeat("a", 32),
+	}
+	for in, want := range cases {
+		if got := cleanSlug(in, 32); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}

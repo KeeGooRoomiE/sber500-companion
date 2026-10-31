@@ -59,6 +59,16 @@ type Cohort struct {
 	D14Pct *float64 `json:"d14_pct"`
 }
 
+// SourceStat is one install channel: how many people came from it and how they stay.
+// RetentionD7Pct is null until the channel has a cohort old enough (signed up 7–13 days ago).
+type SourceStat struct {
+	Source         string   `json:"source"` // "unknown" = installed before sources were tracked, or sideloaded
+	Users          int      `json:"users"`
+	DAUToday       int      `json:"dau_today"`
+	D7Cohort       int      `json:"d7_cohort"`
+	RetentionD7Pct *float64 `json:"retention_d7_pct"`
+}
+
 // MetricsResponse matches the keys web/metrics.html renders. Null = not enough data yet.
 type MetricsResponse struct {
 	UpdatedAt string `json:"updated_at"`
@@ -93,6 +103,7 @@ type MetricsResponse struct {
 	// Which build each phone runs, newest first. Distribution is an APK link, so several
 	// versions are live at once and a fix is not «shipped» until this shows it.
 	Versions              []VersionShare `json:"app_versions"`
+	Sources               []SourceStat   `json:"sources"`
 	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
 	MorningDeliveredToday int            `json:"morning_delivered_today"`
@@ -232,6 +243,7 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		UpdatedAt:      now.Format(time.RFC3339),
 		DAUHistory:     []DAUPoint{},
 		Versions:       []VersionShare{},
+		Sources:        []SourceStat{},
 		CheckinHistory: []CheckinPoint{},
 		Cohorts:        []Cohort{},
 	}
@@ -325,6 +337,38 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		return nil, err
 	}
 	out.RetentionD7Pct = pct(retD7, cohortD7)
+
+	// Install sources: people, today's DAU and D7 retention per channel.
+	srows, err := m.db.Query(ctx, `
+		SELECT coalesce(nullif(u.source, ''), 'unknown') AS src,
+		       count(*),
+		       count(*) FILTER (WHERE EXISTS (
+		           SELECT 1 FROM user_activity a WHERE a.user_id = u.id AND a.date = $3)),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date BETWEEN $3::date - 13 AND $3::date - 7),
+		       count(*) FILTER (WHERE (u.created_at AT TIME ZONE $2)::date BETWEEN $3::date - 13 AND $3::date - 7
+		           AND EXISTS (SELECT 1 FROM user_activity a
+		                       WHERE a.user_id = u.id AND a.date >= (u.created_at AT TIME ZONE $2)::date + 7))
+		FROM users u
+		WHERE NOT (u.id = ANY($1))
+		GROUP BY src ORDER BY count(*) DESC, src
+	`, devs, tz, today)
+	if err != nil {
+		return nil, err
+	}
+	for srows.Next() {
+		var st SourceStat
+		var kept int
+		if err := srows.Scan(&st.Source, &st.Users, &st.DAUToday, &st.D7Cohort, &kept); err != nil {
+			srows.Close()
+			return nil, err
+		}
+		st.RetentionD7Pct = pct(kept, st.D7Cohort)
+		out.Sources = append(out.Sources, st)
+	}
+	srows.Close()
+	if err := srows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Retention funnel — absolute counts across all cohorts
 	var activated int

@@ -11,7 +11,29 @@ const (
 	maxCheckInTags = 6
 	maxTagRunes    = 24
 	maxNoteRunes   = 500
+
+	maxSourceLen   = 32
+	maxCampaignLen = 64
 )
+
+// cleanSlug normalises an install source or campaign label to lower-case [a-z0-9_.-] of at
+// most max characters; anything else is dropped, and an empty result means «unknown». The
+// value goes into a GROUP BY and onto the metrics page, so it must stay a plain label.
+func cleanSlug(s string, max int) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_', r == '.', r == '-':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteByte('_')
+		}
+		if b.Len() >= max {
+			break
+		}
+	}
+	return b.String()
+}
 
 // oneLine turns every run of whitespace and control characters (newlines included) into a
 // single space and trims the ends, so a value cannot add lines or fake sections to a prompt.

@@ -13,6 +13,7 @@
 
 ```
 POST /api/v1/register        регистрация устройства (публичный, 60/ч на IP)
+                             тело (всё необязательно): is_dev, device_key, source (slug канала: rustore, yandex_direct, telegram_ads, organic; [a-z0-9_.-], ≤32), campaign (≤64) — пишутся в users.source/campaign только при первой регистрации устройства
 POST /api/v1/data/passive    дневной снапшот (usage + sleep + steps + battery + почасовки)
 POST /api/v1/checkin         feel: ok|meh|hard, tags[], note?
 GET  /api/v1/morning         утренний прогноз (пре-ген ночью или on-demand)

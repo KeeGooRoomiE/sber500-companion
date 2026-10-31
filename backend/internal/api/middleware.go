@@ -52,6 +52,10 @@ type RegisterRequest struct {
 	// Hash of the app's per-device id (survives reinstall). Optional: without it the
 	// phone always gets a new identity, like before.
 	DeviceKey string `json:"device_key"`
+	// Install source, read by the app once at first launch (Install Referrer / deep link).
+	// Both optional; stored on the first registration of a device only. See cleanSlug.
+	Source   string `json:"source"`   // channel slug: rustore, yandex_direct, telegram_ads, organic, ...
+	Campaign string `json:"campaign"` // campaign / link label inside the channel
 }
 
 type RegisterResponse struct {
@@ -70,7 +74,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if len(key) < 32 || len(key) > 128 {
 		key = "" // not a hash — ignore rather than trust
 	}
-	uid, token, returning, err := h.users.Register(r.Context(), key, req.IsDev)
+	uid, token, returning, err := h.users.Register(r.Context(), key, req.IsDev, cleanSlug(req.Source, maxSourceLen), cleanSlug(req.Campaign, maxCampaignLen))
 	if err != nil {
 		slog.Error("register", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")
