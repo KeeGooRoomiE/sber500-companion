@@ -78,4 +78,26 @@ object Events {
      * the answer itself and the tags are never sent. Callers send it once per day.
      */
     fun checkInDone(source: String) = report("checkin_done", mapOf("source" to source))
+
+    // ─── Engagement with the mechanics ───────────────────────────────────────
+    //
+    // Unlike the daily markers above these are not capped at one a day: how often a mechanic
+    // is reached is the whole signal. «Спросить о себе» was opened by 5 people out of 35 in a
+    // week, and the question these answer is whether that is lack of interest or of discovery.
+    // Nothing from the person's data travels with them — only which mechanic, and day vs week.
+
+    /** «Разбор дня» was opened. */
+    fun dayReviewOpen() = report("day_review_open")
+
+    /** «Итоги недели» was opened. */
+    fun weeklySummaryView() = report("weekly_summary_view")
+
+    /**
+     * A follow-up chip under a review was tapped. [kind] is day | week — never the question
+     * itself, which is generated from the person's own data.
+     */
+    fun followupClick(kind: String) = report("followup_click", mapOf("kind" to kind))
+
+    /** «Хочу ещё» was opened — the moment the explore mechanic is discovered at all. */
+    fun exploreMore() = report("explore_more")
 }

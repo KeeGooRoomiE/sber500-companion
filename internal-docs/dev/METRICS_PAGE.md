@@ -3,7 +3,7 @@
 ## Назначение
 
 `web/metrics.html` — публичная страница с live-метриками проекта для судей Sber500 x DISRUPT.  
-URL после деплоя: `https://keegooroomie.github.io/sber500-companion/metrics.html`
+URL после деплоя: `https://companion-app.ru/metrics.html`
 
 Деплоится автоматически тем же `pages.yml` — отдельного CI не нужно.
 

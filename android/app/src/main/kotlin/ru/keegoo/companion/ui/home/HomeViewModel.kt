@@ -355,11 +355,15 @@ class HomeViewModel @Inject constructor(
             today.minusDays(1) -> "Разбор вчерашнего дня"
             else -> "Разбор дня"
         }
+        Events.dayReviewOpen()
         runReview(ReviewUi(ReviewKind.Day, title)) { repository.dayReview(date) }
     }
 
     /** «Итоги недели»: the last 7 days summed up. */
-    fun openWeekReview() = runReview(ReviewUi(ReviewKind.Week, "Итоги недели")) { repository.weekReview() }
+    fun openWeekReview() {
+        Events.weeklySummaryView()
+        runReview(ReviewUi(ReviewKind.Week, "Итоги недели")) { repository.weekReview() }
+    }
 
     fun closeReview() {
         reviewJob?.cancel()
@@ -398,6 +402,7 @@ class HomeViewModel @Inject constructor(
         val date = review.date ?: return
         if (review.followupLoading != null) return
         val chip = review.followups.firstOrNull { it.id == questionId } ?: return
+        Events.followupClick(if (review.kind == ReviewKind.Week) "week" else "day")
         val kind = if (review.kind == ReviewKind.Week) "week" else "day"
 
         _state.update { it.copy(review = it.review?.copy(followupLoading = questionId)) }
@@ -448,6 +453,7 @@ class HomeViewModel @Inject constructor(
 
     /** «Хочу ещё»: open the sheet with today's answers and the questions the data can answer. */
     fun openExplore() {
+        Events.exploreMore()
         exploreJob?.cancel()
         _state.update { it.copy(explore = ExploreUi()) }
         exploreJob = viewModelScope.launch {

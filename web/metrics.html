@@ -50,6 +50,8 @@
     .page-header p { font-size: 13px; color: var(--muted); line-height: 1.6; }
     .page-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
     #updated-at { font-size: 13px; color: var(--muted); }
+    footer { max-width: 1100px; margin: 48px auto 0; padding: 0 20px 32px; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); }
     .btn-refresh {
       display: inline-flex; align-items: center; gap: 6px;
       font-size: 12px; font-weight: 600; color: var(--primary);
@@ -237,6 +239,14 @@
 
   <div id="content"></div>
 </main>
+
+<footer>
+  <p>
+    <a href="index.html">← На главную</a> ·
+    <a href="privacy.html">Политика конфиденциальности</a> ·
+    <a href="https://github.com/KeeGooRoomiE/sber500-companion">GitHub</a>
+  </p>
+</footer>
 
 <script>
   const API_URL = 'https://api.94-183-236-169.sslip.io/api/v1/metrics';

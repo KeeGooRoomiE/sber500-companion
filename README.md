@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest)
 [![Backend](https://img.shields.io/badge/бэкенд-Go%20%2B%20PostgreSQL-00ADD8?logo=go&logoColor=white)](https://api.94-183-236-169.sslip.io/api/v1/version)
 
-[🌐 Лендинг](https://keegooroomie.github.io/sber500-companion/) · [📊 Live-метрики](https://keegooroomie.github.io/sber500-companion/metrics.html) · [📱 Скачать APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
+[🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📱 Скачать APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
 
 </div>
 
@@ -145,7 +145,7 @@ deploy/      Caddyfile, systemd unit, deploy.sh
 ## Live-данные
 
 Метрики проекта публичны и обновляются в реальном времени:  
-→ [keegooroomie.github.io/sber500-companion/metrics.html](https://keegooroomie.github.io/sber500-companion/metrics.html)
+→ [companion-app.ru/metrics.html](https://companion-app.ru/metrics.html)
 
 ---
 

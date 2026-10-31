@@ -34,4 +34,4 @@ Companion — работающий сервис: у приложения ест�
 промолчать.
 
 Как обрабатываются сами пользовательские данные — в
-[политике конфиденциальности](https://keegooroomie.github.io/sber500-companion/privacy.html).
+[политике конфиденциальности](https://companion-app.ru/privacy.html).
