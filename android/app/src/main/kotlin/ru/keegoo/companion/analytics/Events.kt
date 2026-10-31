@@ -64,4 +64,18 @@ object Events {
      */
     fun firstForecastShown(local: Boolean) =
         report("first_forecast_shown", mapOf("source" to if (local) "local" else "server"))
+
+    // ─── Daily use ───────────────────────────────────────────────────────────
+
+    /**
+     * The server's morning forecast was on screen. Callers send it once per day; carries no
+     * text and nothing from the person's data.
+     */
+    fun morningForecastView() = report("morning_forecast_view")
+
+    /**
+     * An evening check-in was recorded. [source] is where it came from (notification | app);
+     * the answer itself and the tags are never sent. Callers send it once per day.
+     */
+    fun checkInDone(source: String) = report("checkin_done", mapOf("source" to source))
 }

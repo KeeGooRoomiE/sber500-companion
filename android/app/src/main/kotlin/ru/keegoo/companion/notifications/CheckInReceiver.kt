@@ -10,6 +10,8 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.analytics.Events
+import ru.keegoo.companion.data.prefs.claimDailyEvent
 import ru.keegoo.companion.data.prefs.saveCheckIn
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.domain.model.DayFeel
@@ -56,6 +58,7 @@ class CheckInReceiver : BroadcastReceiver() {
                 // Local first: Home shows the check-in as done even without a backend
                 context.saveCheckIn(feel, emptySet())
                 repo.postCheckIn(checkInDay(), feel)
+                if (context.claimDailyEvent("checkin_done")) Events.checkInDone("notification")
             } finally {
                 // The «разбор дня» follows the check-in; the LLM call is too slow for a
                 // BroadcastReceiver, so a worker does it (and posts today's snapshot first).

@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import ru.keegoo.companion.analytics.Events
 import ru.keegoo.companion.data.auth.DeviceCredentials
 import ru.keegoo.companion.data.local.SleepSource
+import ru.keegoo.companion.data.prefs.claimDailyEvent
 import ru.keegoo.companion.data.prefs.claimFirstForecast
 import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
@@ -266,6 +267,7 @@ class HomeViewModel @Inject constructor(
                         if (resp.message.isNotBlank()) {
                             context.markMorningDelivered()
                             if (context.claimFirstForecast()) Events.firstForecastShown(local = false)
+                            if (context.claimDailyEvent("morning_forecast_view")) Events.morningForecastView()
                         }
                         _state.update {
                             it.copy(
@@ -544,6 +546,7 @@ class HomeViewModel @Inject constructor(
             val tags = _state.value.tags
             context.saveCheckIn(feel, tags)
             repository.postCheckIn(checkInDay(), feel, CheckInTags.filter { it in tags })
+            if (context.claimDailyEvent("checkin_done")) Events.checkInDone("app")
             // «Что у тебя за такие дни» — about the first tag of the check-in. The server needs a
             // couple of days with the tag and a couple without, so early on this stays silent.
             CheckInTags.firstOrNull { it in tags }?.let { loadInsight(Insights.TAG, it) }

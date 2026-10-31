@@ -70,6 +70,18 @@ suspend fun Context.claimFirstForecast(): Boolean {
     return true
 }
 
+/**
+ * True the first time it is called for [name] today, false for the rest of the day. For analytics
+ * events that mean «happened today», not «happened again» (Home refreshes on every return).
+ */
+suspend fun Context.claimDailyEvent(name: String): Boolean {
+    val key = stringPreferencesKey("event_day_$name")
+    val today = LocalDate.now().toString()
+    if (appPrefs.data.first()[key] == today) return false
+    appPrefs.edit { it[key] = today }
+    return true
+}
+
 suspend fun Context.isMorningDeliveredToday(): Boolean =
     appPrefs.data.first()[KEY_MORNING_DELIVERED] == LocalDate.now().toString()
 
