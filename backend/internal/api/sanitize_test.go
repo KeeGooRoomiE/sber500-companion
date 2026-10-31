@@ -75,3 +75,20 @@ func TestCleanSlug(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanSessionID(t *testing.T) {
+	cases := map[string]string{
+		"3f2a9c1e-77b0-4c1d-9a55-0d1e2f3a4b5c": "3f2a9c1e-77b0-4c1d-9a55-0d1e2f3a4b5c",
+		"  abc_1.2:3  ":                        "abc_1.2:3",
+		"":                                     "",
+		"has space":                            "has space"[:0],
+		"line\nbreak":                          "",
+		"x'; DROP TABLE call_log;--":           "",
+		strings.Repeat("a", 65):                "",
+	}
+	for in, want := range cases {
+		if got := cleanSessionID(in); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}

@@ -92,3 +92,20 @@ func cleanNote(in *string) *string {
 	}
 	return &s
 }
+
+// cleanSessionID accepts an opaque id of at most 64 characters from [A-Za-z0-9_.:-]; anything
+// else yields "" (the call is logged without a session rather than with a made-up one).
+func cleanSessionID(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) > 64 {
+		return ""
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '.', r == ':', r == '-':
+		default:
+			return ""
+		}
+	}
+	return s
+}

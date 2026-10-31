@@ -38,6 +38,7 @@ func Mount(r chi.Router, d Deps) {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(limitBody)
+		r.Use(sessionID)
 		// Coarse per-IP ceiling (100 rps). Generous on purpose: Russian mobile carriers put many
 		// subscribers behind one CGNAT address, and a stress test runs from a single machine.
 		// LLM spend is capped elsewhere (one message per user per day + LLM_DAILY_CAP).
@@ -89,6 +90,18 @@ func Mount(r chi.Router, d Deps) {
 func limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// sessionID puts the app's X-Session-Id (one per process launch) on the request context, so
+// every call_log row written while serving the request carries it. Anti-fraud wants to tell
+// «one launch made ten calls» from «ten launches made one each».
+func sessionID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if id := cleanSessionID(r.Header.Get("X-Session-Id")); id != "" {
+			r = r.WithContext(analytics.WithSession(r.Context(), id))
+		}
 		next.ServeHTTP(w, r)
 	})
 }

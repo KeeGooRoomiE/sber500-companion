@@ -85,6 +85,9 @@ func (l *Logger) Log(ctx context.Context, e CallEvent) {
 	if l.devUserIDs[e.UserID] {
 		return
 	}
+	if e.SessionID == "" {
+		e.SessionID = SessionFrom(ctx)
+	}
 	go func() {
 		wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
@@ -99,7 +102,7 @@ func (l *Logger) persist(ctx context.Context, e CallEvent) error {
 	_, err := l.db.Exec(ctx, `
 		INSERT INTO call_log
 			(user_id, ts, session_id, call_type, component, trigger, user_visible, result, error_code, latency_ms)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		VALUES ($1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9,$10)`,
 		e.UserID, e.Timestamp, e.SessionID,
 		string(e.CallType), string(e.Component), string(e.Trigger),
 		e.UserVisible, e.Result, e.ErrorCode, e.LatencyMs,
