@@ -6,6 +6,7 @@
 #   bash tools/llm-audit/run.sh start     запустить аудит волнами в фоне (докачивает с места остановки)
 #   bash tools/llm-audit/run.sh status    прогресс и последние строки лога
 #   bash tools/llm-audit/run.sh summary   сводка: категории, динамика по неделям, согласие judge
+#   bash tools/llm-audit/run.sh summary2  сводка повторного аудита (v2) и сравнение со старым на тех же текстах
 #   bash tools/llm-audit/run.sh stop      остановить (ничего не теряется, start продолжит)
 #
 # Ключ и адрес прокси берутся из backend/.env (в репозиторий не попадают).
@@ -55,6 +56,7 @@ print(f"готово оценок: {len(pairs)} | текстов с двумя �
 PY
     echo "--- лог ---"; tail -4 "$DATA/waves.log" 2>/dev/null || true
     ;;
+  summary2) python3 "$HERE/compare_v2.py" ;;
   summary) python3 "$HERE/summarize.py" ;;
   stop) pkill -f "audit_waves.py" && echo "остановлен" || echo "не был запущен" ;;
   *) sed -n '2,12p' "$0" ;;
