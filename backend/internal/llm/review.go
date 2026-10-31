@@ -131,7 +131,7 @@ func dayLine(d *repo.DailyData, work map[string]bool) string {
 		if i == 3 {
 			break
 		}
-		parts = append(parts, fmt.Sprintf("%s%s %dм", resolveAppName(a.Package), workMark(work, a.Package), a.Minutes))
+		parts = append(parts, fmt.Sprintf("%s%s %s", resolveAppName(a.Package), workMark(work, a.Package), minutes(a.Minutes)))
 	}
 	if len(parts) == 0 {
 		return "данных нет"
@@ -199,11 +199,42 @@ func checkInLine(c *repo.CheckIn) string {
 	return feel
 }
 
+// plural picks the Russian form for n: one / few / many.
+func plural(n int, one, few, many string) string {
+	if n < 0 {
+		n = -n
+	}
+	if r := n % 100; r >= 11 && r <= 14 {
+		return many
+	}
+	switch n % 10 {
+	case 1:
+		return one
+	case 2, 3, 4:
+		return few
+	}
+	return many
+}
+
+// minutes spells a count of minutes out in words, never abbreviated.
+func minutes(m int) string {
+	return fmt.Sprintf("%d %s", m, plural(m, "минута", "минуты", "минут"))
+}
+
+// hm spells a duration out in words. The compact forms it replaced — «5м» for five
+// minutes against «5ч00м» for five hours — read to the model as the same thing: 46% of
+// day reviews turned five minutes into five hours. Spelled out, the two cannot collide,
+// and the few extra tokens are cheaper than a wrong number in the text a person reads.
 func hm(m int) string {
 	if m < 60 {
-		return fmt.Sprintf("%dм", m)
+		return minutes(m)
 	}
-	return fmt.Sprintf("%dч%02dм", m/60, m%60)
+	h, r := m/60, m%60
+	out := fmt.Sprintf("%d %s", h, plural(h, "час", "часа", "часов"))
+	if r > 0 {
+		out += " " + minutes(r)
+	}
+	return out
 }
 
 func weekday(t time.Time) string {
