@@ -15,6 +15,9 @@ val sharedKeystore = System.getenv("COMPANION_KEYSTORE")?.let { file(it) }?.take
 // AppMetrica key never lives in the repo: CI passes it as an env var from a secret, local
 // builds read it from local.properties (gitignored). Absent key = SDK stays off, which is how
 // every build behaved until now.
+// Channel this build is distributed through (rustore, apk, ...). Sent to /register as the install
+// source when no deep link says otherwise; the RuStore artifact is built with INSTALL_SOURCE=rustore.
+val installSource: String = System.getenv("INSTALL_SOURCE")?.takeIf { it.isNotBlank() } ?: "apk"
 val appMetricaKey: String = System.getenv("APPMETRICA_KEY")
     ?: rootProject.file("local.properties").takeIf { it.exists() }
         ?.readLines()
@@ -52,6 +55,7 @@ android {
             // 10.0.2.2 — localhost внутри Android-эмулятора
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
+            buildConfigField("String", "INSTALL_SOURCE", "\"$installSource\"")
         }
         release {
             // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
@@ -61,6 +65,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
+            buildConfigField("String", "INSTALL_SOURCE", "\"$installSource\"")
             if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
     }

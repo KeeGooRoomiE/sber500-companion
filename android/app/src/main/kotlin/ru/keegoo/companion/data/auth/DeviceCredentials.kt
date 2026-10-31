@@ -23,6 +23,9 @@ private data class RegisterRequest(
     @SerializedName("device_key") val device_key: String?,
     /** Debug build: emulator runs and local testing must not count as people. */
     @SerializedName("is_dev") val is_dev: Boolean,
+    /** Where the install came from; the server normalises both fields. Null fields are not sent. */
+    @SerializedName("source") val source: String? = null,
+    @SerializedName("campaign") val campaign: String? = null,
 )
 private data class RegisterResponse(
     @SerializedName("user_id") val user_id: String,
@@ -57,6 +60,30 @@ class DeviceCredentials @Inject constructor(
 
     fun restoreDone() = prefs.edit().putBoolean(KEY_RESTORE, false).apply()
 
+    /**
+     * Remember where the install came from, from a deep link opened before the first registration.
+     * Write-once: after the person has registered, or once a link has already said, it is ignored,
+     * so a re-registration never reports a different source.
+     */
+    @Synchronized
+    fun captureInstallSource(source: String?, campaign: String?) {
+        if (source.isNullOrBlank() || prefs.contains(KEY_SOURCE_EXPLICIT) || prefs.contains(KEY_TOKEN)) return
+        prefs.edit()
+            .putString(KEY_SOURCE, source.take(MAX_SOURCE))
+            .putString(KEY_CAMPAIGN, campaign?.take(MAX_CAMPAIGN))
+            .putBoolean(KEY_SOURCE_EXPLICIT, true)
+            .apply()
+    }
+
+    // The saved source, else the channel this build ships through. Saved on first use so every
+    // later registration (401, reinstall of the same data) reports the same thing.
+    private fun installSource(): Pair<String, String?> {
+        val saved = prefs.getString(KEY_SOURCE, null)
+        if (saved != null) return saved to prefs.getString(KEY_CAMPAIGN, null)
+        prefs.edit().putString(KEY_SOURCE, BuildConfig.INSTALL_SOURCE).apply()
+        return BuildConfig.INSTALL_SOURCE to null
+    }
+
     /** Current token, registering first if there is none. Null if the server is unreachable. */
     @Synchronized
     fun token(): String? = prefs.getString(KEY_TOKEN, null) ?: register()
@@ -79,7 +106,8 @@ class DeviceCredentials @Inject constructor(
     }
 
     private fun doRegister(): String? = try {
-        val body = Gson().toJson(RegisterRequest(deviceKey(), BuildConfig.DEBUG))
+        val (source, campaign) = installSource()
+        val body = Gson().toJson(RegisterRequest(deviceKey(), BuildConfig.DEBUG, source, campaign))
         val request = Request.Builder()
             .url(BuildConfig.API_BASE_URL + "api/v1/register")
             .post(body.toRequestBody("application/json".toMediaType()))
@@ -126,14 +154,27 @@ class DeviceCredentials @Inject constructor(
         private const val KEY_TOKEN = "token"
         private const val KEY_RESTORE = "restore_pending"
         private const val KEY_HAD_TOKEN = "had_token"
+        private const val KEY_SOURCE = "install_source"
+        private const val KEY_CAMPAIGN = "install_campaign"
+        private const val KEY_SOURCE_EXPLICIT = "install_source_explicit"
+        private const val MAX_SOURCE = 32
+        private const val MAX_CAMPAIGN = 64
         private const val RETRY_AFTER_MS = 30_000L
     }
 }
 
-/** Adds the bearer token; on 401 re-registers once and retries the request. */
+/**
+ * One random id per process start, sent as X-Session-Id so the server's call log can group a
+ * launch's calls. Deliberately not stored and not derived from any device id.
+ */
+object SessionId {
+    val value: String = java.util.UUID.randomUUID().toString()
+}
+
+/** Adds the bearer token and the session id; on 401 re-registers once and retries the request. */
 class AuthInterceptor(private val credentials: DeviceCredentials) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val original = chain.request()
+        val original = chain.request().newBuilder().header("X-Session-Id", SessionId.value).build()
         val token = credentials.token() ?: return chain.proceed(original)
         val response = chain.proceed(original.withToken(token))
         if (response.code != 401) return response

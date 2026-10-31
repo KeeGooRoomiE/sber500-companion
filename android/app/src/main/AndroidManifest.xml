@@ -52,6 +52,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Channel links: companion://install?src=telegram_ads&c=<campaign> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="companion" android:host="install" />
+            </intent-filter>
         </activity>
 
         <!-- WorkManager для ночного батча -->
