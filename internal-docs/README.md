@@ -4,7 +4,7 @@
 
 | Папка | Что внутри | Когда сюда класть |
 |---|---|---|
-| [plan/](plan/) | **начинать отсюда**: [TASKS](plan/TASKS.md) (единый ранжированный список), [FINDINGS](plan/FINDINGS.md) (находки), [DESIGN_PLAN](plan/DESIGN_PLAN.md), [EXTERNAL_PLAN](plan/EXTERNAL_PLAN.md), [FIXES_BUCKET](plan/FIXES_BUCKET.md) | планы, списки задач, сводки находок |
+| [plan/](plan/) | **начинать отсюда**: [TASKS](plan/TASKS.md) (единый ранжированный список), [FINDINGS](plan/FINDINGS.md) (находки), [DESIGN_PLAN](plan/DESIGN_PLAN.md), [DESIGNER_BRIEF](plan/DESIGNER_BRIEF.md) (бриф для дизайнера), [EXTERNAL_PLAN](plan/EXTERNAL_PLAN.md), [FIXES_BUCKET](plan/FIXES_BUCKET.md) | планы, списки задач, сводки находок |
 | [research/llm-quality/](research/llm-quality/) | качество текстов LLM: аудит, температура, повторы, красная команда, сравнение моделей, follow-up, пограничные случаи, сигналы | исследования качества и промтов |
 | [research/user-behavior/](research/user-behavior/) | время использования, тяжёлые пользователи, длинная история | исследования поведения по данным |
 | [research/compliance/](research/compliance/) | антифрод, честность метрик | всё про требования организаторов к данным |
