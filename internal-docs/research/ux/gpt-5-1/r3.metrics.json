@@ -1,0 +1,18 @@
+{
+ "model": "gpt-5.1",
+ "round": 3,
+ "wall_s": 303,
+ "steps": 3,
+ "search": 8,
+ "fetch": 10,
+ "image": 10,
+ "errors": 0,
+ "prompt_tokens": 60109,
+ "report_chars": 12532,
+ "urls_cited": 16,
+ "urls_seen_in_tools": 15,
+ "citation_honesty": 0.94,
+ "unseen_urls": [
+  "https://trtc.io/…"
+ ]
+}

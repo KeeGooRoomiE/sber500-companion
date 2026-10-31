@@ -1,0 +1,17 @@
+{
+ "summary": {
+  "supported": 0,
+  "unsupported": 0,
+  "unknown": 0,
+  "ours": 1,
+  "estimate": 0,
+  "total": 1
+ },
+ "results": [
+  {
+   "number": "30%",
+   "status": "ours",
+   "line": "2. Предварительное объяснение перед системным запросом разрешения (pre-permission priming) значительно увеличивает долю согласий: показатели"
+  }
+ ]
+}

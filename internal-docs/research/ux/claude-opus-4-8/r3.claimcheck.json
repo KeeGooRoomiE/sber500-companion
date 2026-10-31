@@ -1,0 +1,37 @@
+{
+ "summary": {
+  "supported": 0,
+  "unsupported": 0,
+  "unknown": 0,
+  "ours": 1,
+  "estimate": 4,
+  "total": 5
+ },
+ "results": [
+  {
+   "number": "80%",
+   "status": "ours",
+   "line": "- Базовые opt-in по категориям (industry framework): on-demand/delivery 60–80%+, fitness & health — «умеренный, сильно варьируется», content"
+  },
+  {
+   "number": "68%",
+   "status": "estimate",
+   "line": "- Числовые заявления о лифте priming (например «priming screen 68% против 51%») встречались в сниппете wednesday.is, но я эту страницу не от"
+  },
+  {
+   "number": "51%",
+   "status": "estimate",
+   "line": "- Числовые заявления о лифте priming (например «priming screen 68% против 51%») встречались в сниппете wednesday.is, но я эту страницу не от"
+  },
+  {
+   "number": "15 п.п.",
+   "status": "estimate",
+   "line": "1. **Первый прогноз на реальной истории экранного времени внутри онбординга.** Сразу после выдачи Usage Access строим и показываем первый ра"
+  },
+  {
+   "number": "10 п.п.",
+   "status": "estimate",
+   "line": "3. **Purpose-first вопрос с видимым следствием vs текущий «познакомимся».** Один экран с 3 причинами («понять тяжёлые дни» / «связь сна и на"
+  }
+ ]
+}

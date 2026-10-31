@@ -1,0 +1,18 @@
+{
+ "model": "gpt-4.1-nano",
+ "round": 2,
+ "wall_s": 77,
+ "steps": 1,
+ "search": 2,
+ "fetch": 0,
+ "image": 0,
+ "errors": 0,
+ "prompt_tokens": 9383,
+ "report_chars": 2686,
+ "urls_cited": 4,
+ "urls_seen_in_tools": 3,
+ "citation_honesty": 0.75,
+ "unseen_urls": [
+  "https://www.daylio.co"
+ ]
+}

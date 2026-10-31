@@ -26,15 +26,17 @@ def norm(u):
 
 
 def wrap_tools():
-    """Записываем все URL, которые агент реально получил из инструментов (аргументы и результаты)."""
+    """Записываем URL, которые агент реально получил: из результатов инструментов и из аргументов успешных вызовов.
+    Ссылка, которую модель придумала и безуспешно пыталась открыть, больше не считается «увиденной»."""
     for name, (impl, argname) in list(R.TOOL_IMPL.items()):
         def make(impl):
             def f(arg, ctx):
-                for u in URL_RE.findall(arg or ""):
-                    SEEN.add(norm(u))
                 text, img = impl(arg, ctx)
                 for u in URL_RE.findall(text or ""):
                     SEEN.add(norm(u))
+                if not (text or "").startswith(("Не удалось", "Ошибка", "Поиск не удался")):
+                    for u in URL_RE.findall(arg or ""):
+                        SEEN.add(norm(u))
                 return text, img
             return f
         R.TOOL_IMPL[name] = (make(impl), argname)
@@ -51,11 +53,13 @@ def main():
     ap.add_argument("--round", type=int, required=True)
     ap.add_argument("--task", required=True)
     ap.add_argument("--steps", type=int, default=10)
+    ap.add_argument("--topic", default="", help="подпапка в data/ux/, чтобы разные лестницы (разные темы) не делили (модель, раунд)")
+    ap.add_argument("--evidence", default="briefs/ux_evidence.md", help="какой файл фактов продукта подмешать в бриф")
     a = ap.parse_args()
 
     slug = a.model.replace(".", "-")
     out = R.DATA / "ux"
-    mdir = out / slug
+    mdir = (out / a.topic / slug) if a.topic else (out / slug)
     mdir.mkdir(parents=True, exist_ok=True)
     R.init_spend(out)
     rep_path = mdir / f"r{a.round}.md"
@@ -65,7 +69,7 @@ def main():
         print(rep_path.read_text(encoding="utf-8"))
         return
 
-    evidence = (R.HERE / "briefs/ux_evidence.md").read_text(encoding="utf-8")
+    evidence = (R.HERE / a.evidence).read_text(encoding="utf-8")
     prev = ""
     if a.round > 1:
         pf = mdir / f"r{a.round - 1}.md"
@@ -79,7 +83,7 @@ def main():
         brief += "\n(К сообщению приложены наши экраны: главный, чек-ин, первый шаг онбординга.)\n"
 
     wrap_tools()
-    name = f"ux_{slug}_r{a.round}"
+    name = f"ux_{a.topic + '_' if a.topic else ''}{slug}_r{a.round}"
     t0 = time.time()
     rep = None
     for rnd in range(3):
@@ -93,7 +97,7 @@ def main():
         sys.exit("не удалось получить ответ")
 
     body = re.sub(r"<!--.*?-->", "", rep, flags=re.S).strip()
-    cited = sorted({norm(u) for u in URL_RE.findall(body)})
+    cited = sorted({norm(u) for u in URL_RE.findall(body) if "..." not in u and "…" not in u})
     ok = [u for u in cited if verified(u)]
     stats = {}
     mm = re.search(r"статистика инструментов: (\{[^}]*\}), prompt-токенов (\d+)", (R.DATA / "ux" / f"agent_{name}.md").read_text(encoding="utf-8"))
@@ -106,6 +110,13 @@ def main():
                "citation_honesty": round(len(ok) / len(cited), 2) if cited else None,
                "unseen_urls": [u for u in cited if not verified(u)][:8]}
     rep_path.write_text(body + "\n", encoding="utf-8")
+    try:
+        import claimcheck
+        prevp = mdir / f"r{a.round - 1}.md" if a.round > 1 else None
+        cs, _ = claimcheck.check_report(rep_path, R.HERE / "briefs/ux_evidence.md", prevp)
+        metrics["claims"] = cs
+    except Exception as e:
+        metrics["claims"] = f"ошибка проверки: {e}"
     met_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"===== {a.model}, раунд {a.round} =====")
     print(body)

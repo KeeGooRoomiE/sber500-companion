@@ -1,0 +1,16 @@
+{
+ "model": "claude-opus-4.8",
+ "round": 1,
+ "wall_s": 309,
+ "steps": 4,
+ "search": 4,
+ "fetch": 4,
+ "image": 11,
+ "errors": 0,
+ "prompt_tokens": 51677,
+ "report_chars": 6348,
+ "urls_cited": 2,
+ "urls_seen_in_tools": 2,
+ "citation_honesty": 1.0,
+ "unseen_urls": []
+}

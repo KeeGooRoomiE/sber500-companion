@@ -1,0 +1,16 @@
+{
+ "model": "gpt-4.1-nano",
+ "round": 3,
+ "wall_s": 52,
+ "steps": 1,
+ "search": 2,
+ "fetch": 0,
+ "image": 0,
+ "errors": 0,
+ "prompt_tokens": 9670,
+ "report_chars": 1885,
+ "urls_cited": 3,
+ "urls_seen_in_tools": 3,
+ "citation_honesty": 1.0,
+ "unseen_urls": []
+}

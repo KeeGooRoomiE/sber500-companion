@@ -1,0 +1,18 @@
+{
+ "model": "gpt-5.1",
+ "round": 2,
+ "wall_s": 218,
+ "steps": 3,
+ "search": 8,
+ "fetch": 17,
+ "image": 0,
+ "errors": 1,
+ "prompt_tokens": 58693,
+ "report_chars": 10033,
+ "urls_cited": 10,
+ "urls_seen_in_tools": 9,
+ "citation_honesty": 0.9,
+ "unseen_urls": [
+  "https://pmc.ncbi.nlm.nih.gov/articles/pmc10820952"
+ ]
+}

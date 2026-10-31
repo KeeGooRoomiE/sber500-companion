@@ -1,0 +1,16 @@
+{
+ "model": "gpt-5.1",
+ "round": 1,
+ "wall_s": 401,
+ "steps": 3,
+ "search": 4,
+ "fetch": 8,
+ "image": 10,
+ "errors": 0,
+ "prompt_tokens": 39594,
+ "report_chars": 9197,
+ "urls_cited": 5,
+ "urls_seen_in_tools": 5,
+ "citation_honesty": 1.0,
+ "unseen_urls": []
+}
