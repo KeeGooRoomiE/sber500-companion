@@ -82,7 +82,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sched := scheduler.New(morningRepo, generator)
+	sched := scheduler.New(morningRepo, generator, scheduler.ConfigFromEnv())
 	sched.Start(ctx)
 	go heartbeat(ctx, repo.NewActivityRepo(db))
 	admin.New(db, promptStore, llmClient, callLog, devUserIDs).Start(ctx)

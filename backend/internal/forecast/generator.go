@@ -75,6 +75,18 @@ func NewGenerator(db *pgxpool.Pool, daily *repo.DailyRepo, checkin *repo.CheckIn
 	return &Generator{db: db, users: repo.NewUserRepo(db), reviews: repo.NewReviewRepo(db), explore: repo.NewExploreRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
 }
 
+// reuseExisting reports whether an existing row for the day is returned as is instead of
+// generating again. The retryAfter pause protects against on-demand requests hammering a
+// failing LLM; the scheduler paces its own retries (a pause of a couple of minutes), so for
+// scheduled calls only the attempt limit applies — otherwise its retry passes land inside the
+// 30-minute window, do nothing and still count as done.
+func reuseExisting(msg *repo.MorningMessage, trigger analytics.Trigger, now time.Time) bool {
+	if msg.Message != "" || msg.Attempts >= maxAttempts {
+		return true
+	}
+	return trigger != analytics.TriggerScheduled && now.Sub(msg.LastAttemptAt) < retryAfter
+}
+
 // Ensure returns the message for (user, date), generating it if missing.
 // The forecast for `date` is built from the days before it (yesterday and earlier).
 func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, trigger analytics.Trigger) (*repo.MorningMessage, error) {
@@ -89,7 +101,7 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	if msg != nil {
 		// A real message, or a failed attempt that may not be retried yet: return as is
 		// (an empty message reads as "not ready" upstream).
-		if msg.Message != "" || msg.Attempts >= maxAttempts || time.Since(msg.LastAttemptAt) < retryAfter {
+		if reuseExisting(msg, trigger, time.Now()) {
 			return msg, nil
 		}
 	}
@@ -157,6 +169,7 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 	event := analytics.CallEvent{
 		UserID:      userID,
 		Timestamp:   start,
+		SessionID:   analytics.SessionFrom(ctx),
 		CallType:    analytics.CallTypeLLM,
 		Component:   analytics.ComponentLLMMorning,
 		Trigger:     trigger,

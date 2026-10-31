@@ -38,6 +38,20 @@ const (
 	TriggerFollowup   Trigger = "followup"
 )
 
+type sessionKey struct{}
+
+// WithSession tags every call logged under ctx with a session id. Background work uses it
+// (`sched:<date>:<slot>`); request handlers leave it empty.
+func WithSession(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, sessionKey{}, id)
+}
+
+// SessionFrom returns the id set by WithSession, or "".
+func SessionFrom(ctx context.Context) string {
+	id, _ := ctx.Value(sessionKey{}).(string)
+	return id
+}
+
 type CallEvent struct {
 	UserID      string    `json:"user_id"`
 	Timestamp   time.Time `json:"timestamp"`

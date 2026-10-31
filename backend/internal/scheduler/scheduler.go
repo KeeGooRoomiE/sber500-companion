@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"sync"
@@ -37,10 +38,15 @@ const (
 type Scheduler struct {
 	morning   *repo.MorningRepo
 	generator *forecast.Generator
+	cfg       Config
+
+	// Slot mode only; touched by the single loop goroutine.
+	targets     map[string]int // user → minute of day to generate at
+	targetsDate time.Time      // the day `targets` was computed for
 }
 
-func New(morning *repo.MorningRepo, generator *forecast.Generator) *Scheduler {
-	return &Scheduler{morning: morning, generator: generator}
+func New(morning *repo.MorningRepo, generator *forecast.Generator, cfg Config) *Scheduler {
+	return &Scheduler{morning: morning, generator: generator, cfg: cfg}
 }
 
 // Start runs the morning generation loop in a goroutine.
@@ -49,6 +55,11 @@ func (s *Scheduler) Start(ctx context.Context) {
 }
 
 func (s *Scheduler) loop(ctx context.Context) {
+	if s.cfg.Slots {
+		slog.Info("scheduler: slot mode", "pack", s.cfg.PackSize, "slot", s.cfg.Slot.String(), "lead", s.cfg.Lead.String())
+		s.slotLoop(ctx)
+		return
+	}
 	for {
 		next := clock.NextAt(MorningHour, MorningMinute)
 		slog.Info("scheduler: next morning run", "at", next.Format(time.RFC3339))
@@ -92,7 +103,12 @@ func (s *Scheduler) pass(ctx context.Context, date time.Time) []string {
 		return nil
 	}
 	slog.Info("scheduler: users to process", "count", len(userIDs), "date", date.Format("2006-01-02"))
+	return s.process(analytics.WithSession(ctx, fmt.Sprintf("sched:%s:%02d%02d", date.Format("2006-01-02"), MorningHour, MorningMinute)), date, userIDs)
+}
 
+// process generates for the given users through the worker pool and returns those that failed
+// in a way worth retrying.
+func (s *Scheduler) process(ctx context.Context, date time.Time, userIDs []string) []string {
 	jobs := make(chan string)
 	var (
 		mu     sync.Mutex

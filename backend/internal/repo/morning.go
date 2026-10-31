@@ -121,6 +121,41 @@ func (r *MorningRepo) UsersToGenerate(ctx context.Context, date time.Time) ([]st
 	return ids, rows.Err()
 }
 
+// HabitualOpenMinutes returns, per user, the minute of day (in the product time zone `tz`) of
+// the first morning request of each of the last `days` days — what the person's habit is.
+// Only requests the person made themself count; one value per calendar day.
+func (r *MorningRepo) HabitualOpenMinutes(ctx context.Context, tz string, days int) (map[string][]int, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT user_id, array_agg(first_min::int)
+		FROM (
+			SELECT user_id,
+			       min(extract(hour FROM ts AT TIME ZONE $1) * 60 + extract(minute FROM ts AT TIME ZONE $1)) AS first_min
+			FROM call_log
+			WHERE component = 'morning_api' AND trigger = 'user_action'
+			  AND ts >= now() - make_interval(days => $2)
+			GROUP BY user_id, (ts AT TIME ZONE $1)::date
+		) d
+		GROUP BY user_id
+	`, tz, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[string][]int{}
+	for rows.Next() {
+		var id string
+		var mins []int32
+		if err := rows.Scan(&id, &mins); err != nil {
+			return nil, err
+		}
+		for _, m := range mins {
+			out[id] = append(out[id], int(m))
+		}
+	}
+	return out, rows.Err()
+}
+
 // History returns the user's delivered morning messages, newest first.
 func (r *MorningRepo) History(ctx context.Context, userID string, limit int) ([]MorningMessage, error) {
 	rows, err := r.db.Query(ctx, `
