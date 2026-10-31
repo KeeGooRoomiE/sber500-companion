@@ -36,6 +36,9 @@ const (
 	TriggerUserAction Trigger = "user_action"
 	TriggerScheduled  Trigger = "scheduled"
 	TriggerFollowup   Trigger = "followup"
+	// TriggerAdmin marks operator work (prompt evaluation runs, maintenance markers). Such rows
+	// are not use of the product and must never read as «a person asked the model».
+	TriggerAdmin Trigger = "admin"
 )
 
 type sessionKey struct{}

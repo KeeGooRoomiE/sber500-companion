@@ -332,7 +332,7 @@ func (s *Server) run(ctx context.Context, name, system string, rd *rendered, out
 	}
 	event := analytics.CallEvent{
 		UserID: "admin", Timestamp: start, CallType: analytics.CallTypeLLM,
-		Component: component, Trigger: analytics.TriggerUserAction,
+		Component: component, Trigger: analytics.TriggerAdmin,
 		UserVisible: false, Result: "ok", LatencyMs: time.Since(start).Milliseconds(),
 	}
 	if err != nil {
@@ -537,7 +537,7 @@ func (s *Server) accuracy(w http.ResponseWriter, r *http.Request) {
 func (s *Server) resetErrors(w http.ResponseWriter, r *http.Request) {
 	_, err := s.daily.DB().Exec(r.Context(), `
 		INSERT INTO call_log (user_id, ts, call_type, component, trigger, user_visible, result, latency_ms)
-		VALUES ('admin', NOW(), 'tool', 'errors_reset', 'user_action', false, 'ok', 0)
+		VALUES ('admin', NOW(), 'tool', 'errors_reset', 'admin', false, 'ok', 0)
 	`)
 	if err != nil {
 		s.fail(w, err)

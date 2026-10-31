@@ -119,6 +119,8 @@ weekly_feedback (
 - Dev users loaded from `DEV_USER_IDS` env var (comma-separated SHA256 IDs)
 - Every LLM call: `call_type=llm`, `user_visible=true` (morning/checkin) or `false` (background generation)
 - Background cron jobs: `trigger=scheduled`, must be logged — competition verifies these
+- Служебные вызовы оператора (прогоны оценки промтов, маркер `errors_reset`) пишутся от `user_id=admin` с `trigger=admin` — не `user_action`; метрики и экспорт их по-прежнему исключают. Старые 94 строки (до 2026-10-31) остались с `user_action`: журнал задним числом не переписывался.
+- `session_id`: клиент шлёт `X-Session-Id` (UUID на запуск процесса), планировщик пишет `sched:<дата>:<ЧЧММ>`; пусто = NULL.
 
 ## LLM integration
 
