@@ -1,6 +1,6 @@
 # Edge-case / robustness — результаты
 
-Задача #6 из `internal-docs/dev/LLM_EVAL_TASKS.md`: вырожденные входы → промты не ломаются /
+Задача #6 из `internal-docs/ops/LLM_EVAL_TASKS.md`: вырожденные входы → промты не ломаются /
 не галлюцинируют / не советуют. Инструмент: `tools/edge-case-rd/` (run_edge → judge_edge),
 переиспользует `research.py`/`audit.py`-паттерны.
 

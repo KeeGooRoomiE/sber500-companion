@@ -1,5 +1,8 @@
 # Сводный индекс — исследования этой сессии
 
+> **Пометка (31.10.2026):** индекс составлен до сверки с реальным биллингом. Рекомендация «gpt-5.1 вместо gigachat» опирается на неверную стоимость вызова gigachat (в реальности около 0.04 ₽, а не 3.36 ₽; gpt-5.1 дороже примерно в 24 раза), см. поправку в `../research/llm-quality/MODEL_COMPARISON.md`. Актуальный свод задач и находок: `../plan/TASKS.md` и `../plan/FINDINGS.md`.
+
+
 Что сделано именно в этой сессии/форке (из брифа `LLM_EVAL_TASKS.md`: задачи #5, #7, #2).
 Параллельные форки вели отдельные направления (temperature-rnd, аудит 2934×2, UX-лестница,
 prompt-lab, RuStore) — не индексирую, сводится отдельно владельцем позже одним батчем.
@@ -8,7 +11,7 @@ prompt-lab, RuStore) — не индексирую, сводится отдел�
 
 ## #5 — R&D поведенческих сигналов (раунд 1)
 
-**Где:** `tools/signal-rd/` · [`internal-docs/signals/SIGNAL_RD.md`](../signals/SIGNAL_RD.md)
+**Где:** `tools/signal-rd/` · [`internal-docs/research/llm-quality/signals/SIGNAL_RD.md`](../research/llm-quality/signals/SIGNAL_RD.md)
 
 3 модели (gigachat-3-pro, deepseek-v4-pro, claude-sonnet-4.6) на 5 реальных юзерах (202 дня).
 **37 кандидатов → 6 прошли judge (grounded=1 strong)**, включая лучший: «последняя
@@ -22,7 +25,7 @@ token-бюджет непредсказуемо).
 ⚠️ **Раунд 2/3** (контрастные модели qwen/gemini/claude-opus, затем gpt-4.1-nano/deepseek-chat-v3/
 gemini-3-flash) — начат мной, но завершение не прослеживается в этом треде однозначно (похоже,
 доведён параллельным форком, т.к. рабочая директория общая). Результат в
-`internal-docs/signals/SIGNAL_RD_CONTRAST.md` и `SIGNAL_RD_ROUND3.md` — **вывод оттуда важен
+`internal-docs/research/llm-quality/signals/SIGNAL_RD_CONTRAST.md` и `SIGNAL_RD_ROUND3.md` — **вывод оттуда важен
 для #2 и честно отражён в MODEL_COMPARISON.md** (tier решает больше вендора: flagship 40-50%
 против 13-22% у остальных), но авторство раунда 2/3 не приписываю себе однозначно.
 
@@ -30,7 +33,7 @@ gemini-3-flash) — начат мной, но завершение не прос
 
 ## #7 — Follow-up: цепочки, связность, дрейф
 
-**Где:** `tools/followup-rd/` · [`internal-docs/follow-up/FOLLOWUP_RD.md`](../follow-up/FOLLOWUP_RD.md)
+**Где:** `tools/followup-rd/` · [`internal-docs/research/llm-quality/FOLLOWUP_RD.md`](../research/llm-quality/FOLLOWUP_RD.md)
 
 Структурная поправка до начала: прод follow-up — не цепочка (без памяти между чипами, явный
 анти-дрейф дизайн кода), каталог закрыт на 4 чипа. Симулировал гипотетическую цепочку с
@@ -62,7 +65,7 @@ gemini-3-flash) — начат мной, но завершение не прос
 
 ## #2 — Latency/cost/quality по моделям → рекомендация
 
-**Где:** `tools/model-compare/` · [`internal-docs/models/MODEL_COMPARISON.md`](../models/MODEL_COMPARISON.md)
+**Где:** `tools/model-compare/` · [`internal-docs/research/llm-quality/MODEL_COMPARISON.md`](../research/llm-quality/MODEL_COMPARISON.md)
 
 Единственное, что параллельные форки не измерили числами — latency/cost на реальных промтах,
 прод-лимите токенов, под реальной нагрузкой общего прокси (несколько форков разом — близко к
@@ -85,7 +88,7 @@ gemini-3-flash) — начат мной, но завершение не прос
 
 ## #6 — Edge-case / robustness
 
-**Где:** `tools/edge-case-rd/` · [`internal-docs/edge-cases/EDGE_CASE_RD.md`](../edge-cases/EDGE_CASE_RD.md)
+**Где:** `tools/edge-case-rd/` · [`internal-docs/research/llm-quality/EDGE_CASE_RD.md`](../research/llm-quality/EDGE_CASE_RD.md)
 
 7 синтетических вырожденных кейсов (намеренно синтетика — эдж-кейсы по определению редки в
 чистых реальных данных), формат блока в стиле реального промта. `day_review_system.md`,

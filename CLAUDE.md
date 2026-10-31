@@ -34,7 +34,7 @@ android/          Kotlin/Compose app
 backend/          Go API server
 web/              GitHub Pages landing (static)
 deploy/           Caddyfile, systemd unit, setup.sh, deploy.sh
-internal-docs/    Gitignored — interviews, dev notes, CI runbook
+internal-docs/    Interviews, research, plans, dev notes — map in internal-docs/README.md, tasks in internal-docs/plan/TASKS.md
 .claude/          Gitignored — CONTEXT.md, compacts/
 ```
 

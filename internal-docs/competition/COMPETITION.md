@@ -29,7 +29,7 @@
 ## Требования Этапа 2
 
 Полный конспект кик-оффа — [STAGE2_KICKOFF.md](STAGE2_KICKOFF.md).
-Что из этого считается и чем — [METRICS_STAGE2.md](METRICS_STAGE2.md).
+Что из этого считается и чем — [METRICS_STAGE2.md](../dev/METRICS_STAGE2.md).
 
 ### Зачётный период
 

@@ -1,11 +1,11 @@
 # Follow-up: длинные цепочки, связность, дрейф — результаты
 
-Задача #7 из `internal-docs/dev/LLM_EVAL_TASKS.md`: «генерить длинные цепочки follow-up,
+Задача #7 из `internal-docs/ops/LLM_EVAL_TASKS.md`: «генерить длинные цепочки follow-up,
 скорить связность/дрейф, найти где деградирует». Инструмент: `tools/followup-rd/`
 (fetch → chain → judge_drift), переиспользует `research.py`/`audit.py` из соседних tools/.
 Строго последовательно: одна модель за раз.
 
-**Апдейт (задача #2, `internal-docs/models/MODEL_COMPARISON.md`):** третья модель, gpt-5.1
+**Апдейт (задача #2, `internal-docs/research/llm-quality/MODEL_COMPARISON.md`):** третья модель, gpt-5.1
 (лучшая по latency/cost/reliability), прогнана через тот же пайплайн — **76% halluc (16/21)**,
 тот же паттерн confabуляции на `prev_days`/`similar`/`retrieval`, что у gigachat. Вывод ниже
 про «проблема дисциплины модели» остаётся верным для claude-sonnet-4.6 как исключения, но

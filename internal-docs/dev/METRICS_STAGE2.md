@@ -1,8 +1,8 @@
 # Метрики Этапа 2 — что показывать и чем мерить
 
-Что требует конкурс — [COMPETITION.md](COMPETITION.md) и [STAGE2_KICKOFF.md](STAGE2_KICKOFF.md).
+Что требует конкурс — [COMPETITION.md](../competition/COMPETITION.md) и [STAGE2_KICKOFF.md](../competition/STAGE2_KICKOFF.md).
 Что страница умеет сейчас — [METRICS_PAGE.md](METRICS_PAGE.md), маппинг на Положение —
-[METRICS_MAPPING.md](METRICS_MAPPING.md), честность расчётов — [METRICS_INTEGRITY.md](METRICS_INTEGRITY.md).
+[METRICS_MAPPING.md](METRICS_MAPPING.md), честность расчётов — [METRICS_INTEGRITY.md](../research/compliance/METRICS_INTEGRITY.md).
 
 ---
 

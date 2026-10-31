@@ -1,6 +1,6 @@
 # Фиксы по итогам temperature-rnd
 
-Три конкретные правки, вытекающие из `internal-docs/temperature-rnd/{MORNING_FORECAST,
+Три конкретные правки, вытекающие из `internal-docs/research/llm-quality/temperature-rnd/{MORNING_FORECAST,
 DAY_REVIEW,WEEKLY}.md`. Ни одна не решается подбором температуры — все три нашли
 независимо от неё (пронизывают весь диапазон 0.20–1.00). Не реализовано, план на потом.
 
