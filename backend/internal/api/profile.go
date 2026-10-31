@@ -59,7 +59,8 @@ func (h *Handler) PutProfile(w http.ResponseWriter, r *http.Request) {
 	clean := map[string]string{}
 	gen := 0
 	for k, v := range req.Answers {
-		v = strings.TrimSpace(v)
+		// One line: a newline in an answer would start a new line of the prompt it is pasted into.
+		v = oneLine(v)
 		if v == "" {
 			continue
 		}

@@ -135,8 +135,8 @@ func (h *Handler) Checkin(w http.ResponseWriter, r *http.Request) {
 		UserID:   uid,
 		Date:     date,
 		DayFeel:  req.DayFeel,
-		Tags:     req.Tags,
-		NoteText: req.NoteText,
+		Tags:     cleanTags(req.Tags),
+		NoteText: cleanNote(req.NoteText),
 	}); err != nil {
 		slog.Error("checkin upsert", "err", err)
 		writeError(w, http.StatusInternalServerError, "db error")
