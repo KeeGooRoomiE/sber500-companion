@@ -43,9 +43,15 @@ tools/signal-rd/data/
 tools/followup-rd/data/
 # model-compare: бенчмарк latency/cost — только локально
 tools/model-compare/data/
+# edge-case-rd: прогоны на вырожденных кейсах — только локально
+tools/edge-case-rd/data/
 # budget-guard: лог и флаг cutoff — локально
 tools/budget-guard/data/
 
 # Python bytecode
 __pycache__/
 *.pyc
+# usage-rd: поведение пользователей (хэшированные id), только локально
+tools/usage-rd/data/
+# redteam: результаты прогонов — локально
+tools/redteam/data/
