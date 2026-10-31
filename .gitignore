@@ -41,6 +41,8 @@ tools/prompt-lab/data/
 tools/signal-rd/data/
 # followup-rd: реальные инсайты и цепочки диалогов — только локально
 tools/followup-rd/data/
+# model-compare: бенчмарк latency/cost — только локально
+tools/model-compare/data/
 # budget-guard: лог и флаг cutoff — локально
 tools/budget-guard/data/
 
