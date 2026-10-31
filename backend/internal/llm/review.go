@@ -49,6 +49,9 @@ func BuildDayReview(in DayReviewInput) string {
 	if avgLine := usualLine(in.Usual); avgLine != "" {
 		b.WriteString("Обычно у человека: " + avgLine + "\n\n")
 	}
+	// The days themselves, not just their average: with only the average the model had nothing
+	// to read when it talked about «позавчера» or «в прошлые дни» and made those days up.
+	b.WriteString(previousDays(in.Usual, work))
 	b.WriteString("Этот день (" + in.Day.Date.Format("02.01") + "): " + dayLine(in.Day, work) + "\n")
 	if p := hourlyPicture(in.Day.HourlyUnlocks); p != "" {
 		b.WriteString("Разблокировки по времени суток: " + p + "\n")
@@ -58,6 +61,31 @@ func BuildDayReview(in DayReviewInput) string {
 	}
 	b.WriteString("\nОбъясни этот день.")
 	return b.String()
+}
+
+// maxPreviousDays caps the per-day list in a day review: enough for «а два дня назад?», short
+// enough not to swell the prompt.
+const maxPreviousDays = 7
+
+// previousDays lists the most recent days before the reviewed one, oldest first, each with its
+// date and numbers. Days without any data are left out — «данных нет» lines would only invite
+// the model to guess. Empty when there is nothing to show.
+func previousDays(days []*repo.DailyData, work map[string]bool) string {
+	var lines []string
+	for i := len(days) - 1; i >= 0 && len(lines) < maxPreviousDays; i-- {
+		line := dayLine(days[i], work)
+		if line == "данных нет" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("— %s: %s\n", weekday(days[i].Date)+" "+days[i].Date.Format("02.01"), line))
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
+		lines[i], lines[j] = lines[j], lines[i]
+	}
+	return "Предыдущие дни:\n" + strings.Join(lines, "") + "\n"
 }
 
 func BuildWeekly(in WeeklyInput) string {
