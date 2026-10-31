@@ -76,22 +76,34 @@ def build_user_block(u):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--limit", type=int, default=0, help="сколько юзеров (0 = все из users.json)")
+    ap.add_argument("--users-file", default="users.json", help="файл в data/ (см. fetch.py --out)")
+    ap.add_argument("--tag", default="", help="суффикс выходного файла, напр. wide")
+    ap.add_argument("--limit", type=int, default=0, help="сколько юзеров (0 = все из файла)")
     ap.add_argument("--max-tokens", type=int, default=800,
                      help="reasoning-модели (deepseek/gpt-5.x) тратят большую часть на reasoning_tokens — поднимать до 2500-3000")
     args = ap.parse_args()
 
-    users = json.load(open(f"{HERE}/data/users.json", encoding="utf-8"))
+    users = json.load(open(f"{HERE}/data/{args.users_file}", encoding="utf-8"))
     if args.limit:
         users = users[: args.limit]
 
     os.makedirs(f"{HERE}/data", exist_ok=True)
     init_spend(Path(HERE) / "data")
-    out_path = f"{HERE}/data/brainstorm_{args.model}.json"
+    suffix = f"_{args.tag}" if args.tag else ""
+    out_path = f"{HERE}/data/brainstorm_{args.model}{suffix}.json"
+    # Возобновляемо: уже обработанных юзеров (из предыдущего прерванного прогона) пропускаем.
     results = []
+    done_ids = set()
+    if os.path.exists(out_path):
+        results = json.load(open(out_path, encoding="utf-8"))
+        done_ids = {r["user_id"] for r in results}
+        if done_ids:
+            print(f"  возобновление: {len(done_ids)} юзеров уже готовы, пропускаю")
     print(f"=== brainstorm, модель={args.model}, юзеров={len(users)} ===")
     for u in users:
         uid = u["user_id"]
+        if uid in done_ids:
+            continue
         block = build_user_block(u)
         msgs = [{"role": "system", "content": SYS}, {"role": "user", "content": block}]
         try:
@@ -115,6 +127,8 @@ def main():
         for p in data.get("patterns", []):
             print(f"    [{p.get('confidence', '?')}] {p.get('claim', '')}")
             print(f"       -> {p.get('evidence', '')}")
+        # Чекпоинт после каждого юзера — долгий прогон не теряет всё при обрыве/перезагрузке.
+        json.dump(results, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
     json.dump(results, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     sp = key_spend()

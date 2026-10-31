@@ -2,8 +2,9 @@
 # signal-rd: R&D кандидатных поведенческих сигналов на РЕАЛЬНЫХ данных пользователей.
 #
 #   bash tools/signal-rd/run.sh fetch [N=5]                     забрать данные N самых "богатых" юзеров
-#   bash tools/signal-rd/run.sh brainstorm --model M [--limit K]  найти кандидатные паттерны (1 модель, последовательно)
-#   bash tools/signal-rd/run.sh validate --model M --from FILE  judge-проверка кандидатов на тех же данных
+#   bash tools/signal-rd/run.sh fetch --min-days 15 --min-checkins 3 --out data/users_wide.json  широкий отбор по порогу
+#   bash tools/signal-rd/run.sh brainstorm --model M [--users-file users_wide.json] [--tag wide] [--limit K]
+#   bash tools/signal-rd/run.sh validate --model M --from FILE [--users-file users_wide.json]
 #
 # Ключ и адрес прокси берутся из backend/.env. Строго последовательно (не параллелим модели/юзеров).
 set -euo pipefail

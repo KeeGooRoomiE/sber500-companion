@@ -4,25 +4,46 @@
 
 Только числа и даты — никаких имён/контактов/содержимого сообщений.
 
-Пишет data/users.json:
+Пишет data/users.json (или --out):
   [{user_id, days: [{date, sleep_min, steps, screen_min, unlocks,
                       first_unlock, last_unlock, top_apps, feel, tags}]}]
 
-Запуск: python3 tools/signal-rd/fetch.py [N=5]   (нужен ssh companion)
+Режим top-N (по умолчанию):  python3 tools/signal-rd/fetch.py [N=5]
+Режим по порогу (для "вширь"): python3 tools/signal-rd/fetch.py --min-days 15 --min-checkins 3 --out data/users_wide.json
+Нужен ssh companion.
 """
-import json, os, subprocess, sys, tempfile
+import argparse, json, os, subprocess, sys, tempfile
 
-N = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 HERE = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(f"{HERE}/data", exist_ok=True)
 
-SQL = f"""
-WITH ex AS (SELECT id FROM users WHERE is_dev OR id LIKE 'mock%'),
-rich AS (
+ap = argparse.ArgumentParser()
+ap.add_argument("N", nargs="?", type=int, default=None, help="top-N по дням истории (режим по умолчанию)")
+ap.add_argument("--min-days", type=int, default=None, help="режим по порогу: минимум дней daily_data")
+ap.add_argument("--min-checkins", type=int, default=0, help="режим по порогу: минимум дней с чек-ином")
+ap.add_argument("--out", default="data/users.json", help="куда писать (относительно tools/signal-rd/)")
+args = ap.parse_args()
+
+if args.min_days is not None:
+    rich_cte = f"""rich AS (
+  SELECT d.user_id, count(DISTINCT d.date) days, count(DISTINCT c.date) checkins
+  FROM daily_data d
+  LEFT JOIN checkins c ON c.user_id=d.user_id AND c.date=d.date
+  WHERE d.user_id NOT IN (SELECT id FROM ex)
+  GROUP BY d.user_id
+  HAVING count(DISTINCT d.date) >= {args.min_days} AND count(DISTINCT c.date) >= {args.min_checkins}
+)"""
+else:
+    N = args.N or 5
+    rich_cte = f"""rich AS (
   SELECT d.user_id, count(DISTINCT d.date) days
   FROM daily_data d WHERE d.user_id NOT IN (SELECT id FROM ex)
   GROUP BY d.user_id ORDER BY days DESC LIMIT {N}
-)
+)"""
+
+SQL = f"""
+WITH ex AS (SELECT id FROM users WHERE is_dev OR id LIKE 'mock%'),
+{rich_cte}
 SELECT json_agg(u) FROM (
   SELECT d.user_id,
     json_agg(json_build_object(
@@ -59,7 +80,7 @@ text = out.stdout.strip()
 if not text or text == "":
     sys.exit("пустой ответ от БД")
 rows = json.loads(text)
-path = f"{HERE}/data/users.json"
+path = f"{HERE}/{args.out}" if not os.path.isabs(args.out) else args.out
 json.dump(rows, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
 total_days = sum(len(u["days"]) for u in rows)
 print(f"{len(rows)} пользователей, {total_days} дней -> {path}")

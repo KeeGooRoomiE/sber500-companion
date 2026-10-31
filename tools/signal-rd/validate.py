@@ -61,10 +61,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="judge-модель")
     ap.add_argument("--from", dest="src", required=True, help="файл в data/ из brainstorm.py")
+    ap.add_argument("--users-file", default="users.json", help="файл в data/ (см. fetch.py --out)")
     args = ap.parse_args()
 
     brainstorm = json.load(open(f"{HERE}/data/{args.src}", encoding="utf-8"))
-    users = {u["user_id"]: u for u in json.load(open(f"{HERE}/data/users.json", encoding="utf-8"))}
+    users = {u["user_id"]: u for u in json.load(open(f"{HERE}/data/{args.users_file}", encoding="utf-8"))}
 
     out_name = f"validate_{args.model}_{args.src}"
     out_path = f"{HERE}/data/{out_name}"
