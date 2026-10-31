@@ -278,6 +278,60 @@
     return decimals > 0 ? nf(value, decimals) : nf(Math.round(value));
   }
 
+  // ─── Scoring window («Зачёт») ──────────────────────────────────────────────
+  // The threshold is counted in days, not averaged: «DAU >= 1000 on at least 14 of 28 days».
+  // An average would hide exactly that (14 days at 1100 + 14 at 300 passes; 28 at 900 fails).
+  const ruDate = iso => { const [y, m, dd] = iso.split('-'); return `${+dd}.${m}`; };
+
+  function renderScoring(d) {
+    const sc = d.scoring;
+    if (!sc) return '';   // older backend
+    const period = `${ruDate(sc.from)} — ${ruDate(sc.to)}`;
+    if (sc.state === 'before') {
+      return `<div class="section">
+        <div class="section-title">Зачётный период · ${period}</div>
+        <p style="font-size:13px;color:var(--muted)">Период ещё не начался: счётчики стартуют ${ruDate(sc.from)} и считаются
+        только внутри окна (${sc.days} ${plural(sc.days, 'день', 'дня', 'дней')}).</p>
+      </div>`;
+    }
+    const reached = sc.days_dau_reached, req = sc.dau_required_days;
+    const cards = [
+      { label: 'День периода', value: `${sc.day} / ${sc.days}`,
+        target: sc.state === 'finished' ? 'период завершён' : period,
+        pct: sc.day / sc.days * 100, ok: true, color: '#6B5CE7' },
+      { label: 'DAU сегодня', value: nf(sc.dau_today),
+        target: `порог ≥ ${nf(sc.dau_threshold)}`,
+        pct: Math.min(100, sc.dau_today / sc.dau_threshold * 100), ok: sc.dau_today >= sc.dau_threshold, color: '#6B5CE7' },
+      { label: 'DAU устойчиво', value: `${reached} / ${req}`,
+        target: `дней с DAU ≥ ${nf(sc.dau_threshold)}, нужно ${req} из ${sc.days}`,
+        pct: Math.min(100, reached / req * 100), ok: reached >= req, color: '#10B981' },
+      { label: 'Среднее DAU за период', value: sc.dau_avg == null ? '—' : nf(sc.dau_avg, 1),
+        target: `по ${sc.day} ${plural(sc.day, 'дню', 'дням', 'дням')} · порог ≥ ${nf(sc.dau_threshold)}`,
+        pct: sc.dau_avg == null ? 0 : Math.min(100, sc.dau_avg / sc.dau_threshold * 100),
+        ok: sc.dau_avg != null && sc.dau_avg >= sc.dau_threshold, color: '#F59E0B' },
+      { label: 'Обращений на 1 DAU', value: sc.calls_per_dau == null ? '—' : nf(sc.calls_per_dau, 1),
+        target: `среднесуточно за период · порог ≥ ${sc.calls_target}`,
+        pct: sc.calls_per_dau == null ? 0 : Math.min(100, sc.calls_per_dau / sc.calls_target * 100),
+        ok: sc.calls_per_dau != null && sc.calls_per_dau >= sc.calls_target, color: '#10B981' },
+      { label: 'Дней с обращениями ≥ 10', value: `${sc.days_calls_reached} / ${sc.days}`,
+        target: `стабильность · с ≥ 35: ${sc.days_calls_reached_35}`,
+        pct: Math.min(100, sc.days_calls_reached / sc.days * 100), ok: sc.days_calls_reached >= req, color: '#6B5CE7' },
+    ];
+    const html = cards.map(k => `
+      <div class="kpi-card ${k.ok ? 'ok-card' : 'warn-card'}">
+        <div class="kpi-header">
+          <span class="kpi-label">${k.label}</span>
+        </div>
+        <div class="kpi-value">${k.value}</div>
+        <div class="kpi-target">${k.target}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${k.pct.toFixed(1)}%;background:${k.color}"></div></div>
+      </div>`).join('');
+    return `<div class="section">
+      <div class="section-title">Зачётный период · ${period}</div>
+      <div class="kpi-row">${html}</div>
+    </div>`;
+  }
+
   // ─── KPI row ───────────────────────────────────────────────────────────────
   function renderKpis(d) {
     const dau   = d.dau_today ?? 0;
@@ -729,6 +783,7 @@
     lastCohorts = cohorts;
 
     document.getElementById('content').innerHTML =
+      renderScoring(d) +
       renderKpis(d) +
       renderStats(d) +
       renderDau(dauHistory, d.dau_7d_avg) +

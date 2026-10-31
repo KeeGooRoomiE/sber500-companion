@@ -69,6 +69,29 @@ type SourceStat struct {
 	RetentionD7Pct *float64 `json:"retention_d7_pct"`
 }
 
+// Scoring is the competition's counting window (Stage 2: 28 days) and what the thresholds
+// look at inside it. Everything is over days of the window that have started; DAU "sustained"
+// is a day counter, not an average — the rule is «at least 14 of 28 days at 1000+».
+type Scoring struct {
+	From string `json:"from"` // first day of the window, YYYY-MM-DD
+	To   string `json:"to"`   // last day, inclusive
+	// State: "before" (window not started), "running", "finished".
+	State string `json:"state"`
+	Day   int    `json:"day"`  // 0 before the start; 1..Days during and after
+	Days  int    `json:"days"` // length of the window
+
+	DAUThreshold   int      `json:"dau_threshold"`     // 1000
+	DAURequired    int      `json:"dau_required_days"` // 14
+	DaysDAUReached int      `json:"days_dau_reached"`  // days with DAU >= threshold
+	DAUToday       int      `json:"dau_today"`
+	DAUAvg         *float64 `json:"dau_avg"` // over days that have started
+
+	CallsTarget        int      `json:"calls_target"`       // 10
+	CallsPerDAU        *float64 `json:"calls_per_dau"`      // LLM calls / sum of daily DAU over the window
+	DaysCallsReached   int      `json:"days_calls_reached"` // days with calls/DAU >= target
+	DaysCallsReached35 int      `json:"days_calls_reached_35"`
+}
+
 // MetricsResponse matches the keys web/metrics.html renders. Null = not enough data yet.
 type MetricsResponse struct {
 	UpdatedAt string `json:"updated_at"`
@@ -104,6 +127,7 @@ type MetricsResponse struct {
 	// versions are live at once and a fix is not «shipped» until this shows it.
 	Versions              []VersionShare `json:"app_versions"`
 	Sources               []SourceStat   `json:"sources"`
+	Scoring               *Scoring       `json:"scoring"`
 	CheckinRatePct        *float64       `json:"checkin_rate_pct"`
 	CheckinHistory        []CheckinPoint `json:"checkin_history"`
 	MorningDeliveredToday int            `json:"morning_delivered_today"`
@@ -337,6 +361,12 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		return nil, err
 	}
 	out.RetentionD7Pct = pct(retD7, cohortD7)
+
+	sc, err := m.scoring(ctx, devs, today, tz)
+	if err != nil {
+		return nil, err
+	}
+	out.Scoring = sc
 
 	// Install sources: people, today's DAU and D7 retention per channel.
 	srows, err := m.db.Query(ctx, `
@@ -771,4 +801,93 @@ func envFloat(key string, def float64) float64 {
 		return v
 	}
 	return def
+}
+
+// scoringWindow reads SCORING_FROM / SCORING_TO (YYYY-MM-DD, inclusive), defaulting to the
+// Stage 2 counting period.
+func scoringWindow() (from, to time.Time) {
+	parse := func(env, def string) time.Time {
+		v := os.Getenv(env)
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			return t
+		}
+		t, _ := time.Parse("2006-01-02", def)
+		return t
+	}
+	return parse("SCORING_FROM", "2026-11-05"), parse("SCORING_TO", "2026-12-02")
+}
+
+// scoring counts, per day of the window that has started, DAU and LLM calls (same filters as
+// the rest of the page: LLM only, not admin, not dev/mock users), and derives the thresholds.
+func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, tz string) (*Scoring, error) {
+	from, to := scoringWindow()
+	days := int(to.Sub(from).Hours()/24) + 1
+	sc := &Scoring{
+		From: from.Format("2006-01-02"), To: to.Format("2006-01-02"), Days: days,
+		DAUThreshold: 1000, DAURequired: 14, CallsTarget: 10,
+	}
+	switch {
+	case today.Before(from):
+		sc.State = "before"
+		return sc, nil
+	case today.After(to):
+		sc.State, sc.Day = "finished", days
+	default:
+		sc.State, sc.Day = "running", int(today.Sub(from).Hours()/24)+1
+	}
+	end := to
+	if today.Before(to) {
+		end = today
+	}
+
+	rows, err := m.db.Query(ctx, `
+		SELECT d::date,
+		       (SELECT count(DISTINCT a.user_id) FROM user_activity a
+		         WHERE a.date = d::date AND NOT (a.user_id = ANY($1))),
+		       (SELECT count(*) FROM call_log c
+		         WHERE (c.ts AT TIME ZONE $4)::date = d::date AND c.call_type = 'llm'
+		           AND c.user_id <> 'admin' AND NOT (c.user_id = ANY($1)))
+		FROM generate_series($2::date, $3::date, interval '1 day') d
+		ORDER BY d
+	`, devs, from, end, tz)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sumDAU, sumCalls, elapsed int
+	for rows.Next() {
+		var d time.Time
+		var dau, calls int
+		if err := rows.Scan(&d, &dau, &calls); err != nil {
+			return nil, err
+		}
+		elapsed++
+		sumDAU += dau
+		sumCalls += calls
+		if dau >= sc.DAUThreshold {
+			sc.DaysDAUReached++
+		}
+		if dau > 0 {
+			per := float64(calls) / float64(dau)
+			if per >= 10 {
+				sc.DaysCallsReached++
+			}
+			if per >= 35 {
+				sc.DaysCallsReached35++
+			}
+		}
+		if d.Equal(today) || d.Equal(end) {
+			sc.DAUToday = dau
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if elapsed > 0 {
+		avg := round(float64(sumDAU)/float64(elapsed), 1)
+		sc.DAUAvg = &avg
+	}
+	sc.CallsPerDAU = ratio(float64(sumCalls), sumDAU, 1)
+	return sc, nil
 }
