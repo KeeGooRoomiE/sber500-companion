@@ -1,6 +1,6 @@
 # followup-rd
 
-Задача #7 из `internal-docs/dev/LLM_EVAL_TASKS.md`: длинные цепочки follow-up, скоринг
+Задача #7 из `internal-docs/ops/LLM_EVAL_TASKS.md`: длинные цепочки follow-up, скоринг
 связности/дрейфа — найти, где деградирует, лимиты глубины.
 
 ## Структурная находка перед стартом
@@ -38,5 +38,5 @@ bash tools/followup-rd/run.sh drift --judge gpt-5.1 --from chains_gigachat-3-pro
 ```
 
 Без параллелизма — ключ общий с другими прогонами, см.
-`internal-docs/dev/LLM_SPEND_GUARDRAILS.md`. `data/` в `.gitignore`. Результаты и выводы —
-в `internal-docs/follow-up/`.
+`internal-docs/ops/LLM_SPEND_GUARDRAILS.md`. `data/` в `.gitignore`. Результаты и выводы —
+в `internal-docs/research/llm-quality/`.

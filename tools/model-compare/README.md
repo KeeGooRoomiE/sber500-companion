@@ -1,6 +1,6 @@
 # model-compare
 
-Задача #2 из `internal-docs/dev/LLM_EVAL_TASKS.md`: latency/cost по моделям → рекомендация
+Задача #2 из `internal-docs/ops/LLM_EVAL_TASKS.md`: latency/cost по моделям → рекомендация
 прод-модели. Quality не передублирует — переиспользует находки `tools/signal-rd/` (signal-
 finding) и `tools/followup-rd/` (честность на follow-up-цепочках).
 
@@ -21,4 +21,4 @@ bash tools/model-compare/run.sh bench --model gpt-5.1 [--n 9] [--max-tokens 260]
 Строго последовательно — не параллелим модели. Результат — `data/bench_<model>.json`
 (ok_rate, p50/p95/max latency, ₽/вызов) + печать по ходу.
 
-`data/` в `.gitignore`. Итог — `internal-docs/models/MODEL_COMPARISON.md`.
+`data/` в `.gitignore`. Итог — `internal-docs/research/llm-quality/MODEL_COMPARISON.md`.

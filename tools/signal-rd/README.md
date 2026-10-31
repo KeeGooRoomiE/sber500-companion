@@ -1,6 +1,6 @@
 # signal-rd
 
-R&D #5 из `internal-docs/dev/LLM_EVAL_TASKS.md`: кандидатные поведенческие сигналы/паттерны
+R&D #5 из `internal-docs/ops/LLM_EVAL_TASKS.md`: кандидатные поведенческие сигналы/паттерны
 для explore, найденные на **реальных данных пользователей** (не моках) — результат сразу
 сопоставим с тем, что видят живые юзеры.
 
@@ -32,7 +32,7 @@ bash tools/signal-rd/run.sh validate   --model claude-sonnet-4.6 --from brainsto
 ```
 
 Сознательно **без параллелизма** (ни по моделям, ни по юзерам) — ключ общий с другими
-прогонами (`llm-audit`, `design-research`), см. `internal-docs/dev/LLM_SPEND_GUARDRAILS.md`.
+прогонами (`llm-audit`, `design-research`), см. `internal-docs/ops/LLM_SPEND_GUARDRAILS.md`.
 
 `data/` в `.gitignore` — реальные агрегаты только локально. Результаты и выводы сводятся в
 `internal-docs/dev/SIGNAL_RD.md`.

@@ -1,6 +1,6 @@
 # edge-case-rd
 
-Задача #6 из `internal-docs/dev/LLM_EVAL_TASKS.md`: вырожденные/экстремальные входы для
+Задача #6 из `internal-docs/ops/LLM_EVAL_TASKS.md`: вырожденные/экстремальные входы для
 `day_review_system.md` → промт не должен ломаться/галлюцинировать/советовать.
 
 7 синтетических кейсов (`cases.py`), один на ось робастности: почти нет данных, новый юзер
@@ -19,4 +19,4 @@ Judge получает под каждый кейс свой критерий «
 `judge_edge.py`) — у «почти нет данных» и «метрики противоречат чек-ину» разные ответы
 считаются правильными.
 
-`data/` в `.gitignore`. Итог — `internal-docs/edge-cases/EDGE_CASE_RD.md`.
+`data/` в `.gitignore`. Итог — `internal-docs/research/llm-quality/EDGE_CASE_RD.md`.
