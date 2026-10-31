@@ -43,3 +43,7 @@ tools/signal-rd/data/
 tools/followup-rd/data/
 # budget-guard: лог и флаг cutoff — локально
 tools/budget-guard/data/
+
+# Python bytecode
+__pycache__/
+*.pyc
