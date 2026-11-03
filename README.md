@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest)
 [![Backend](https://img.shields.io/badge/бэкенд-Go%20%2B%20PostgreSQL-00ADD8?logo=go&logoColor=white)](https://api.94-183-236-169.sslip.io/api/v1/version)
 
-[🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📱 Скачать APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
+[🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📲 RuStore](https://www.rustore.ru/catalog/app/ru.keegoo.companion) · [📱 APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
 
 </div>
 
@@ -96,13 +96,20 @@
 
 ## Скачать
 
-Актуальный APK всегда по одному адресу:
+Android 10+. Два способа, оба ведут к одной сборке.
+
+**RuStore — обычная установка, обновления приходят сами:**
+
+https://www.rustore.ru/catalog/app/ru.keegoo.companion
+
+**APK — если RuStore не установлен:**
 
 ```
 https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk
 ```
 
-Android 10+. Разрешить установку из неизвестных источников → поставить.
+Адрес постоянный, всегда отдаёт последний релиз. Android спросит разрешение на
+установку из неизвестного источника — это нормально для файла, скачанного мимо магазина.
 
 ---
 
