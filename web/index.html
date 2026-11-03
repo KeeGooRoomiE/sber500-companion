@@ -661,11 +661,11 @@
     объясняет, чего ждать от дня. Без дневников и ручного ввода.
   </p>
   <div class="hero-cta">
-    <a href="https://www.rustore.ru/catalog/app/ru.keegoo.companion"
+    <a href="https://www.rustore.ru/catalog/app/ru.keegoo.companion" data-goal="RuStore"
        class="btn btn-primary">
       Установить из RuStore
     </a>
-    <a href="https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk"
+    <a href="https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk" data-goal="apk"
        class="btn btn-ghost">
       Скачать APK
     </a>
@@ -833,11 +833,11 @@
     <h2>Попробуй первым</h2>
     <p>Android. Проще всего — из RuStore; APK для тех, кому так удобнее.</p>
     <div class="cta-btns">
-      <a href="https://www.rustore.ru/catalog/app/ru.keegoo.companion"
+      <a href="https://www.rustore.ru/catalog/app/ru.keegoo.companion" data-goal="RuStore"
          class="btn btn-primary">
         Установить из RuStore
       </a>
-      <a href="https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk"
+      <a href="https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk" data-goal="apk"
          class="btn btn-ghost">
         Скачать APK
       </a>
@@ -993,6 +993,18 @@ const exitObserver = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal, .feature-card').forEach(el => {
   enterObserver.observe(el);
   exitObserver.observe(el);
+});
+
+// ── Metrica goals on the install buttons ──────────────────────────────────
+// One delegated listener instead of inline onclick: the same two goals sit on
+// four links (hero and bottom CTA), and a new button only needs data-goal.
+// ym is absent when the counter is blocked or still loading, so never assume it.
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('[data-goal]');
+  if (!link) return;
+  try {
+    if (typeof ym === 'function') ym(113960585, 'reachGoal', link.dataset.goal);
+  } catch (_) { /* a goal that did not record must never block the download */ }
 });
 </script>
 </body>
