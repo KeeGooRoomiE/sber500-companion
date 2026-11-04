@@ -508,7 +508,7 @@
       { label: 'Check-in rate', value: ciAvg == null ? '—' : fmt(ciAvg, 1) + '%', unit: `% DAU отметились, среднее за ${ciDays} дн.`,
         delta: d.checkin_rate_pct == null ? '' : `сегодня ${fmt(d.checkin_rate_pct, 1)}% (день не закончен)`, flat: true },
       { label: 'Точность прогноза', value: d.forecast_accuracy_pct == null ? '—' : fmt(d.forecast_accuracy_pct, 1) + '%',
-        unit: `«Совпало», оценок: ${fmt(d.forecast_rated_30d)}` },
+        unit: `«Совпало», оценок за всё время: ${fmt(d.forecast_rated_total)}` },
       { label: 'Полных сценариев', value: fmt(d.scenario_completed_total), unit: 'утро + чек-ин, всего' },
     ];
 

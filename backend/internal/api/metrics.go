@@ -163,10 +163,15 @@ type MetricsResponse struct {
 	// LLM calls split by mechanic over the chart window — engagement spread across features.
 	CallsByComponent []ComponentShare `json:"calls_by_component"`
 
-	// «Совпало / Не совсем» under the morning forecast, last 30 days.
+	// «Совпало / Не совсем» under the morning forecast, over the whole life of the product.
 	// accuracy = hits / rated; feedback rate = rated / delivered forecasts.
+	//
+	// This used to count only the last 30 days, which quietly threw away most of the evidence:
+	// the figure fell from 75 ratings to 10 as the early ones aged out, and a percentage built
+	// on ten answers swings wildly on one tap. Accuracy is a property of the product, not of
+	// the last month, so it is counted from the beginning.
 	ForecastAccuracyPct     *float64 `json:"forecast_accuracy_pct"`
-	ForecastRated30d        int      `json:"forecast_rated_30d"`
+	ForecastRatedTotal      int      `json:"forecast_rated_total"`
 	ForecastFeedbackRatePct *float64 `json:"forecast_feedback_rate_pct"`
 
 	// scenario_completed = morning received + evening check-in on the same day
@@ -643,21 +648,22 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		return nil, err
 	}
 
-	// Forecast accuracy from «Совпало / Не совсем» (30 days, dev users excluded)
-	var hits, rated, delivered30 int
+	// Forecast accuracy from «Совпало / Не совсем», all time, dev users excluded.
+	// Both halves of the feedback rate span the same period, or the ratio would be nonsense.
+	var hits, rated, delivered int
 	if err := m.db.QueryRow(ctx, `
 		SELECT (SELECT count(*) FILTER (WHERE verdict = 'hit') FROM feedback
-		        WHERE kind = 'morning' AND date > $2::date - 30 AND NOT (user_id = ANY($1))),
+		        WHERE kind = 'morning' AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM feedback
-		        WHERE kind = 'morning' AND date > $2::date - 30 AND NOT (user_id = ANY($1))),
+		        WHERE kind = 'morning' AND NOT (user_id = ANY($1))),
 		       (SELECT count(*) FROM morning_messages
-		        WHERE sent_at IS NOT NULL AND date > $2::date - 30 AND NOT (user_id = ANY($1)))
-	`, devs, today).Scan(&hits, &rated, &delivered30); err != nil {
+		        WHERE sent_at IS NOT NULL AND NOT (user_id = ANY($1)))
+	`, devs).Scan(&hits, &rated, &delivered); err != nil {
 		return nil, err
 	}
 	out.ForecastAccuracyPct = pct(hits, rated)
-	out.ForecastRated30d = rated
-	out.ForecastFeedbackRatePct = pct(rated, delivered30)
+	out.ForecastRatedTotal = rated
+	out.ForecastFeedbackRatePct = pct(rated, delivered)
 
 	// LLM cost (tokens are stored per morning message — only successful calls have tokens)
 	var inTotal, outTotal, inToday, outToday int64
