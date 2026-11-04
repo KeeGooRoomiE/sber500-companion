@@ -60,6 +60,22 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk companion-latest.apk
           cp android/app/build/outputs/apk/release/app-release.apk companion-${VERSION}.apk
 
+      # The store build differs only by BuildConfig.INSTALL_SOURCE, which the app sends to
+      # /register once. Without it every install from the store reports «apk» and the paid
+      # traffic cannot be told apart from the landing's. Same keystore, same versionCode —
+      # RuStore rejects an update signed with anything else.
+      - name: Build release APK for RuStore
+        env:
+          APPMETRICA_KEY: ${{ secrets.APPMETRICA_KEY }}
+          INSTALL_SOURCE: rustore
+        working-directory: android
+        run: gradle assembleRelease --no-daemon --quiet
+
+      - name: Rename RuStore APK
+        run: |
+          VERSION="${{ github.ref_name }}"
+          cp android/app/build/outputs/apk/release/app-release.apk companion-rustore-${VERSION}.apk
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,6 +85,7 @@ jobs:
             # Release already exists (created manually) — attach APKs and publish
             gh release upload "${VERSION}" \
               companion-latest.apk \
+              companion-rustore-${VERSION}.apk \
               companion-${VERSION}.apk \
               --clobber
             gh release edit "${VERSION}" --draft=false --latest
@@ -76,6 +93,7 @@ jobs:
             # Notes written ahead of time in the repo
             gh release create "${VERSION}" \
               companion-latest.apk \
+              companion-rustore-${VERSION}.apk \
               companion-${VERSION}.apk \
               --title "Companion ${VERSION}" \
               --notes-file ".github/release-notes/${VERSION}.md" \
@@ -83,6 +101,7 @@ jobs:
           else
             gh release create "${VERSION}" \
               companion-latest.apk \
+              companion-rustore-${VERSION}.apk \
               companion-${VERSION}.apk \
               --title "Companion ${VERSION}" \
               --latest \

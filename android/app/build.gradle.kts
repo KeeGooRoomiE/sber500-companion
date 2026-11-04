@@ -34,8 +34,8 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.0.0"
+        versionCode = 24
+        versionName = "1.0.1"
     }
 
     signingConfigs {

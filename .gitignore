@@ -55,3 +55,7 @@ __pycache__/
 tools/usage-rd/data/
 # redteam: результаты прогонов — локально
 tools/redteam/data/
+
+# APK, собранные локально для ручной загрузки в стор
+/build/
+*.apk
