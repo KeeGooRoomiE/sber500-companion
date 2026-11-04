@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Companion — варианты креативов</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#15131F;color:#fff;font-family:Manrope,system-ui,sans-serif;padding:32px}
+  h1{font-size:24px;font-weight:800}
+  .lede{color:#A8A3BD;font-size:14px;max-width:72ch;line-height:1.6;margin:8px 0 8px}
+  h2{font-size:15px;font-weight:700;color:#C7BFFF;margin:34px 0 12px;text-transform:uppercase;letter-spacing:.1em}
+  .grid{display:flex;flex-wrap:wrap;gap:20px}
+  .item{width:340px}
+  /* scale() takes a plain number, so the factor is fixed here rather than derived from the
+     container: 340 / 1080. The ad itself stays authored at true size. */
+  .frame{width:340px;height:340px;overflow:hidden;border-radius:14px}
+  .ad{width:1080px;height:1080px;transform:scale(0.31481);transform-origin:top left;
+      position:relative;display:flex;flex-direction:column;justify-content:space-between;
+      padding:84px;overflow:hidden;background-size:cover;background-position:center}
+  /* The plate is generated art, so its lower half is never guaranteed quiet — this keeps the
+     headline readable whatever came back, without hiding the image. */
+  .scrim{position:absolute;inset:0}
+  .z{position:relative;z-index:1}
+  .k{font-size:30px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
+  .h{font-size:78px;font-weight:800;line-height:1.06;letter-spacing:-.02em}
+  .s{font-size:36px;font-weight:500;line-height:1.38;opacity:.85;margin-top:28px}
+  .f{display:flex;align-items:center;gap:20px;font-size:30px;font-weight:700}
+  .dot{width:52px;height:52px;border-radius:50%;background:#6B5CE7;box-shadow:0 0 50px rgba(107,92,231,.9)}
+  .cut{text-decoration:line-through;text-decoration-thickness:5px;opacity:.5}
+  .vlabel{font-size:12px;color:#8B87A3;margin-top:8px}
+  .a1{color:#15131F}
+  .a1 .scrim{background:linear-gradient(to bottom,rgba(247,245,255,.08) 18%,rgba(247,245,255,.82) 46%,rgba(247,245,255,.96) 68%)}
+  .a1 .num{font-size:150px;font-weight:800;color:#3A3550;line-height:1}
+  .a1 .sil{font-size:40px;color:#3A3550;margin-top:4px}
+  .a2,.a3,.a4,.a5{color:#fff}
+  .a2 .scrim,.a4 .scrim{background:linear-gradient(to bottom,rgba(10,8,18,.25) 14%,rgba(10,8,18,.82) 44%,rgba(10,8,18,.96) 66%)}
+  .a3 .scrim{background:linear-gradient(to bottom,rgba(26,18,74,.22) 14%,rgba(26,18,74,.78) 44%,rgba(26,18,74,.94) 66%)}
+  .a5 .scrim{background:linear-gradient(to bottom,rgba(8,6,16,.2) 14%,rgba(8,6,16,.8) 44%,rgba(8,6,16,.95) 66%)}
+  .a2 .rows{display:flex;flex-direction:column;gap:16px;margin:34px 0}
+  .a2 .row{font-size:34px;padding:16px 26px;border-radius:14px;background:rgba(255,255,255,.1)}
+  .a2 .row.on{background:#6B5CE7;font-weight:700}
+  .a3 .chips{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+  .a3 .chip{font-size:30px;padding:14px 26px;border-radius:999px;background:rgba(255,255,255,.2);font-weight:600}
+  .a4 .facts{display:flex;flex-direction:column;gap:14px;margin-top:34px}
+  .a4 .fact{font-size:38px;font-weight:600;display:flex;gap:18px;align-items:baseline}
+  .a4 .fact b{color:#FF8A5B;font-weight:800;font-variant-numeric:tabular-nums}
+</style></head><body>
+<h1>Варианты креативов — по три на концепт</h1>
+<p class="lede">
+  Снимки сгенерированы моделью без единой буквы, заголовки положены вёрсткой: генеративные модели
+  врут кириллицу, и доверять им текст в рекламе нельзя. Градиент-подложка под текстом нужна
+  потому, что сгенерированная картинка непредсказуема — она держит читаемость, не пряча фон.
+  Каждый макет свёрстан в настоящем 1080×1080 и только уменьшен для просмотра.
+</p>
+  <h2>1 · Экранное время</h2>
+  <div class="grid">
+      <div class="item">
+        <div class="frame"><div class="ad a1" style="background-image:url('bg/01-screentime-v1.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#6B5CE7">К3 · экранное время</div><div class="num">7 ч 41 м</div><div class="sil">— и больше ни слова</div></div>
+          <div class="z"><div class="h">Экранное время<br>показывает цифру.<br>И молчит.</div><div class="s">Companion объясняет, почему она такая — и что с тобой будет сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 1</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a1" style="background-image:url('bg/01-screentime-v2.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#6B5CE7">К3 · экранное время</div><div class="num">7 ч 41 м</div><div class="sil">— и больше ни слова</div></div>
+          <div class="z"><div class="h">Экранное время<br>показывает цифру.<br>И молчит.</div><div class="s">Companion объясняет, почему она такая — и что с тобой будет сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 2</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a1" style="background-image:url('bg/01-screentime-v3.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#6B5CE7">К3 · экранное время</div><div class="num">7 ч 41 м</div><div class="sil">— и больше ни слова</div></div>
+          <div class="z"><div class="h">Экранное время<br>показывает цифру.<br>И молчит.</div><div class="s">Companion объясняет, почему она такая — и что с тобой будет сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 3</p>
+      </div>
+  </div>
+  <h2>2 · Дневники</h2>
+  <div class="grid">
+      <div class="item">
+        <div class="frame"><div class="ad a2" style="background-image:url('bg/02-diaries-v1.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#9B8CFF">К4 · самоанализ</div><div class="rows"><div class="row cut">Отметь настроение</div><div class="row cut">Поставь теги</div><div class="row cut">Не пропусти день</div><div class="row on">Ничего не делай</div></div></div>
+          <div class="z"><div class="h">Дневники просят<br>записывать.<br>Companion уже<br>записал.</div><div class="s">Сон, шаги, экран — сам. От тебя ноль действий.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 1</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a2" style="background-image:url('bg/02-diaries-v2.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#9B8CFF">К4 · самоанализ</div><div class="rows"><div class="row cut">Отметь настроение</div><div class="row cut">Поставь теги</div><div class="row cut">Не пропусти день</div><div class="row on">Ничего не делай</div></div></div>
+          <div class="z"><div class="h">Дневники просят<br>записывать.<br>Companion уже<br>записал.</div><div class="s">Сон, шаги, экран — сам. От тебя ноль действий.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 2</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a2" style="background-image:url('bg/02-diaries-v3.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#9B8CFF">К4 · самоанализ</div><div class="rows"><div class="row cut">Отметь настроение</div><div class="row cut">Поставь теги</div><div class="row cut">Не пропусти день</div><div class="row on">Ничего не делай</div></div></div>
+          <div class="z"><div class="h">Дневники просят<br>записывать.<br>Companion уже<br>записал.</div><div class="s">Сон, шаги, экран — сам. От тебя ноль действий.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 3</p>
+      </div>
+  </div>
+  <h2>3 · Носимые</h2>
+  <div class="grid">
+      <div class="item">
+        <div class="frame"><div class="ad a3" style="background-image:url('bg/03-wearables-v1.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#fff">К1 · носимые устройства</div><div class="chips"><div class="chip">Mi Band</div><div class="chip">Honor</div><div class="chip">Huawei</div><div class="chip">Amazfit</div></div></div>
+          <div class="z"><div class="h">Браслет посчитал.<br>Объяснить забыл.</div><div class="s">Companion берёт те же данные и говорит, чего ждать от дня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 1</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a3" style="background-image:url('bg/03-wearables-v2.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#fff">К1 · носимые устройства</div><div class="chips"><div class="chip">Mi Band</div><div class="chip">Honor</div><div class="chip">Huawei</div><div class="chip">Amazfit</div></div></div>
+          <div class="z"><div class="h">Браслет посчитал.<br>Объяснить забыл.</div><div class="s">Companion берёт те же данные и говорит, чего ждать от дня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 2</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a3" style="background-image:url('bg/03-wearables-v3.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#fff">К1 · носимые устройства</div><div class="chips"><div class="chip">Mi Band</div><div class="chip">Honor</div><div class="chip">Huawei</div><div class="chip">Amazfit</div></div></div>
+          <div class="z"><div class="h">Браслет посчитал.<br>Объяснить забыл.</div><div class="s">Companion берёт те же данные и говорит, чего ждать от дня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 3</p>
+      </div>
+  </div>
+  <h2>4 · Не гороскоп</h2>
+  <div class="grid">
+      <div class="item">
+        <div class="frame"><div class="ad a4" style="background-image:url('bg/04-not-horoscope-v1.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#FF8A5B">все кампании · доверие</div><div class="facts"><div class="fact"><b>5 ч 10 м</b> сна</div><div class="fact"><b>14 ч</b> экрана</div><div class="fact"><b>02:40</b> отбой</div></div></div>
+          <div class="z"><div class="h">Это не гороскоп.</div><div class="s">Это твои вчерашние цифры. Поэтому сегодня будет тяжело.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 1</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a4" style="background-image:url('bg/04-not-horoscope-v2.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#FF8A5B">все кампании · доверие</div><div class="facts"><div class="fact"><b>5 ч 10 м</b> сна</div><div class="fact"><b>14 ч</b> экрана</div><div class="fact"><b>02:40</b> отбой</div></div></div>
+          <div class="z"><div class="h">Это не гороскоп.</div><div class="s">Это твои вчерашние цифры. Поэтому сегодня будет тяжело.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 2</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a4" style="background-image:url('bg/04-not-horoscope-v3.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#FF8A5B">все кампании · доверие</div><div class="facts"><div class="fact"><b>5 ч 10 м</b> сна</div><div class="fact"><b>14 ч</b> экрана</div><div class="fact"><b>02:40</b> отбой</div></div></div>
+          <div class="z"><div class="h">Это не гороскоп.</div><div class="s">Это твои вчерашние цифры. Поэтому сегодня будет тяжело.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 3</p>
+      </div>
+  </div>
+  <h2>5 · Сон</h2>
+  <div class="grid">
+      <div class="item">
+        <div class="frame"><div class="ad a5" style="background-image:url('bg/05-sleep-v1.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#B9AEF5">К2 · сон</div></div>
+          <div class="z"><div class="h">Ты уже знаешь,<br>что не выспался.</div><div class="s">Companion скажет, во что это обойдётся сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 1</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a5" style="background-image:url('bg/05-sleep-v2.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#B9AEF5">К2 · сон</div></div>
+          <div class="z"><div class="h">Ты уже знаешь,<br>что не выспался.</div><div class="s">Companion скажет, во что это обойдётся сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 2</p>
+      </div>
+      <div class="item">
+        <div class="frame"><div class="ad a5" style="background-image:url('bg/05-sleep-v3.png')">
+          <div class="scrim"></div>
+          <div class="z"><div class="k" style="color:#B9AEF5">К2 · сон</div></div>
+          <div class="z"><div class="h">Ты уже знаешь,<br>что не выспался.</div><div class="s">Companion скажет, во что это обойдётся сегодня.</div></div>
+          <div class="z f"><div class="dot"></div> Companion · Android</div>
+        </div></div>
+        <p class="vlabel">вариант 3</p>
+      </div>
+  </div>
+</body></html>

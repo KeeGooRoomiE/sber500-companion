@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+# Рабочие материалы кампании: доступны по ссылке, но не для поиска
+Disallow: /variant-artifacts/
 
 Sitemap: https://companion-app.ru/sitemap.xml
