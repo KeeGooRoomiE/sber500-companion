@@ -69,6 +69,24 @@ type SourceStat struct {
 	RetentionD7Pct *float64 `json:"retention_d7_pct"`
 }
 
+// RetentionPoint is one «day N» mark measured the two ways the programme's mentor asked for.
+//
+// Exact answers «did this person open the app on day N», which is the strict reading and the
+// one a marketing team recognises. Window answers «were they around day N at all», counting
+// days N-1 to N+1, because somebody who came on day 6 and day 8 is not a churned user — the
+// strict figure simply misses them. The gap between the two numbers is itself the finding:
+// wide means the product is used in bursts rather than daily, and the strict number alone
+// would understate a channel we are about to decide the budget on.
+//
+// Both share one denominator — everyone whose whole window has already passed — so the two
+// percentages differ only by how they measure, never by whom they measured.
+type RetentionPoint struct {
+	Day       int      `json:"day"`
+	Cohort    int      `json:"cohort"`
+	ExactPct  *float64 `json:"exact_pct"`
+	WindowPct *float64 `json:"window_pct"`
+}
+
 // Scoring is the competition's counting window (Stage 2: 28 days) and what the thresholds
 // look at inside it. Everything is over days of the window that have started; DAU "sustained"
 // is a day counter, not an average — the rule is «at least 14 of 28 days at 1000+».
@@ -103,6 +121,8 @@ type MetricsResponse struct {
 	DAUHistory     []DAUPoint `json:"dau_history"`
 	RetentionD1Pct *float64   `json:"retention_d1_pct"`
 	RetentionD7Pct *float64   `json:"retention_d7_pct"`
+	// D1/D3/D5/D7, each counted strictly and over a three-day window — see RetentionPoint.
+	RetentionCurve []RetentionPoint `json:"retention_curve"`
 	Cohorts        []Cohort   `json:"retention_cohorts"`
 	// Stickiness — how «daily» the product is. MAU = distinct users active in the last 30 days;
 	// stickiness = dau_7d_avg / MAU. Young product, so MAU ≈ all active users for now.
@@ -361,6 +381,12 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		return nil, err
 	}
 	out.RetentionD7Pct = pct(retD7, cohortD7)
+
+	curve, err := m.retentionCurve(ctx, devs, today, tz)
+	if err != nil {
+		return nil, err
+	}
+	out.RetentionCurve = curve
 
 	sc, err := m.scoring(ctx, devs, today, tz)
 	if err != nil {
@@ -820,6 +846,52 @@ func scoringWindow() (from, to time.Time) {
 
 // scoring counts, per day of the window that has started, DAU and LLM calls (same filters as
 // the rest of the page: LLM only, not admin, not dev/mock users), and derives the thresholds.
+// retentionCurve measures D1, D3, D5 and D7 two ways at once. See RetentionPoint for why.
+//
+// A mark only counts people whose window has already closed: for day N that is everyone who
+// signed up N+1 days ago or earlier. Without that, today's sign-ups would sit in the
+// denominator having had no chance to come back, and every number would read as a collapse.
+// Day 1's window starts at day 1, not day 0 — registration day is not a return.
+func (m *Metrics) retentionCurve(ctx context.Context, devs []string, today time.Time, tz string) ([]RetentionPoint, error) {
+	rows, err := m.db.Query(ctx, `
+		WITH marks(day) AS (VALUES (1),(3),(5),(7)),
+		cohort AS (
+			SELECT u.id, (u.created_at AT TIME ZONE $2)::date AS reg
+			FROM users u
+			WHERE NOT (u.id = ANY($1))
+		)
+		SELECT m.day,
+		       count(*) FILTER (WHERE c.reg <= $3::date - (m.day + 1)) AS eligible,
+		       count(*) FILTER (WHERE c.reg <= $3::date - (m.day + 1) AND EXISTS (
+		           SELECT 1 FROM user_activity a
+		           WHERE a.user_id = c.id AND a.date = c.reg + m.day)) AS exact_n,
+		       count(*) FILTER (WHERE c.reg <= $3::date - (m.day + 1) AND EXISTS (
+		           SELECT 1 FROM user_activity a
+		           WHERE a.user_id = c.id
+		             AND a.date BETWEEN c.reg + greatest(1, m.day - 1) AND c.reg + m.day + 1)) AS window_n
+		FROM marks m CROSS JOIN cohort c
+		GROUP BY m.day
+		ORDER BY m.day
+	`, devs, tz, today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []RetentionPoint{}
+	for rows.Next() {
+		var p RetentionPoint
+		var exact, window int
+		if err := rows.Scan(&p.Day, &p.Cohort, &exact, &window); err != nil {
+			return nil, err
+		}
+		p.ExactPct = pct(exact, p.Cohort)
+		p.WindowPct = pct(window, p.Cohort)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, tz string) (*Scoring, error) {
 	from, to := scoringWindow()
 	days := int(to.Sub(from).Hours()/24) + 1

@@ -137,6 +137,19 @@
     .funnel-bar-text { font-size: 11px; font-weight: 700; color: white; }
     .funnel-pct { font-size: 12px; font-weight: 600; min-width: 44px; text-align: right; color: var(--muted); }
 
+    /* ── RETENTION CURVE (D1/D3/D5/D7, two ways) ── */
+    .curve { display: flex; gap: 10px; }
+    .curve-col { flex: 1; background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 12px 10px; }
+    .curve-day { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .curve-main { font-size: 24px; font-weight: 700; margin-top: 6px; line-height: 1; }
+    .curve-alt { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .curve-alt b { color: #6B5CE7; font-weight: 700; }
+    .curve-base { font-size: 10px; color: var(--muted); margin-top: 8px; }
+    .curve-track { height: 4px; background: #ECECEF; border-radius: 3px; margin-top: 10px; overflow: hidden; position: relative; }
+    .curve-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; }
+    .curve-fill.win { background: #C7BFFF; }
+    .curve-fill.ex  { background: #6B5CE7; }
+
     /* ── RETENTION TABLE ── */
     .ret-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .ret-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -529,6 +542,47 @@
   }
 
   // ─── Funnel ────────────────────────────────────────────────────────────────
+  // Two readings of the same cohort. Exact = opened the app on that very day; window = was
+  // around it, counting day N-1 to N+1. Somebody who came on day 6 and day 8 is not churned,
+  // and the strict number alone would hand the marketing side a reason to cut a live channel.
+  function renderRetentionCurve(d) {
+    const curve = Array.isArray(d.retention_curve) ? d.retention_curve : [];
+    if (!curve.length) return '';
+
+    const cols = curve.map(p => {
+      const ex  = p.exact_pct, win = p.window_pct;
+      // Nobody's window has closed yet — «—» rather than a zero that reads as collapse.
+      if (p.cohort === 0 || ex === null || ex === undefined) {
+        return `<div class="curve-col">
+          <div class="curve-day">D${p.day}</div>
+          <div class="curve-main">—</div>
+          <div class="curve-base">когорта ещё не созрела</div>
+        </div>`;
+      }
+      return `<div class="curve-col">
+        <div class="curve-day">D${p.day}</div>
+        <div class="curve-main">${ex.toFixed(1)}%</div>
+        <div class="curve-alt">окно ±1 день: <b>${(win ?? 0).toFixed(1)}%</b></div>
+        <div class="curve-track">
+          <div class="curve-fill win" style="width:${Math.min(100, win ?? 0)}%"></div>
+          <div class="curve-fill ex" style="width:${Math.min(100, ex)}%"></div>
+        </div>
+        <div class="curve-base">база ${nf(p.cohort)}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="section">
+      <div class="section-title">Удержание по дням · два способа счёта</div>
+      <div class="curve">${cols}</div>
+      <p class="chart-note" style="margin-top:10px">
+        Крупная цифра — человек открыл приложение <b>ровно в этот день</b>. Светлая полоса —
+        <b>окно ±1 день</b>: тот, кто зашёл на шестой и восьмой, в строгий счёт не попадает,
+        хотя пользователем быть не перестал. Знаменатель у обеих цифр один — все, у кого окно
+        уже закрылось, поэтому отличаются они только способом измерения.
+      </p>
+    </div>`;
+  }
+
   function renderFunnel(d) {
     const total = d.funnel_total || 0;
 
@@ -810,6 +864,7 @@
       renderStats(d) +
       renderDau(dauHistory, d.dau_7d_avg) +
       renderFunnel(d) +
+      renderRetentionCurve(d) +
       `<div class="cohort-grid">${renderCohorts(cohorts)}${renderCheckins(ciHistory)}${renderComponents(d.calls_by_component)}${renderVersions(Array.isArray(d.app_versions) ? d.app_versions : [])}</div>` +
       renderLlm(d) +
       renderInfra(d);
