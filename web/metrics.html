@@ -476,8 +476,11 @@
       { label: 'DAU 7д avg', value: fmt(d.dau_7d_avg, 1), unit: 'активных',
         // The tile shows the average, so the delta has to name what is being compared to it.
         delta: dauDelta == null ? '' : `сегодня ${dauDelta >= 0 ? '+' : '−'}${Math.abs(dauDelta)}%`, up: dauDelta >= 0 },
-      { label: 'D1 Retention',  value: d.retention_d1_pct == null ? '—' : fmt(d.retention_d1_pct, 1) + '%', unit: 'вернулись на д.1' },
-      { label: 'D7 Retention',  value: d.retention_d7_pct == null ? '—' : fmt(d.retention_d7_pct, 1) + '%', unit: 'активны через 7д' },
+      // These two answer «did they ever come back», which is a looser question than the
+      // day-by-day curve below — 90% here next to 45% there is not a contradiction, but it
+      // reads as one unless each tile states which question it answers.
+      { label: 'D1 Retention',  value: d.retention_d1_pct == null ? '—' : fmt(d.retention_d1_pct, 1) + '%', unit: 'заходили после дня регистрации' },
+      { label: 'D7 Retention',  value: d.retention_d7_pct == null ? '—' : fmt(d.retention_d7_pct, 1) + '%', unit: 'заходили на 7-й день или позже' },
       { label: 'Утренних сообщений', value: fmt(d.morning_delivered_today), unit: 'доставлено сегодня' },
       // Window average, like Calls/DAU: «today» is a morning snapshot of an evening event and read
       // as a collapse from ~29% to ~6% every day until people had a chance to check in.
