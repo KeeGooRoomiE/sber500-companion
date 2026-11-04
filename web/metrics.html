@@ -137,6 +137,16 @@
     .funnel-bar-text { font-size: 11px; font-weight: 700; color: white; }
     .funnel-pct { font-size: 12px; font-weight: 600; min-width: 44px; text-align: right; color: var(--muted); }
 
+    /* ── LOADING SKELETON ── */
+    .skeleton-grid { display: flex; gap: 10px; }
+    .skeleton {
+      flex: 1; height: 96px; border-radius: 10px;
+      background: linear-gradient(90deg, #F4F4F5 25%, #ECECEF 37%, #F4F4F5 63%);
+      background-size: 400% 100%; animation: shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
+    @media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
+
     /* ── RETENTION CURVE (D1/D3/D5/D7, two ways) ── */
     .curve { display: flex; gap: 10px; }
     .curve-col { flex: 1; background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 12px 10px; }
@@ -250,7 +260,18 @@
     </p>
   </div>
 
-  <div id="content"></div>
+  <!-- Until the first response lands this must not be empty: a bare header and footer
+       read as a broken page, and that is what somebody opening the link during a slow
+       request or a proxy blink would see. -->
+  <div id="content">
+    <div class="section">
+      <div class="section-title">Загружаем данные</div>
+      <div class="skeleton-grid">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <p class="chart-note" style="margin-top:10px">Тянем свежие цифры с продакшена.</p>
+    </div>
+  </div>
 </main>
 
 <footer>
