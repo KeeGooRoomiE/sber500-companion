@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companion — креативы волны 1</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --violet:#6B5CE7; --violet-deep:#2A1D6E; --ink:#15131F; --paper:#F7F5FF;
+    --muted:#8B87A3; --warn:#FF8A5B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#1A1822;color:#fff;font-family:Manrope,system-ui,sans-serif;padding:32px}
+  h1{font-size:22px;font-weight:800;margin-bottom:6px}
+  .lede{color:#A8A3BD;font-size:14px;max-width:760px;line-height:1.6;margin-bottom:28px}
+  .grid{display:flex;flex-wrap:wrap;gap:28px}
+  .slot{width:380px}
+  .cap{font-size:12px;color:#A8A3BD;margin-top:10px;line-height:1.5}
+  .cap b{color:#fff;font-weight:700}
+  /* Each creative is authored at true 1080×1080 and only scaled for preview,
+     so a screenshot of .creative at scale 1 is the file the ad account needs. */
+  .frame{width:380px;height:380px;overflow:hidden;border-radius:14px}
+  .creative{width:1080px;height:1080px;transform:scale(.35185);transform-origin:top left;
+            position:relative;display:flex;flex-direction:column;justify-content:space-between;
+            padding:84px;overflow:hidden}
+  .kicker{font-size:30px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+  .head{font-size:78px;font-weight:800;line-height:1.06;letter-spacing:-.02em}
+  .sub{font-size:36px;font-weight:500;line-height:1.38;opacity:.82;margin-top:28px}
+  .foot{display:flex;align-items:center;gap:20px;font-size:30px;font-weight:700}
+  .dot{width:52px;height:52px;border-radius:50%;background:var(--violet);
+       box-shadow:0 0 50px rgba(107,92,231,.9)}
+  .strike{text-decoration:line-through;text-decoration-thickness:5px;opacity:.45}
+
+  /* 1 — screen time */
+  .c1{background:var(--paper);color:var(--ink)}
+  .c1 .num{font-size:150px;font-weight:800;color:var(--muted);line-height:1}
+  .c1 .silence{font-size:40px;color:var(--muted);margin-top:4px}
+
+  /* 2 — diaries */
+  .c2{background:var(--ink);color:#fff}
+  .c2 .rows{display:flex;flex-direction:column;gap:16px;margin:34px 0}
+  .c2 .row{font-size:34px;padding:16px 26px;border-radius:14px;background:rgba(255,255,255,.07)}
+  .c2 .row.on{background:var(--violet);font-weight:700}
+
+  /* 3 — wearables */
+  .c3{background:linear-gradient(150deg,#2A1D6E,#6B5CE7);color:#fff}
+  .c3 .chips{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+  .c3 .chip{font-size:30px;padding:14px 26px;border-radius:999px;
+            background:rgba(255,255,255,.16);font-weight:600}
+
+  /* 4 — not a horoscope */
+  .c4{background:#0E0B1A;color:#fff}
+  .c4 .facts{display:flex;flex-direction:column;gap:14px;margin-top:34px}
+  .c4 .fact{font-size:38px;font-weight:600;display:flex;gap:18px;align-items:baseline}
+  .c4 .fact span{color:var(--warn);font-weight:800;font-variant-numeric:tabular-nums}
+
+  /* 5 — sleep */
+  .c5{background:radial-gradient(120% 90% at 78% 8%,#3B2D8F 0%,#0C0A16 62%);color:#fff}
+  .c5 .moon{position:absolute;top:120px;right:120px;width:210px;height:210px;border-radius:50%;
+            background:radial-gradient(circle at 34% 30%,#fff,#B9AEF5 55%,#6B5CE7);
+            box-shadow:0 0 150px rgba(107,92,231,.75)}
+</style>
+</head>
+<body>
+
+<h1>Companion — креативы волны 1</h1>
+<p class="lede">
+  Пять макетов 1080×1080 под Яндекс Директ (РСЯ) и посевы в Telegram. Каждый построен на
+  реальной фразе из интервью и бьёт в один сегмент. Общий принцип: показываем вывод, а не
+  интерфейс — скриншот приложения ставит нас в один ряд с дашбордами, где мы заведомо слабее.
+  Разбор и тексты объявлений — в CREATIVES_WAVE1.md.
+</p>
+
+<div class="grid">
+
+  <div class="slot">
+    <div class="frame"><div class="creative c1">
+      <div>
+        <div class="kicker" style="color:var(--violet)">К3 · экранное время</div>
+        <div class="num">7 ч 41 м</div>
+        <div class="silence">— и больше ни слова</div>
+      </div>
+      <div>
+        <div class="head">Экранное время<br>показывает цифру.<br>И молчит.</div>
+        <div class="sub">Companion объясняет, почему она такая — и что с тобой будет сегодня.</div>
+      </div>
+      <div class="foot"><div class="dot"></div> Companion · Android</div>
+    </div></div>
+    <p class="cap"><b>1. «Ужаснулась и больше не смотрю»</b><br>
+      Бьёт в предустановленное «Цифровое благополучие»: не спорим, что оно бесплатное, —
+      говорим, чего в нём нет.</p>
+  </div>
+
+  <div class="slot">
+    <div class="frame"><div class="creative c2">
+      <div>
+        <div class="kicker" style="color:#9B8CFF">К4 · самоанализ</div>
+        <div class="rows">
+          <div class="row strike">Отметь настроение</div>
+          <div class="row strike">Поставь теги</div>
+          <div class="row strike">Не пропусти день</div>
+          <div class="row on">Ничего не делай</div>
+        </div>
+      </div>
+      <div>
+        <div class="head">Дневники просят<br>записывать.<br>Companion уже<br>записал.</div>
+        <div class="sub">Сон, шаги, экран — сам. От тебя ноль действий.</div>
+      </div>
+      <div class="foot"><div class="dot"></div> Companion · Android</div>
+    </div></div>
+    <p class="cap"><b>2. «Записать чтобы записать»</b><br>
+      Снимает возражение номер один категории — ручной ввод. Против Daylio и трекеров
+      настроения.</p>
+  </div>
+
+  <div class="slot">
+    <div class="frame"><div class="creative c3">
+      <div>
+        <div class="kicker">К1 · носимые устройства</div>
+        <div class="chips">
+          <div class="chip">Mi Band</div><div class="chip">Honor</div>
+          <div class="chip">Huawei</div><div class="chip">Amazfit</div>
+        </div>
+      </div>
+      <div>
+        <div class="head">Браслет посчитал.<br>Объяснить забыл.</div>
+        <div class="sub">Companion берёт те же данные и говорит, чего ждать от дня.</div>
+      </div>
+      <div class="foot"><div class="dot" style="background:#fff;box-shadow:0 0 50px rgba(255,255,255,.8)"></div> Companion · Android</div>
+    </div></div>
+    <p class="cap"><b>3. «Браслет считает — объясняет никто»</b><br>
+      Самый дешёвый и точный сегмент: человек уже платил за трекинг, ценность данных
+      доказывать не нужно.</p>
+  </div>
+
+  <div class="slot">
+    <div class="frame"><div class="creative c4">
+      <div>
+        <div class="kicker" style="color:var(--warn)">все кампании · доверие</div>
+        <div class="facts">
+          <div class="fact"><span>5 ч 10 м</span> сна</div>
+          <div class="fact"><span>14 ч</span> экрана</div>
+          <div class="fact"><span>02:40</span> отбой</div>
+        </div>
+      </div>
+      <div>
+        <div class="head">Это не гороскоп.</div>
+        <div class="sub">Это твои вчерашние цифры. Поэтому сегодня будет тяжело.</div>
+      </div>
+      <div class="foot"><div class="dot"></div> Companion · Android</div>
+    </div></div>
+    <p class="cap"><b>4. «Если начнёт работать как гороскоп — удалю»</b><br>
+      Прямой ответ на претензию ментора про «иишную кашу»: конкретные числа вместо обещания
+      счастья. Заодно отстройка от AI-психологов.</p>
+  </div>
+
+  <div class="slot">
+    <div class="frame"><div class="creative c5">
+      <div class="moon"></div>
+      <div><div class="kicker" style="color:#B9AEF5">К2 · сон</div></div>
+      <div>
+        <div class="head">Ты уже знаешь,<br>что не выспался.</div>
+        <div class="sub">Companion скажет, во что это обойдётся сегодня.</div>
+      </div>
+      <div class="foot"><div class="dot"></div> Companion · Android</div>
+    </div></div>
+    <p class="cap"><b>5. «Всю ночь играл вместо сна»</b><br>
+      Не обещает улучшить сон — это запрещено по 38-ФЗ и по разделу 8 плана. Говорит только
+      о последствии, которое человек и так чувствует.</p>
+  </div>
+
+</div>
+</body>
+</html>
