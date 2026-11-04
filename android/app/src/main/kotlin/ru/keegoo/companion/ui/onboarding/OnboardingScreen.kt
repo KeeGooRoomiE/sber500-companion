@@ -318,6 +318,13 @@ fun OnboardingScreen(
     // «Смотрю твои данные» — a short thinking moment, then the orb flies into Home.
     LaunchedEffect(step) {
         if (step == LAST_STEP) {
+            // Reported here, before the upload, not after it. The person has answered every step
+            // by now — onboarding is done from their side. Reporting it after the wait below made
+            // anyone who left during «Смотрю твои данные» look like they never finished: in the
+            // first week 20 people saw a forecast while only 13 were counted as having finished,
+            // and that is the step the whole acquisition funnel is measured against.
+            Events.onboardingFinished()
+
             // Send the last 7 days now (permissions are granted at this point), so the very first
             // forecast on Home can be about the person's real week. The orb "thinks" at least 1.8 s
             // and waits for the upload up to 10 s; Home falls back to the local summary anyway.
@@ -325,7 +332,6 @@ fun OnboardingScreen(
             DailyCollectWorker.runNowAndWait(context, pastDays = 7, timeoutMs = 10_000)
             val minShow = if (still) 600L else 1800L
             delay((minShow - (System.currentTimeMillis() - started)).coerceAtLeast(0))
-            Events.onboardingFinished()
             onFinish()
         }
     }
