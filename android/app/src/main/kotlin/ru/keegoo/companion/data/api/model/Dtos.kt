@@ -24,6 +24,10 @@ data class PassiveDataRequest(
     val hourly_unlocks: List<Int>? = null,  // 24 values, local hours
     val hourly_screen: List<Int>? = null,   // minutes per local hour
     val hourly_steps: List<Int>? = null,    // Health Connect steps per local hour
+    // IANA zone of this phone. Everything above is already local time, so without this the
+    // server cannot tell what «07:00» means: most people here are hours ahead of Moscow, and
+    // the morning text was being written after their morning had started.
+    val timezone: String? = null,
 )
 
 data class AppUsageDto(

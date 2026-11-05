@@ -42,6 +42,13 @@ func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > 0 {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 	}
+	// A zone we cannot resolve is logged and dropped: scheduling on a guess is worse than
+	// scheduling on the product default, which is what a NULL means downstream.
+	if tz := strings.TrimSpace(req.Timezone); tz != "" && len(tz) <= 64 {
+		if err := h.users.SetTimezone(r.Context(), uid, tz); err != nil {
+			slog.Warn("passive: timezone not recorded", "user", uid, "tz", tz, "err", err)
+		}
+	}
 	if v := strings.TrimSpace(req.AppVersion); v != "" && len(v) <= 32 {
 		if err := h.users.SetAppVersion(r.Context(), uid, v); err != nil {
 			slog.Warn("set app version", "err", err)

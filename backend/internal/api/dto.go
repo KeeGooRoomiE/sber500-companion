@@ -28,6 +28,8 @@ type PassiveDataRequest struct {
 
 type PingRequest struct {
 	AppVersion string `json:"app_version"`
+	// IANA name from the phone («Asia/Yekaterinburg»). Empty from builds that predate it.
+	Timezone string `json:"timezone"`
 }
 
 type AppUsageDTO struct {

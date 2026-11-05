@@ -23,6 +23,7 @@ import ru.keegoo.companion.data.api.model.HistoryResponse
 import ru.keegoo.companion.data.api.model.ReviewResponse
 import ru.keegoo.companion.domain.model.DailySnapshot
 import ru.keegoo.companion.domain.model.DayFeel
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +52,7 @@ class CompanionRepository @Inject constructor(
                 hourly_unlocks = snapshot.usage?.unlocksByHour?.takeIf { it.size == 24 },
                 hourly_screen  = snapshot.usage?.screenMinutesByHour?.takeIf { it.size == 24 },
                 hourly_steps   = snapshot.stepsByHour.takeIf { it.size == 24 },
+                timezone       = ZoneId.systemDefault().id,
             )
         )
         Log.d("CompanionRepo", "daily snapshot posted: ${snapshot.date}")

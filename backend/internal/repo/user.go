@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -114,6 +115,25 @@ func (r *UserRepo) SetAppVersion(ctx context.Context, userID, version string) er
 	_, err := r.db.Exec(ctx,
 		`UPDATE users SET app_version = $2 WHERE id = $1 AND app_version IS DISTINCT FROM $2`,
 		userID, version)
+	return err
+}
+
+// SetTimezone records where the phone thinks it is. Sent with every snapshot, because people
+// travel and because a build that never sent one may start after an update.
+//
+// The name is stored as given, but the offset is resolved here against the server's tzdata:
+// a name this server cannot load would otherwise be written next to a silent zero offset and
+// schedule that person's morning in Moscow time while claiming otherwise.
+func (r *UserRepo) SetTimezone(ctx context.Context, userID, name string) error {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return fmt.Errorf("unknown timezone %q: %w", name, err)
+	}
+	_, offset := time.Now().In(loc).Zone()
+	_, err = r.db.Exec(ctx, `
+		UPDATE users SET timezone = $2, tz_offset_min = $3, tz_seen_at = NOW()
+		WHERE id = $1 AND (timezone IS DISTINCT FROM $2 OR tz_offset_min IS DISTINCT FROM $3)`,
+		userID, name, offset/60)
 	return err
 }
 
