@@ -46,6 +46,16 @@ func BuildDayReview(in DayReviewInput) string {
 	if in.Partial {
 		b.WriteString("День ещё идёт — данные до текущего часа.\n\n")
 	}
+	// «Don't say "usually" on a short history» is not a rule the model can follow unless it
+	// is told how long the history is: with two days it still wrote «на 50 минут больше
+	// обычного» about a norm that cannot exist yet.
+	history := len(in.Usual) + 1
+	fmt.Fprintf(&b, "История по этому человеку: %d дн.", history)
+	if history < 5 {
+		b.WriteString(" — этого мало, нормы ещё нет, слово «обычно» не употребляй")
+	}
+	b.WriteString("\n\n")
+
 	if avgLine := usualLine(in.Usual); avgLine != "" {
 		b.WriteString("Обычно у человека: " + avgLine + "\n\n")
 	}
@@ -56,8 +66,16 @@ func BuildDayReview(in DayReviewInput) string {
 	if p := hourlyPicture(in.Day.HourlyUnlocks); p != "" {
 		b.WriteString("Разблокировки по времени суток: " + p + "\n")
 	}
+	// A signal titled «Насыщенный рабочий день» reads like a finished sentence, and the model
+	// attributed it to the person: «ты отметил насыщенный рабочий день» on a day with no mark
+	// at all. Both halves have to be said out loud — whose words those are, and whether a mark
+	// exists — because silence about the second one is what the model filled in.
+	b.WriteString("Заголовки в «Что было заметно» — наши вычисления, а не слова человека.\n")
 	if in.CheckIn != nil {
 		b.WriteString("Вечерняя отметка: " + checkInLine(in.CheckIn) + "\n")
+	} else {
+		b.WriteString("Вечерней отметки за этот день нет: человек не говорил, как день прошёл " +
+			"и как себя чувствовал. Не пиши «ты отметил» и не приписывай ему состояние.\n")
 	}
 	b.WriteString("\nОбъясни этот день.")
 	return b.String()
