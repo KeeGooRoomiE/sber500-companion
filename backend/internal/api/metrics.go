@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -205,6 +206,13 @@ type Metrics struct {
 	devIDs   []string
 	priceIn  float64 // ₽ per 1M prompt tokens
 	priceOut float64 // ₽ per 1M completion tokens
+	// Accounting starts here. A key rotation hands us a fresh budget, and the old key's
+	// spend is somebody else's arithmetic — but the rows stay in the database, because
+	// call_log is the anti-fraud record and nothing may be deleted from it.
+	budgetFrom time.Time
+	// The stage budget as the programme states it, which is not the same number the key
+	// itself is capped at; zero means «take whatever the key reports».
+	budgetMaxOverride float64
 	origin   string
 
 	mu       sync.Mutex
@@ -228,13 +236,26 @@ func NewMetrics(db *pgxpool.Pool, devIDs []string) *Metrics {
 	if devIDs == nil {
 		devIDs = []string{}
 	}
+	// LLM_BUDGET_FROM is a date or an RFC3339 moment; unset means «from the beginning».
+	var from time.Time
+	if v := strings.TrimSpace(os.Getenv("LLM_BUDGET_FROM")); v != "" {
+		var err error
+		if from, err = time.ParseInLocation(time.RFC3339, v, clock.Location()); err != nil {
+			if from, err = time.ParseInLocation("2006-01-02", v, clock.Location()); err != nil {
+				slog.Warn("LLM_BUDGET_FROM is not a date, counting from the beginning", "value", v, "err", err)
+				from = time.Time{}
+			}
+		}
+	}
 	return &Metrics{
-		db:         db,
-		devIDs:     devIDs,
-		priceIn:    envFloat("LLM_PRICE_IN_PER_1M", 73.03),
-		priceOut:   envFloat("LLM_PRICE_OUT_PER_1M", 176.39),
-		origin:     origin,
-		httpClient: &http.Client{Timeout: 5 * time.Second},
+		db:                db,
+		devIDs:            devIDs,
+		priceIn:           envFloat("LLM_PRICE_IN_PER_1M", 73.03),
+		priceOut:          envFloat("LLM_PRICE_OUT_PER_1M", 176.39),
+		budgetFrom:        from,
+		budgetMaxOverride: envFloat("LLM_BUDGET_MAX", 0),
+		origin:            origin,
+		httpClient:        &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -677,8 +698,8 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM reviews
 		    UNION ALL
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM explore_answers
-		) t WHERE NOT (user_id = ANY($1))
-	`, devs, dayStart).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
+		) t WHERE NOT (user_id = ANY($1)) AND created_at >= $3
+	`, devs, dayStart, m.budgetFrom).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
 		return nil, err
 	}
 	out.LLMCostRubTotal = round(m.cost(inTotal, outTotal), 2)
@@ -792,7 +813,19 @@ func (m *Metrics) budget(ctx context.Context) (spend, max float64) {
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return fail(err)
 	}
-	m.budgetSpend, m.budgetMax, m.budgetCachedAt, m.budgetStale = payload.Info.Spend, payload.Info.MaxBudget, time.Now(), false
+	// The key's own cap and the stage budget are different numbers — the programme gives
+	// 400k for the stage while a single key may be capped far lower. Show the one that was
+	// configured, and say in the log when the key would run dry first, because that is the
+	// limit that actually stops generation.
+	maxBudget := payload.Info.MaxBudget
+	if m.budgetMaxOverride > 0 {
+		if payload.Info.MaxBudget > 0 && payload.Info.MaxBudget < m.budgetMaxOverride {
+			slog.Warn("key cap is below the configured budget — the key runs out first",
+				"key_cap", payload.Info.MaxBudget, "configured", m.budgetMaxOverride)
+		}
+		maxBudget = m.budgetMaxOverride
+	}
+	m.budgetSpend, m.budgetMax, m.budgetCachedAt, m.budgetStale = payload.Info.Spend, maxBudget, time.Now(), false
 	return m.budgetSpend, m.budgetMax
 }
 
