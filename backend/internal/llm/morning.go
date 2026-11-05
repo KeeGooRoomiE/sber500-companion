@@ -3,7 +3,9 @@ package llm
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -18,8 +20,12 @@ import (
 )
 
 type Client struct {
-	ai    *openai.Client
-	model string
+	ai *openai.Client
+	// Primary first, then fallbacks. The proxy is shared by 50+ keys and drops TLS under
+	// load: on 04.11 a single bad hour at 03:00 MSK killed 28 of 30 scheduled generations,
+	// and nothing retried them. The organisers asked every team to keep a fallback for
+	// exactly this.
+	models []string
 }
 
 func NewClient() *Client {
@@ -50,10 +56,56 @@ func NewClient() *Client {
 	if model == "" {
 		model = "gigachat-3-pro"
 	}
-	return &Client{ai: openai.NewClientWithConfig(cfg), model: model}
+	models := []string{model}
+	for _, m := range strings.Split(os.Getenv("LLM_FALLBACK_MODELS"), ",") {
+		if m = strings.TrimSpace(m); m != "" && m != model {
+			models = append(models, m)
+		}
+	}
+	return &Client{ai: openai.NewClientWithConfig(cfg), models: models}
+}
+
+// worthFallback says whether another model has any chance of doing better.
+//
+// A timeout, a dropped connection, a 429 or a 5xx is about the route, so the next model —
+// a different upstream behind the same proxy — may well answer. A 400 or a 401 is about the
+// request or the key: every model will refuse it identically, and walking the chain would
+// only multiply one bad call into several and burn budget doing it.
+func worthFallback(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var apiErr *openai.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.HTTPStatusCode == http.StatusTooManyRequests || apiErr.HTTPStatusCode >= 500
+	}
+	return true // transport-level: handshake, reset, EOF
+}
+
+// complete walks the model chain, returning the response and the model that produced it.
+func (c *Client) complete(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, string, error) {
+	var lastErr error
+	for i, m := range c.models {
+		req.Model = m
+		resp, err := c.ai.CreateChatCompletion(ctx, req)
+		if err == nil {
+			if i > 0 {
+				slog.Warn("llm: answered by fallback model", "model", m, "primary", c.models[0], "err", lastErr)
+			}
+			return resp, m, nil
+		}
+		lastErr = err
+		if !worthFallback(err) || i == len(c.models)-1 {
+			break
+		}
+		slog.Warn("llm: model failed, trying next", "model", m, "err", err)
+	}
+	return openai.ChatCompletionResponse{}, c.models[0], lastErr
 }
 
 type GenerateResult struct {
+	// Which model actually answered — not necessarily the configured primary.
+	Model            string
 	Message          string
 	PromptTokens     int
 	CompletionTokens int
@@ -67,7 +119,8 @@ type GenerateResult struct {
 var DefaultMorningSystem string
 
 // Model is the configured model name (stored with each message for cost accounting).
-func (c *Client) Model() string { return c.model }
+// Model is the primary; what actually answered is in GenerateResult.Model.
+func (c *Client) Model() string { return c.models[0] }
 
 // MorningInput is everything the morning prompt is built from.
 type MorningInput struct {
@@ -95,8 +148,7 @@ func (c *Client) GenerateMorning(ctx context.Context, system string, in MorningI
 	prompt := buildPrompt(in)
 
 	start := time.Now()
-	resp, err := c.ai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: c.model,
+	resp, used, err := c.complete(ctx, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: system},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
@@ -110,6 +162,7 @@ func (c *Client) GenerateMorning(ctx context.Context, system string, in MorningI
 	}
 
 	return &GenerateResult{
+		Model:            used,
 		Message:          capMessage(strings.TrimSpace(resp.Choices[0].Message.Content), 220),
 		PromptTokens:     resp.Usage.PromptTokens,
 		CompletionTokens: resp.Usage.CompletionTokens,

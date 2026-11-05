@@ -202,7 +202,7 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		PromptTokens:     result.PromptTokens,
 		CompletionTokens: result.CompletionTokens,
 		LatencyMs:        result.LatencyMs,
-		Model:            g.llm.Model(),
+		Model:            result.Model,
 		PromptVersion:    promptVersion,
 	}
 	if err := g.morning.Insert(ctx, msg); err != nil {

@@ -130,7 +130,7 @@ func (g *Generator) ExploreAnswer(ctx context.Context, userID, questionID string
 	a := &repo.ExploreAnswer{
 		UserID: userID, Date: today, QuestionID: q.ID, Question: q.Text, Text: res.Message, Facts: q.Facts,
 		PromptTokens: res.PromptTokens, CompletionTokens: res.CompletionTokens, LatencyMs: res.LatencyMs,
-		Model: g.llm.Model(), PromptVersion: version,
+		Model: res.Model, PromptVersion: version,
 	}
 	if err := g.explore.Save(ctx, a); err != nil {
 		return nil, nil, err

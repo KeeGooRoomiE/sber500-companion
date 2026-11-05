@@ -169,7 +169,7 @@ func (g *Generator) complete(ctx context.Context, userID, promptName string, com
 	rv := &repo.Review{
 		UserID: userID, Kind: kind, Date: date, Text: res.Message,
 		PromptTokens: res.PromptTokens, CompletionTokens: res.CompletionTokens, LatencyMs: res.LatencyMs,
-		Model: g.llm.Model(), PromptVersion: version, CreatedAt: time.Now(),
+		Model: res.Model, PromptVersion: version, CreatedAt: time.Now(),
 	}
 	if err := g.reviews.Save(ctx, rv); err != nil {
 		return nil, err

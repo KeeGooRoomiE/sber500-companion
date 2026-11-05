@@ -117,8 +117,7 @@ func BuildWeekly(in WeeklyInput) string {
 // Complete runs a single system+user completion (shared by reviews).
 func (c *Client) Complete(ctx context.Context, system, user string, maxTokens, maxChars int) (*GenerateResult, error) {
 	start := time.Now()
-	resp, err := c.ai.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: c.model,
+	resp, used, err := c.complete(ctx, openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: system},
 			{Role: openai.ChatMessageRoleUser, Content: user},
@@ -134,6 +133,7 @@ func (c *Client) Complete(ctx context.Context, system, user string, maxTokens, m
 		return nil, fmt.Errorf("empty completion")
 	}
 	return &GenerateResult{
+		Model:            used,
 		Message:          capMessage(strings.TrimSpace(resp.Choices[0].Message.Content), maxChars),
 		PromptTokens:     resp.Usage.PromptTokens,
 		CompletionTokens: resp.Usage.CompletionTokens,
