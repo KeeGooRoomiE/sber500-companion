@@ -32,7 +32,7 @@ android {
 
     defaultConfig {
         applicationId = "ru.keegoo.companion"
-        minSdk = 29
+        minSdk = System.getenv("MIN_SDK")?.toIntOrNull() ?: 29
         targetSdk = 35
         versionCode = 25
         versionName = "1.0.2"
