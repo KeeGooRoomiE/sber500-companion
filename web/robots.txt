@@ -4,5 +4,7 @@ Allow: /
 Disallow: /variant-artifacts/
 # Прототип онбординга: по ссылке да, в поиск нет
 Disallow: /onboarding-reveal/
+# Кандидаты иконки: по ссылке да, в поиск нет
+Disallow: /icon-candidates/
 
 Sitemap: https://companion-app.ru/sitemap.xml

@@ -1,0 +1,77 @@
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Companion — иконка, три варианта</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+ :root{--bg:#f3f1f8;--fg:#17141f;--muted:#6b6680;--card:#fff;--line:#e6e2f0}
+ @media (prefers-color-scheme:dark){:root{--bg:#111019;--fg:#f2f0f7;--muted:#9a95ad;--card:#1a1824;--line:#2a2736}}
+ *{box-sizing:border-box}
+ body{background:var(--bg);color:var(--fg);font-family:-apple-system,system-ui,sans-serif;margin:0;line-height:1.6}
+ .wrap{max-width:900px;margin:0 auto;padding:36px 20px 64px}
+ h1{font-size:24px;margin:0 0 6px;letter-spacing:-.01em}
+ h2{font-size:15px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:38px 0 14px}
+ p{color:var(--muted);font-size:14px;max-width:68ch;margin:0 0 6px}
+ .grid{display:flex;flex-wrap:wrap;gap:18px}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;min-width:0;flex:1 1 220px}
+ .card b{display:block;font-size:14px;margin-bottom:10px}
+ .card small{display:block;color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+ img{display:block;margin:0 auto;border-radius:22%;max-width:100%}
+ .s48{width:48px;height:48px}.s96{width:96px;height:96px}.s192{width:192px;height:192px}
+ .sizes{display:flex;align-items:flex-end;justify-content:center;gap:16px}
+ .row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+      padding:10px 12px;border-radius:12px;flex:1 1 260px;min-width:0}
+ .row img{width:56px;height:56px;margin:0;flex:none}
+ .row b{font-size:14px;display:block;margin:0}
+ .row span{font-size:12px;color:var(--muted)}
+ .verdict{background:var(--card);border:1px solid var(--line);border-left:3px solid #6B5CE7;
+          border-radius:10px;padding:14px 16px;margin-top:10px}
+ .verdict p{color:var(--fg)}
+</style></head><body><div class="wrap">
+
+<h1>Иконка — три варианта</h1>
+<p>Решение принимается в 48 px и в выдаче магазина, а не в крупном размере: именно там иконка
+либо читается, либо превращается в пятно.</p>
+
+<h2>Как выглядят</h2>
+<div class="grid">
+  <div class="card"><b>A · текущая</b>
+    <div class="sizes"><img class="s48" src="a-current.webp"><img class="s96" src="a-current.webp"><img class="s192" src="a-current.webp"></div>
+    <small>Белый круг на плоском фиолетовом. Это дефолт категории: круг в скруглённом квадрате.</small></div>
+  <div class="card"><b>B · жемчужина</b>
+    <div class="sizes"><img class="s48" src="b-pearl.webp"><img class="s96" src="b-pearl.webp"><img class="s192" src="b-pearl.webp"></div>
+    <small>Тот же силуэт с объёмом и градиентом. Аккуратное улучшение текущей, а не новая идентичность.</small></div>
+  <div class="card"><b>C · орб со свечением</b>
+    <div class="sizes"><img class="s48" src="c-glow.webp"><img class="s96" src="c-glow.webp"><img class="s192" src="c-glow.webp"></div>
+    <small>Отличается сильнее всех — и ровно этим повторяет Mind Tracker, 100 тыс.+ установок в России.</small></div>
+</div>
+
+<h2>Что доживает до 48 px</h2>
+<p>Каждая иконка уменьшена до 48 px и увеличена обратно. Видно ровно то, что останется от неё
+в списке приложений и в выдаче.</p>
+<div class="grid">
+  <div class="card"><b>A</b><img class="s192" src="a-current-blown.webp"><small>Контур держится: силуэт простой.</small></div>
+  <div class="card"><b>B</b><img class="s192" src="b-pearl-blown.webp"><small>Край и объём сохраняются.</small></div>
+  <div class="card"><b>C</b><img class="s192" src="c-glow-blown.webp"><small>Край исчезает, остаётся размытое пятно света.</small></div>
+</div>
+
+<h2>В выдаче магазина</h2>
+<div class="grid">
+  <div class="row"><img src="a-current.webp"><div><b>Companion</b><span>Прогноз дня по твоим данным</span></div></div>
+  <div class="row"><img src="b-pearl.webp"><div><b>Companion</b><span>Прогноз дня по твоим данным</span></div></div>
+  <div class="row"><img src="c-glow.webp"><div><b>Companion</b><span>Прогноз дня по твоим данным</span></div></div>
+</div>
+
+<h2>Что из этого следует</h2>
+<div class="verdict">
+<p><b>C отпадает по двум причинам сразу.</b> Он размывается в 48 px — это видно на тесте выше.
+И тёмный фиолетовый фон со светящимся шаром уже занят Mind Tracker, популярным в России
+приложением с сотней тысяч установок: мы отличались бы от собственной текущей иконки, но
+сливались бы с конкурентом. Это худший вид непохожести.</p>
+<p style="margin-top:10px"><b>B против A — выбор между узнаваемостью и заметностью.</b> B читается
+так же хорошо и выглядит сделанным, а не дефолтным, но силуэт тот же, поэтому людей, уже
+видевших рекламу, он не собьёт. A честно работает, но это иконка по умолчанию для категории.</p>
+<p style="margin-top:10px">Проверять стоит на людях: показать все три в 48 px и спросить
+«что делает это приложение» и «на какую нажмёшь». Оценки моделей — не замер кликабельности.</p>
+</div>
+
+</div></body></html>
