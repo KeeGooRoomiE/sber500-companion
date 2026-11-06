@@ -1,6 +1,6 @@
 #!/bin/bash
 # Страж бюджета ключа. Работает независимо от Claude.
-#   bash tools/budget-guard/run.sh start    запустить в фоне (CUTOFF=50000 WARN=45000 HOURS=12 переопределяются)
+#   bash tools/budget-guard/run.sh start    запустить в фоне (пороги = 90%/75% от потолка ключа; CUTOFF, WARN, HOURS переопределяются)
 #   bash tools/budget-guard/run.sh status   последние строки лога
 #   bash tools/budget-guard/run.sh stop
 set -euo pipefail
