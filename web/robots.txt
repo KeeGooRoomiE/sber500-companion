@@ -2,5 +2,7 @@ User-agent: *
 Allow: /
 # Рабочие материалы кампании: доступны по ссылке, но не для поиска
 Disallow: /variant-artifacts/
+# Прототип онбординга: по ссылке да, в поиск нет
+Disallow: /onboarding-reveal/
 
 Sitemap: https://companion-app.ru/sitemap.xml
