@@ -55,7 +55,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/badge/download", metricsH.Badge)
 
 		// Public raw call_log as CSV (no auth, CORS) — transparency/anti-fraud: rebuilt every
-		// 5 min, dev/mock/admin excluded so it matches the aggregate /metrics.
+		// 20 min, dev/mock/admin excluded so it matches the aggregate /metrics.
 		exportH := NewExport(d.DB, d.DevUserIDs)
 		r.Method(http.MethodGet, "/export/call_log.csv", exportH)
 		r.Method(http.MethodOptions, "/export/call_log.csv", exportH)
