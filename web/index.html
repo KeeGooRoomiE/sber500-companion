@@ -274,12 +274,28 @@
       z-index: 1;
     }
 
+    .phone-wrap {
+      gap: 14px;
+      align-items: flex-start;
+      padding: 0 16px;
+    }
+
     .phone {
-      width: 260px;
-      max-width: 72vw;
+      width: 190px;
+      max-width: 29vw;
       height: auto;
+      aspect-ratio: 562 / 1000;
+      object-fit: cover;
+      border: 5px solid #1c1b22;
+      border-radius: 26px;
+      background: #1c1b22;
       filter: drop-shadow(var(--shadow-lg));
-      transform: rotateX(4deg);
+    }
+    .phone:nth-child(2) { width: 215px; max-width: 33vw; margin-top: -12px; }
+
+    @media (max-width: 520px) {
+      .phone { border-width: 3px; border-radius: 14px; }
+      .phone-wrap { gap: 8px; }
     }
 
     /* ── SECTION SHARED ── */
@@ -674,9 +690,12 @@
 
 <!-- PHONE MOCKUP -->
 <div class="phone-wrap reveal" style="--reveal-delay: 0.1s">
-  <!-- Home screen on mock data: web/screens/build.py → render.cjs -->
-  <img class="phone" src="screens/home-phone.png" width="436" height="938"
-       alt="Главный экран Companion: утренний прогноз, экран, сон и разблокировки, день по часам и вечерний чек-ин" />
+  <img class="phone" src="screens/shot-forecast.jpg" width="562" height="1000" loading="lazy"
+       alt="Главный экран Companion: прогноз на сегодня, экран, время без телефона и разблокировки" />
+  <img class="phone" src="screens/shot-history.jpg" width="562" height="1000" loading="lazy"
+       alt="День по часам, вечерний чек-ин «Как прошёл день?» и прошлые прогнозы с отметками" />
+  <img class="phone" src="screens/shot-profile.jpg" width="562" height="1000" loading="lazy"
+       alt="Экран «Расскажи о себе»: профиль и короткие вопросы, имя остаётся на телефоне" />
 </div>
 
 <!-- FEATURES -->
