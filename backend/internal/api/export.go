@@ -78,7 +78,7 @@ func (e *Export) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // build renders the whole call_log (minus dev/mock/admin) to CSV bytes.
 func (e *Export) build(ctx context.Context) ([]byte, error) {
 	rows, err := e.db.Query(ctx, `
-		SELECT ts, user_id, session_id, call_type, component, trigger,
+		SELECT ts, user_id, COALESCE(session_id, ''), call_type, component, trigger,
 		       user_visible, result, latency_ms
 		FROM call_log
 		WHERE user_id <> 'admin'
