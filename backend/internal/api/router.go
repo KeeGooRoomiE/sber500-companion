@@ -51,6 +51,8 @@ func Mount(r chi.Router, d Deps) {
 
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)
+		// shields.io endpoint badge for the README («Скачать vX · N пользователей»).
+		r.Get("/badge/download", metricsH.Badge)
 
 		// Public raw call_log as CSV (no auth, CORS) — transparency/anti-fraud: rebuilt every
 		// 5 min, dev/mock/admin excluded so it matches the aggregate /metrics.

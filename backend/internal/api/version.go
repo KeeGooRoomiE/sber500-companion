@@ -115,16 +115,21 @@ func (l *latestRelease) get(ctx context.Context) string {
 // The newest of: APP_LATEST_VERSION, the file CI writes, the latest GitHub release, the fallback —
 // so a stale value in one place (e.g. a forgotten .env line) can't hide a published update.
 func Version(w http.ResponseWriter, r *http.Request) {
-	latest := FallbackAppVersion
-	for _, v := range []string{strings.TrimSpace(os.Getenv("APP_LATEST_VERSION")), fromFile(), releases.get(r.Context())} {
-		if newerVersion(v, latest) {
-			latest = v
-		}
-	}
 	url := strings.TrimSpace(os.Getenv("APP_DOWNLOAD_URL"))
 	if url == "" {
 		url = DefaultDownloadURL
 	}
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	writeJSON(w, http.StatusOK, VersionResponse{Latest: latest, DownloadURL: url})
+	writeJSON(w, http.StatusOK, VersionResponse{Latest: latestVersion(r.Context()), DownloadURL: url})
+}
+
+// latestVersion is the newest of the known sources (see Version).
+func latestVersion(ctx context.Context) string {
+	latest := FallbackAppVersion
+	for _, v := range []string{strings.TrimSpace(os.Getenv("APP_LATEST_VERSION")), fromFile(), releases.get(ctx)} {
+		if newerVersion(v, latest) {
+			latest = v
+		}
+	}
+	return latest
 }

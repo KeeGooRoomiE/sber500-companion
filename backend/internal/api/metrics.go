@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -124,7 +125,7 @@ type MetricsResponse struct {
 	RetentionD7Pct *float64   `json:"retention_d7_pct"`
 	// D1/D3/D5/D7, each counted strictly and over a three-day window — see RetentionPoint.
 	RetentionCurve []RetentionPoint `json:"retention_curve"`
-	Cohorts        []Cohort   `json:"retention_cohorts"`
+	Cohorts        []Cohort         `json:"retention_cohorts"`
 	// Stickiness — how «daily» the product is. MAU = distinct users active in the last 30 days;
 	// stickiness = dau_7d_avg / MAU. Young product, so MAU ≈ all active users for now.
 	MAU           int      `json:"mau"`
@@ -213,7 +214,7 @@ type Metrics struct {
 	// The stage budget as the programme states it, which is not the same number the key
 	// itself is capped at; zero means «take whatever the key reports».
 	budgetMaxOverride float64
-	origin   string
+	origin            string
 
 	mu       sync.Mutex
 	cached   *MetricsResponse
@@ -260,12 +261,53 @@ func NewMetrics(db *pgxpool.Pool, devIDs []string) *Metrics {
 }
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resp, ok := m.snapshot(w, r)
+	if ok {
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// Badge serves a shields.io "endpoint" JSON for the README: «Скачать v1.0.2 · 780 пользователей».
+// Same cached numbers as /metrics (dev/mock users already excluded), nothing per-user.
+func (m *Metrics) Badge(w http.ResponseWriter, r *http.Request) {
+	resp, ok := m.snapshot(w, r)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"schemaVersion": 1,
+		"label":         "Скачать v" + latestVersion(r.Context()),
+		"message":       fmt.Sprintf("%d %s", resp.UsersTotal, usersWord(resp.UsersTotal)),
+		"color":         "3DDC84",
+		"namedLogo":     "android",
+		"logoColor":     "white",
+		"cacheSeconds":  300,
+	})
+}
+
+// usersWord declines «пользователь» for a count (1 пользователь, 2 пользователя, 5 пользователей).
+func usersWord(n int) string {
+	if n%100 >= 11 && n%100 <= 14 {
+		return "пользователей"
+	}
+	switch n % 10 {
+	case 1:
+		return "пользователь"
+	case 2, 3, 4:
+		return "пользователя"
+	}
+	return "пользователей"
+}
+
+// snapshot returns the (1-minute cached) metrics, writing CORS/errors itself; ok=false means
+// the response is already written (preflight or failure).
+func (m *Metrics) snapshot(w http.ResponseWriter, r *http.Request) (*MetricsResponse, bool) {
 	w.Header().Set("Access-Control-Allow-Origin", m.origin)
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
-		return
+		return nil, false
 	}
 	w.Header().Set("Cache-Control", "no-store")
 
@@ -278,11 +320,11 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("metrics compute", "err", err)
 			writeError(w, http.StatusInternalServerError, "metrics unavailable")
-			return
+			return nil, false
 		}
 		m.cached, m.cachedAt = resp, time.Now()
 	}
-	writeJSON(w, http.StatusOK, m.cached)
+	return m.cached, true
 }
 
 func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
