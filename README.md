@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/repo/cover.jpg" alt="Companion — работает, пока ты спишь: автоматически отслеживает сон, шаги и экранное время, утром даёт персональный прогноз на день" width="100%">
+
 # Companion
 
 **Пассивный трекинг + утренний прогноз на основе твоих данных.**  
@@ -9,7 +11,7 @@
 [![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest)
 [![Backend](https://img.shields.io/badge/бэкенд-Go%20%2B%20PostgreSQL-00ADD8?logo=go&logoColor=white)](https://api.94-183-236-169.sslip.io/api/v1/version)
 
-[🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📲 RuStore](https://www.rustore.ru/catalog/app/ru.keegoo.companion) · [📱 APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
+[🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📲 RuStore](https://www.rustore.ru/catalog/app/ru.keegoo.companion) · [📱 APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk) · [💬 Новости в Telegram](https://t.me/keegooroomie)
 
 </div>
 
