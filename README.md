@@ -7,8 +7,7 @@
 **Пассивный трекинг + утренний прогноз на основе твоих данных.**  
 Работает, пока ты спишь. Три действия в сутки — и то не обязательных.
 
-[![Download](https://img.shields.io/github/v/release/KeeGooRoomiE/sber500-companion?label=скачать&color=4CAF50)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
-[![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest)
+[![Скачать](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.94-183-236-169.sslip.io%2Fapi%2Fv1%2Fbadge%2Fdownload)](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk)
 [![Backend](https://img.shields.io/badge/бэкенд-Go%20%2B%20PostgreSQL-00ADD8?logo=go&logoColor=white)](https://api.94-183-236-169.sslip.io/api/v1/version)
 
 [🌐 Лендинг](https://companion-app.ru/) · [📊 Live-метрики](https://companion-app.ru/metrics.html) · [📲 RuStore](https://www.rustore.ru/catalog/app/ru.keegoo.companion) · [📱 APK](https://github.com/KeeGooRoomiE/sber500-companion/releases/latest/download/companion-latest.apk) · [💬 Новости в Telegram](https://t.me/keegooroomie)
