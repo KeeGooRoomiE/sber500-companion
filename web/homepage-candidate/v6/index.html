@@ -237,7 +237,7 @@
 
   function sheet(kind) {
     if (kind === 'why') {
-      return ['Почему такой прогноз', '<div class="why">' + D.why + '</div><div class="sum">' + D.sum.map(r => '<span class="k">' + r[0] + '</span><b>' + r[1] + '</b><span class="u">' + r[2] + '</span>').join('') + '</div>', false];
+      return ['Почему такой прогноз', '<div class="why">' + D.why + '</div><div class="sum">' + D.sum.map(r => '<span class="k">' + r[0] + '</span><b>' + r[1] + '</b><span class="u">' + r[2] + '</span>').join('') + '</div><span class="chipb" style="align-self:flex-start">Хочу ещё ✦</span>', false];
     }
     if (kind === 'day') {
       const y = breakdown === 'вчера', data = y ? D.yest : D.today, mx = MAX(), nowH = 13;
