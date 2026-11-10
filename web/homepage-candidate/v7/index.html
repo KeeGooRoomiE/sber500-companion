@@ -107,6 +107,9 @@
   .btnw { font: inherit; width: 100%; font-size: 14.5px; font-weight: 600; background: var(--primary); color: #fff; border: 0; border-radius: 26px; padding: 13px; cursor: pointer; }
   :root[data-theme="dark"] .btnw { color: #1a1525; }
 
+  .acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 2px; }
+  .pillb { font-size: 13.5px; font-weight: 600; color: var(--primary); background: var(--surface); border: 1px solid var(--outline); border-radius: 20px; padding: 8px 14px; cursor: pointer; user-select: none; }
+
   /* Шторки */
   .scrim { position: absolute; inset: 0; background: rgba(20,16,40,.4); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 6; }
   .scrim.on { opacity: 1; pointer-events: auto; }
@@ -162,7 +165,7 @@
       <div class="cap"><b>C · Лёгкий</b>Прогноз и компактная лента часов в одной карточке.</div></div>
   </div>
 
-  <p class="legend"><b>Что изменилось относительно v3.</b> «Почему такой прогноз» и «Разбор дня» теперь шторки снизу (как в v5), а не раскрытие внутри панели — фиолетовая панель не растёт. В каждой шторке крестик справа вверху вместо «Понятно». Внизу панель с последними прогнозами и кнопка «Разбор недели»; «Прошлые прогнозы» и «Итоги недели» открываются полноэкранными шторками. Оценка «Совпало / Не совсем» живёт в шторке «Прошлые прогнозы» (первая строка — сегодняшний прогноз).<br><br>
+  <p class="legend"><b>Что изменилось относительно v3.</b> «Почему такой прогноз» и «Разбор дня» теперь шторки снизу (как в v5), а не раскрытие внутри панели — фиолетовая панель не растёт. В каждой шторке крестик справа вверху вместо «Понятно». Внизу две маленькие кнопки: «Прошлые прогнозы» и «Разбор недели»; раньше был блок с последними прогнозами и кнопка «Разбор недели»; «Прошлые прогнозы» и «Итоги недели» открываются полноэкранными шторками. Оценка «Совпало / Не совсем» живёт в шторке «Прошлые прогнозы» (первая строка — сегодняшний прогноз).<br><br>
   <b>Убрано.</b> Режим «данные: пример» и «история: первые дни» — остались реальные данные с накопленной историей. Это значит, что макет не показывает состояние первых дней (пустая история, фраза без закономерности); оно остаётся в v3.<br><br>
   <b>Что условно.</b> Содержимое «Разбора дня» и «Итогов недели» — моя заготовка (первый и последний разблок и топ-приложения в данных есть, но как их показывать — не решено). Все цифры — пример.</p>
 
@@ -209,9 +212,7 @@
   const links = p => '<div class="links"><span class="go" ' + op(p, 'day') + '>Разбор дня →</span></div>';
 
   function bottom(p) {
-    const rows = HIST.slice(0, 2).map((r, i) => '<div class="hrow' + (i ? '' : ' first') + '"><div class="d"><span>' + r[0] + '</span><span class="mk' + r[3] + '">' + r[2] + '</span></div><div class="t">' + r[1] + '</div></div>').join('');
-    return '<div class="card"><div class="sh"><h4>Прошлые прогнозы</h4><span class="lnk" ' + op(p, 'past') + '>Все →</span></div>' + rows +
-      '<div class="hrow" style="text-align:center;padding-bottom:0"><span class="lnk" ' + op(p, 'week') + '>Разбор недели →</span></div></div>';
+    return '<div class="acts"><span class="pillb" ' + op(p, 'past') + '>Прошлые прогнозы</span><span class="pillb" ' + op(p, 'week') + '>Разбор недели</span></div>';
   }
 
   function renderA() {
