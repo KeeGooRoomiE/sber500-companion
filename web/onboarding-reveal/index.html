@@ -3,340 +3,436 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Онбординг — проявляющаяся фраза</title>
+<title>Онбординг — проявляющийся прогноз</title>
 <meta name="robots" content="noindex, nofollow">
 <style>
+  /* Цвета и тексты — из приложения (Theme.kt, OnboardingScreen.kt). */
   :root {
-    --bg: #eef0f4;
-    --card: #ffffff;
-    --ink: #15171c;
-    --muted: #6b7280;
-    --faint: #9aa1ad;
-    --line: #e4e7ec;
-    --accent: #3b6ef5;
-    --accent-soft: #e8efff;
-    --ok: #1f9d6b;
-    --ok-soft: #e3f6ee;
-    --lock: #c3c8d2;
-    --radius: 18px;
-    --shadow: 0 10px 30px rgba(20,23,28,.10);
-    font-synthesis: none;
-  }
-  :root:not([data-theme="light"]) {
-    @media (prefers-color-scheme: dark) {
-      --bg: #0e1013;
-      --card: #171a20;
-      --ink: #eef1f6;
-      --muted: #99a2b1;
-      --faint: #6b7483;
-      --line: #262b33;
-      --accent: #6b93ff;
-      --accent-soft: #1b2542;
-      --ok: #44c58c;
-      --ok-soft: #14301f;
-      --lock: #3a414d;
-      --shadow: 0 10px 34px rgba(0,0,0,.5);
-    }
+    --page: #e9e7f5;
+    --bg: #f7f6ff;
+    --surface: #ffffff;
+    --ink: #1a1525;
+    --muted: #6e6a85;
+    --outline: #ddd9f8;
+    --primary: #6b5ce7;
+    --primary-2: #8b7cf8;
+    --primary-faint: #ede9ff;
+    --on-primary: #ffffff;
+    --lock: #cfc9f3;
+    --ok: #2e8b57;
+    --shadow: 0 14px 40px rgba(26,21,37,.14);
   }
   :root[data-theme="dark"] {
-    --bg: #0e1013;
-    --card: #171a20;
-    --ink: #eef1f6;
-    --muted: #99a2b1;
-    --faint: #6b7483;
-    --line: #262b33;
-    --accent: #6b93ff;
-    --accent-soft: #1b2542;
-    --ok: #44c58c;
-    --ok-soft: #14301f;
-    --lock: #3a414d;
-    --shadow: 0 10px 34px rgba(0,0,0,.5);
+    --page: #0b0a10;
+    --bg: #121019;
+    --surface: #1c1926;
+    --ink: #f1eefc;
+    --muted: #a39fbd;
+    --outline: #34304a;
+    --primary: #9b8aff;
+    --primary-2: #8b7cf8;
+    --primary-faint: #26213f;
+    --on-primary: #1a1525;
+    --lock: #3a3456;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc;
+      --muted: #a39fbd; --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8;
+      --primary-faint: #26213f; --on-primary: #1a1525; --lock: #3a3456;
+      --shadow: 0 14px 40px rgba(0,0,0,.55);
+    }
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
-    background: var(--bg);
-    color: var(--ink);
+    background: var(--page); color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px 48px;
-    gap: 18px;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px 40px; gap: 14px;
   }
-
-  .toolbar {
-    display: flex; gap: 8px; align-items: center;
-    font-size: 13px; color: var(--muted);
-  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); }
   .toolbar button {
-    font: inherit; color: var(--muted);
-    background: var(--card); border: 1px solid var(--line);
+    font: inherit; color: var(--muted); background: var(--surface); border: 1px solid var(--outline);
     border-radius: 999px; padding: 6px 12px; cursor: pointer;
   }
   .toolbar button:hover { color: var(--ink); }
 
   .phone {
-    width: 100%; max-width: 380px;
-    background: var(--card);
-    border-radius: 30px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--line);
-    overflow: hidden;
-    display: flex; flex-direction: column;
-  }
-  .screen { padding: 26px 22px 22px; display: flex; flex-direction: column; gap: 20px; }
-
-  .progress-row { display: flex; align-items: center; justify-content: space-between; }
-  .step-label { font-size: 12.5px; color: var(--faint); letter-spacing: .02em; }
-  .dots { display: flex; gap: 6px; }
-  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: block; }
-  .dots i.on { background: var(--accent); }
-
-  h1 { font-size: 21px; line-height: 1.25; margin: 0; letter-spacing: -.01em; }
-  .sub { margin: -8px 0 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
-
-  /* Проявляющаяся фраза */
-  .reveal-card {
-    background: linear-gradient(180deg, var(--accent-soft), transparent 140%);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px 16px 16px;
-  }
-  .reveal-kicker { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 10px; }
-  .phrase { font-size: 17.5px; line-height: 1.65; }
-  .frag {
-    display: inline-block;
-    border-radius: 7px;
-    padding: 1px 8px;
-    margin: 0 1px;
-    transition: all .5s cubic-bezier(.22,.61,.36,1);
-    font-weight: 600;
-  }
-  .frag.locked {
-    color: transparent;
-    background: var(--lock);
-    filter: blur(.3px);
-    user-select: none;
-    position: relative;
-  }
-  .frag.locked::after {
-    content: "●●";
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    color: color-mix(in srgb, var(--faint) 70%, transparent);
-    font-size: 11px; letter-spacing: 2px;
-  }
-  .frag.revealed { color: var(--ink); background: color-mix(in srgb, var(--ok-soft) 80%, transparent); }
-  .frag.reading { color: var(--muted); background: var(--accent-soft); font-weight: 500; }
-  .frag .tag {
-    font-size: 9.5px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .05em; color: var(--accent);
-    vertical-align: 12%; margin-left: 4px; opacity: .85;
+    width: 100%; max-width: 390px; height: 800px; max-height: calc(100vh - 110px); min-height: 620px;
+    background: var(--bg); border-radius: 34px; border: 1px solid var(--outline);
+    box-shadow: var(--shadow); overflow: hidden; position: relative;
+    display: flex; flex-direction: column; align-items: center; padding: 28px 24px 22px;
   }
 
-  /* Шкала точности */
-  .accuracy { display: flex; flex-direction: column; gap: 8px; }
-  .accuracy .top { display: flex; justify-content: space-between; align-items: baseline; }
-  .accuracy .cap { font-size: 13.5px; color: var(--muted); }
-  .accuracy .pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
-  .bar > span { display: block; height: 100%; width: 25%; border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--ok) 70%, var(--accent)));
-    transition: width .7s cubic-bezier(.22,.61,.36,1); }
-
-  /* Разрешения */
-  .perms { display: flex; flex-direction: column; gap: 10px; }
-  .perm {
-    border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 14px; display: flex; gap: 12px; align-items: flex-start;
-    background: var(--card); transition: border-color .3s, background .3s;
+  /* Орб — упрощённо; режимы как в приложении: Calm, Data, Ping, Thinking */
+  .orb-wrap { width: 190px; height: 170px; display: flex; align-items: center; justify-content: center; position: relative; flex: none; }
+  .orb {
+    width: 120px; height: 120px; position: relative;
+    background: radial-gradient(circle at 35% 30%, #c7bdff 0%, var(--primary) 55%, #4a3dc4 100%);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--primary) 45%, transparent);
+    animation: morph 7s ease-in-out infinite, breathe 4.5s ease-in-out infinite;
+    transition: transform .4s;
   }
-  .perm.done { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok-soft) 35%, var(--card)); }
-  .perm .ic {
-    width: 34px; height: 34px; border-radius: 10px; flex: none;
-    background: var(--accent-soft); color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
+  .orb.data { animation-duration: 4.5s, 3.2s; }
+  .orb.thinking { animation-duration: 2.4s, 1.6s; }
+  .orb.ping::after, .orb.ping::before {
+    content: ""; position: absolute; inset: -6px; border-radius: inherit;
+    border: 2px solid var(--primary); opacity: 0; animation: ring 2.2s ease-out infinite;
   }
-  .perm.done .ic { background: var(--ok-soft); color: var(--ok); }
-  .perm .body { flex: 1; min-width: 0; }
-  .perm .title { font-size: 15px; font-weight: 600; }
-  .perm .benefit { font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
-  .perm .nope { font-size: 12px; color: var(--faint); margin-top: 6px; line-height: 1.4; }
-  .perm .nope b { color: var(--muted); font-weight: 600; }
-  .perm .act { margin-top: 11px; }
-  .btn {
-    font: inherit; font-size: 13.5px; font-weight: 600;
-    border-radius: 10px; padding: 8px 14px; cursor: pointer;
-    border: 1px solid var(--accent); color: #fff; background: var(--accent);
-    transition: transform .08s;
+  .orb.ping::before { animation-delay: 1.1s; }
+  .orb.poke { transform: scale(.93); }
+  @keyframes morph {
+    0%,100% { border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%; }
+    33% { border-radius: 45% 55% 42% 58% / 56% 44% 56% 44%; }
+    66% { border-radius: 52% 48% 60% 40% / 42% 58% 42% 58%; }
   }
-  .btn:active { transform: scale(.97); }
-  .btn.ghost { background: transparent; color: var(--accent); }
-  .perm.done .btn { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: transparent; color: var(--ok); cursor: default; }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.05; } }
+  @keyframes ring { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.7); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb::before, .orb::after { animation: none !important; } }
 
-  .footer { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
-  .cta { font: inherit; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 14px;
-    border: none; cursor: pointer; background: var(--ink); color: var(--card); }
-  .later { font: inherit; font-size: 13.5px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px; }
+  .dots { display: flex; gap: 8px; margin-top: 8px; height: 8px; transition: opacity .3s; }
+  .dots i { display: block; height: 8px; width: 8px; border-radius: 50px; background: var(--outline); transition: width .35s cubic-bezier(.3,1.6,.5,1), background .2s; }
+  .dots i.on { width: 20px; background: var(--primary); }
+  .dots.hide { opacity: 0; }
 
-  .note { font-size: 12px; color: var(--faint); text-align: center; max-width: 380px; line-height: 1.5; }
-  .svg-ic { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .copy { margin-top: 22px; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .copy.in { animation: slidein .38s cubic-bezier(.22,.9,.3,1); }
+  @keyframes slidein { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+  .copy.back.in { animation-name: slideback; }
+  @keyframes slideback { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0; letter-spacing: -.01em; font-weight: 700; }
+  .body { margin: 14px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted); white-space: pre-line; }
+  .note { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: color-mix(in srgb, var(--muted) 80%, transparent); }
+  .more { margin-top: 8px; font-size: 14px; font-weight: 600; color: var(--primary); background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 8px; font-family: inherit; }
+
+  /* ЕДИНАЯ ПАНЕЛЬ: одна карточка на экранах 1–6, содержимое проявляется по шагам */
+  .panel-slot { width: 100%; margin-top: 16px; }
+  .panel {
+    width: 100%; border-radius: 22px; padding: 16px 18px 18px; color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    display: flex; flex-direction: column; gap: 9px; text-align: left;
+    animation: pop .45s cubic-bezier(.22,.9,.3,1);
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .chip { background: rgba(255,255,255,.22); color: #fff; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+  .panel-text { font-size: 16px; line-height: 1.7; }
+  .panel-why-h { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); margin-top: 2px; }
+  .panel-why { font-size: 14px; line-height: 1.5; color: rgba(255,255,255,.92); }
+
+  .frag { display: inline; border-radius: 8px; padding: 1px 4px; transition: background .5s, color .5s; font-weight: 600; }
+  .frag.locked { color: transparent; background: rgba(255,255,255,.26); user-select: none; position: relative; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .frag.reading { color: rgba(255,255,255,.85); background: rgba(255,255,255,.18); font-weight: 500; }
+  .frag.on { background: rgba(255,255,255,.2); color: #fff; animation: flash .8s ease-out; }
+  .frag.off { background: transparent; color: rgba(255,255,255,.7); font-weight: 400; font-style: italic; }
+  @keyframes flash { from { background: rgba(255,255,255,.55); } to { background: rgba(255,255,255,.2); } }
+  .why-locked { filter: blur(5px); user-select: none; transition: filter .6s; }
+  .why-locked.on { filter: none; }
+
+  /* панель в режиме «уведомление» (экран 5) */
+  .panel.notif { background: var(--surface); color: var(--ink); border: 1px solid var(--outline); box-shadow: 0 6px 22px rgba(26,21,37,.1); gap: 4px; }
+  .notif-app { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .notif-ic { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c7bdff, var(--primary)); }
+  .notif-title { font-size: 14.5px; font-weight: 700; }
+  .notif-body { font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+  /* панель в режиме «читаю» (экран 6) */
+  .panel .lines { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+  .panel .line { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+  .panel .line .st { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 2px solid rgba(255,255,255,.5); position: relative; }
+  .panel .line.run .st { border-top-color: #fff; animation: spin .8s linear infinite; }
+  .panel .line.done .st { background: #fff; border-color: #fff; }
+  .panel .line.done .st::after { content: "✓"; position: absolute; inset: 0; color: var(--primary); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .panel .line.skip { opacity: .7; }
+  .panel .line.skip .st { border-style: dashed; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .spacer { flex: 1; min-height: 8px; }
+
+  .sheet { width: 100%; background: color-mix(in srgb, var(--primary-faint) 90%, transparent); border-radius: 16px; padding: 14px; margin-bottom: 12px; font-size: 13.5px; line-height: 1.45; color: var(--muted); text-align: left; display: flex; flex-direction: column; gap: 8px; animation: pop .3s; }
+  .sheet b { color: var(--ink); }
+  .sheet ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .sheet .skip-link { font-size: 12.5px; color: var(--muted); background: none; border: none; text-align: left; padding: 4px 0 0; cursor: pointer; font-family: inherit; }
+  .sheet .skip-link:hover { color: var(--ink); }
+  .linkbtn { font: inherit; font-size: 13px; font-weight: 600; color: var(--primary); background: none; border: none; cursor: pointer; padding: 6px 8px; margin-bottom: 4px; border-radius: 8px; }
+
+  .cta {
+    width: 100%; font: inherit; font-size: 16px; font-weight: 700; padding: 16px; border-radius: 18px; border: none; cursor: pointer;
+    background: var(--primary); color: var(--on-primary); transition: transform .08s;
+  }
+  .cta:active { transform: scale(.97); }
+  .cta .bar { position: absolute; inset: 0; background: rgba(255,255,255,.22); transform-origin: left; transform: scaleX(0); }
+  .cta { position: relative; overflow: hidden; }
+  .cta span { position: relative; }
+  .skip { margin-top: 8px; font: inherit; font-size: 14px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 6px 12px; height: 32px; }
+  .skip:hover { color: var(--ink); }
+  .skip.gone { visibility: hidden; }
+
+  .final { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 30px; text-align: center; }
+  .final.show { display: flex; animation: pop .5s; }
+  .final h2 { margin: 0; font-size: 22px; }
+  .final p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+
+  .phone { overflow-y: auto; }
+  @media (max-height: 900px) {
+    .orb-wrap { height: 110px; width: 130px; }
+    .orb { width: 84px; height: 84px; }
+    .copy { margin-top: 14px; }
+    h1 { font-size: 23px; }
+    .body { font-size: 15px; margin-top: 10px; }
+    .panel-text { font-size: 15px; line-height: 1.6; }
+    .phone { padding-top: 18px; }
+  }
+  .flow { margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .flow-i { width: 100%; background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 11px 16px; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+  .flow-i b { font-size: 15px; }
+  .flow-i span { font-size: 13.5px; color: var(--muted); }
+  .flow-i.hl { background: var(--primary-faint); border-color: var(--primary-2); }
+  .flow-a { color: var(--primary); font-size: 16px; line-height: 1; }
+  .line-t + .line-t::before { content: ' '; }
+  .legend { max-width: 390px; font-size: 12px; line-height: 1.5; color: var(--muted); text-align: center; }
 </style>
 </head>
 <body>
   <div class="toolbar">
-    <span>Мок онбординга · «проявляющаяся фраза» + live-peek</span>
+    <span>Прототип онбординга · 7 экранов, как в приложении</span>
+    <button id="prev">‹ назад</button>
+    <button id="reset">↺ сначала</button>
     <button id="theme">◐ тема</button>
-    <button id="reset">↺ сброс</button>
   </div>
 
-  <div class="phone">
-    <div class="screen">
-      <div class="progress-row">
-        <span class="step-label">Доступы · шаг 3 из 4</span>
-        <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
-      </div>
+  <div class="phone" id="phone">
+    <div class="orb-wrap"><div class="orb" id="orb"></div></div>
+    <div class="dots" id="dots"></div>
 
-      <div>
-        <h1>Что я смогу тебе показывать</h1>
-        <p class="sub">Открывай доступы по одному — фраза ниже собирается из них. Числа появляются из твоих же данных, не из примера.</p>
-      </div>
+    <div class="copy in" id="copy"></div>
+    <div class="panel-slot" id="panelSlot"></div>
 
-      <div class="reveal-card">
-        <div class="reveal-kicker">Пример сегодняшнего дня</div>
-        <div class="phrase">
-          Сегодня&nbsp;—
-          <span class="frag locked" data-frag="usage"></span>,
-          ночью&nbsp;<span class="frag locked" data-frag="sleep"></span>,
-          и&nbsp;<span class="frag locked" data-frag="steps"></span>.
-          После коротких ночей утро у&nbsp;тебя обычно&nbsp;медленнее.
-        </div>
-      </div>
+    <div class="spacer"></div>
 
-      <div class="accuracy">
-        <div class="top">
-          <span class="cap">Насколько точно пойму твои дни</span>
-          <span class="pct" id="pct">25%</span>
-        </div>
-        <div class="bar"><span id="barfill"></span></div>
-      </div>
+    <div id="sheetSlot" style="width:100%"></div>
+    <button class="cta" id="cta"><span class="bar" id="ctabar"></span><span id="ctatext"></span></button>
+    <button class="skip" id="skip"></button>
 
-      <div class="perms">
-        <div class="perm" data-perm="usage">
-          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></svg></div>
-          <div class="body">
-            <div class="title">Статистика использования</div>
-            <div class="benefit">Разблокировки и экранное время за день — живьём, сразу после включения.</div>
-            <div class="nope">Что я <b>не вижу</b>: что на экране, переписки, фото. Только <b>сколько</b> горел экран.</div>
-            <div class="act"><button class="btn">Разрешить</button></div>
-          </div>
-        </div>
-
-        <div class="perm" data-perm="sleep">
-          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><path d="M20 14.5A7.5 7.5 0 1 1 9.5 4 6 6 0 0 0 20 14.5Z"/></svg></div>
-          <div class="body">
-            <div class="title">Сон</div>
-            <div class="benefit">Длина ночи и во сколько ты лёг — связывает плохое утро с коротким сном.</div>
-            <div class="nope">Что я <b>не вижу</b>: где ты и что делал. Только длительность сна из Health Connect.</div>
-            <div class="act"><button class="btn">Разрешить</button></div>
-          </div>
-        </div>
-
-        <div class="perm" data-perm="steps">
-          <div class="ic"><svg class="svg-ic" viewBox="0 0 24 24"><path d="M8 20c0-3 1-5 1-8M8 6a2 2 0 1 0 0-.1M15 20c0-4 1.5-5 1.5-9M16 7a2 2 0 1 0 0-.1"/></svg></div>
-          <div class="body">
-            <div class="title">Движение</div>
-            <div class="benefit">Шаги за день — отличает «был на ногах» от «просидел за экраном».</div>
-            <div class="nope">Что я <b>не вижу</b>: маршруты и геолокацию. Только количество шагов.</div>
-            <div class="act"><button class="btn">Разрешить</button></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="footer">
-        <button class="cta" id="cta">Продолжить</button>
-        <button class="later" id="later">Можно позже — покажу, что получится</button>
-      </div>
+    <div class="final" id="final">
+      <div class="orb" style="width:96px;height:96px"></div>
+      <h2>Главный экран</h2>
+      <p>Здесь приложение открывается на главный экран, и утренняя карточка — та, что была на панели.</p>
+      <button class="cta" id="again" style="max-width:240px">Пройти ещё раз</button>
     </div>
   </div>
 
-  <p class="note">Прототип. «Статистика» наполняется реальным числом сразу (live-peek), сон и шаги на онбординге показаны примером и дозреют за пару дней — чтобы не обещать персональный инсайт там, где данных ещё нет.</p>
+  <p class="legend">Тексты экранов и подписи кнопок — те же, что в приложении. Панель с прогнозом одна на все экраны: на шагах «Экран», «Шаги», «Сон» в ней добавляется по одной закономерности (в приложении — из реальных данных, здесь пример), на шаге уведомлений она превращается в уведомление, на последнем — в чтение данных.</p>
 
 <script>
 (function () {
-  // usage = живое чтение реального числа; sleep/steps = пример, "дозреет"
-  const DATA = {
-    usage: { live: true,  value: "47 разблокировок", weight: 30 },
-    sleep: { live: false, value: "6 ч 10 мин",       weight: 25, tag: "пример" },
-    steps: { live: false, value: "8 200 шагов",       weight: 20, tag: "пример" },
+  // Экраны: заголовки, тексты, кнопки — 1 в 1 с OnboardingScreen.kt
+  const STEPS = [
+    { id: 'intro',    orb: 'calm',     title: 'Познакомимся?',
+      body: 'Каждое утро — короткая мысль о дне, собранная из того, что телефон уже о себе пишет.\nНичего не нужно вводить вручную.',
+      cta: 'Дальше' },
+    { id: 'sample',   orb: 'data',     title: 'Вот что приходит утром',
+      body: 'Через неделю приложение начнёт находить твои закономерности — например, как вечер влияет на утро.\nВот как это будет выглядеть.',
+      cta: 'Хочу такой прогноз' },
+    { id: 'usage',    orb: 'data',     title: 'Экран — основа',
+      body: 'Видим только, сколько минут был включён экран и какие приложения открывались.',
+      note: 'Не видим, что на экране, — ни переписок, ни фото.', cta: 'Разрешить' },
+    { id: 'steps',    orb: 'data',     title: 'Шаги — точнее',
+      body: 'По желанию. Передаём только число шагов за день.',
+      note: 'Без них прогноз чуть грубее.', cta: 'Разрешить', skip: 'Пропустить' },
+    { id: 'sleep',    orb: 'data',     title: 'Сон — точнее',
+      body: 'По желанию. Передаём только длительность и время сна — без пульса и стадий.',
+      note: 'Без него считаем сон по самой длинной паузе без экрана.', cta: 'Разрешить', skip: 'Пропустить' },
+    { id: 'notif',    orb: 'ping',     title: 'Три уведомления в день',
+      body: 'Прогноз утром, вечером спрошу, как прошёл день, и пришлю разбор. Больше не будет.',
+      note: 'Следом система спросит про работу в фоне — почти не тратит батарею, но без неё уведомления не придут.',
+      cta: 'Разрешить и начать' },
+    { id: 'collect',  orb: 'thinking', title: 'Смотрю твои данные',
+      body: 'Экран, разблокировки и сон. Это пара секунд.',
+      cta: 'Готовлю главный экран' },
+  ];
+  const LAST = 6;
+
+  // Кусочки фразы на панели. В приложении — реальные числа, тут пример.
+  const SAMPLE = 'После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.';
+  const LINES = {
+    usage: 'Спокойные вечера без позднего экрана — и утро у тебя обычно лёгкое.',
+    sleep: 'После ночи подлиннее фокус приходит раньше.',
+    steps: 'В дни с прогулкой вечером проще выдохнуть.',
   };
-  const BASE = 25;
-  const granted = new Set();
+  const ORDER = ['usage', 'sleep', 'steps'];
+  let reading = null;
 
-  const pctEl = document.getElementById('pct');
-  const barEl = document.getElementById('barfill');
+  const INTRO_FLOW =
+    '<div class="flow">' +
+      '<div class="flow-i"><b>Замечаю</b><span>экран, сон и шаги — сами, в фоне</span></div>' +
+      '<div class="flow-a">↓</div>' +
+      '<div class="flow-i"><b>Нахожу закономерности</b><span>что с чем связано именно у тебя</span></div>' +
+      '<div class="flow-a">↓</div>' +
+      '<div class="flow-i hl"><b>Говорю утром</b><span>одна фраза о том, чего ждать от дня</span></div>' +
+    '</div>';
+  const $ = id => document.getElementById(id);
+  let step = 0, prevStep = 0;
+  let state = { usage: null, steps: null, sleep: null, notif: null }; // null | 'granted' | 'skipped'
+  let usageBlockedShown = false, usageSheetOpen = false;
+  let timers = [];
 
-  function recompute() {
-    let pct = BASE;
-    granted.forEach(k => pct += DATA[k].weight);
-    pct = Math.min(pct, 100);
-    pctEl.textContent = pct + '%';
-    barEl.style.width = pct + '%';
+  const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+  const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+  function renderDots() {
+    const d = $('dots');
+    d.innerHTML = '';
+    for (let i = 0; i < LAST; i++) { const el = document.createElement('i'); if (i === Math.min(step, LAST - 1)) el.className = 'on'; d.appendChild(el); }
+    d.classList.toggle('hide', step === LAST);
   }
 
-  function reveal(key) {
-    const frag = document.querySelector('.frag[data-frag="' + key + '"]');
-    const d = DATA[key];
-    if (d.live) {
-      frag.className = 'frag reading';
-      frag.textContent = 'читаю…';
-      setTimeout(() => {
-        frag.className = 'frag revealed';
-        frag.innerHTML = d.value;
-      }, 650);
+  function renderPanel() {
+    const slot = $('panelSlot');
+    const keep = slot.firstElementChild;
+    if (step === 0) { slot.innerHTML = ''; return; }
+    let html;
+    if (step <= 4) {
+      const shown = ORDER.filter(k => state[k] === 'granted' || reading === k);
+      const body = step === 1 || !shown.length ? SAMPLE
+        : shown.map(k => reading === k ? '<span class="frag reading">читаю…</span>' : '<span class="line-t">' + LINES[k] + '</span>').join(' ');
+      const why = state.usage === 'granted' && reading !== 'usage'
+        ? '<div class="panel-why-h">Почему так</div><div class="panel-why">Закономерность нашлась в твоих же данных: во сколько вечером гаснет экран и как начинается утро.</div>' : '';
+      html =
+        '<div class="panel" id="panel">' +
+          '<div class="panel-head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div>' +
+          '<div class="panel-text">' + body + '</div>' + why +
+        '</div>';
+    } else if (step === 5) {
+      html =
+        '<div class="panel notif" id="panel">' +
+          '<div class="notif-app"><span class="notif-ic"></span>Companion · сейчас</div>' +
+          '<div class="notif-title">Прогноз на сегодня</div>' +
+          '<div class="notif-body">После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.</div>' +
+        '</div>';
     } else {
-      frag.className = 'frag revealed';
-      frag.innerHTML = d.value + (d.tag ? ' <span class="tag">' + d.tag + '</span>' : '');
+      const row = (k, label) => '<div class="line" data-k="' + k + '"><span class="st"></span>' + label + '</div>';
+      html =
+        '<div class="panel" id="panel">' +
+          '<div class="panel-head"><span>Первый разбор</span></div>' +
+          '<div class="lines">' + row('usage', 'Экран и разблокировки') + row('sleep', 'Сон') + '</div>' +
+        '</div>';
     }
+    // не анимируем появление заново, если панель уже на месте того же вида
+    const same = keep && keep.dataset.kind === (step <= 4 ? 'fc' : step === 5 ? 'n' : 'c');
+    slot.innerHTML = html;
+    const p = slot.firstElementChild;
+    p.dataset.kind = step <= 4 ? 'fc' : step === 5 ? 'n' : 'c';
+    if (same) p.style.animation = 'none';
   }
 
-  document.querySelectorAll('.perm').forEach(perm => {
-    const key = perm.dataset.perm;
-    const btn = perm.querySelector('.btn');
-    btn.addEventListener('click', () => {
-      if (granted.has(key)) return;
-      granted.add(key);
-      perm.classList.add('done');
-      btn.textContent = 'Разрешено ✓';
-      reveal(key);
-      recompute();
-    });
-  });
+  function renderCopy(back) {
+    const st = STEPS[step];
+    const c = $('copy');
+    c.className = 'copy in' + (back ? ' back' : '');
+    c.innerHTML = '<h1>' + st.title + '</h1><p class="body">' + st.body + '</p>' +
+      (st.note ? '<p class="note">' + st.note + '</p><button class="more">Подробнее о данных</button>' : '');
+    if (st.id === 'intro') c.insertAdjacentHTML('beforeend', INTRO_FLOW);
+    const more = c.querySelector('.more');
+    if (more) more.onclick = () => alert('В приложении откроется страница про данные: companion-app.ru/privacy');
+    $('ctatext').textContent = st.cta;
+    const sk = $('skip');
+    sk.textContent = st.skip || '·';
+    sk.classList.toggle('gone', !st.skip);
+  }
 
-  document.getElementById('reset').addEventListener('click', () => {
-    granted.clear();
-    document.querySelectorAll('.perm').forEach(p => {
-      p.classList.remove('done');
-      p.querySelector('.btn').textContent = 'Разрешить';
-    });
-    document.querySelectorAll('.frag').forEach(f => {
-      f.className = 'frag locked';
-      f.textContent = '';
-    });
-    recompute();
-  });
+  function renderSheet() {
+    const s = $('sheetSlot');
+    if (step === STEP('usage') && usageBlockedShown) {
+      s.innerHTML =
+        '<div class="sheet"><b>Android пишет «Доступ запрещен»?</b>' +
+        'Так бывает с приложениями не из магазина — это защита Android, разблокировать нужно один раз.' +
+        '<ol><li>Открой «О приложении» кнопкой ниже</li><li>Нажми ⋮ справа вверху → «Разрешить ограниченные настройки»</li><li>Вернись сюда и снова нажми «Дать доступ»</li></ol>' +
+        '<button class="skip-link" id="skipUsage">Пропустить — без этого доступа прогноз будет беднее</button></div>';
+      $('skipUsage').onclick = () => { state.usage = 'skipped'; usageBlockedShown = false; goto(STEP('steps')); };
+    } else if (step === STEP('usage')) {
+      s.innerHTML = '<button class="linkbtn" id="blocked">Android пишет «Доступ запрещен»? (показать, как в приложении)</button>';
+      $('blocked').onclick = () => { usageBlockedShown = true; renderSheet(); };
+    } else { s.innerHTML = ''; }
+  }
 
-  document.getElementById('theme').addEventListener('click', () => {
+  const STEP = id => STEPS.findIndex(s => s.id === id);
+
+  function setOrb() {
+    const o = $('orb');
+    o.className = 'orb ' + STEPS[step].orb;
+  }
+
+  function render(back) {
+    clearTimers(); reading = null;
+    renderDots(); renderCopy(back); renderPanel(); renderSheet(); setOrb();
+    $('cta').style.visibility = 'visible';
+    $('ctabar').style.transition = 'none'; $('ctabar').style.transform = 'scaleX(0)';
+    if (step === LAST) runCollect();
+  }
+
+  function goto(n, back) {
+    prevStep = step; step = n;
+    render(back);
+  }
+
+  function pokeOrb() { const o = $('orb'); o.classList.add('poke'); later(() => o.classList.remove('poke'), 140); }
+
+  function grant(key) {
+    state[key] = 'granted';
+    reading = key; renderPanel(); // «читаю…» → фраза (как live-peek в приложении)
+    later(() => { reading = null; renderPanel(); }, 700);
+    later(() => goto(step + 1), 1500);
+  }
+
+  function runCollect() {
+    const lines = document.querySelectorAll('#panel .line');
+    const doneAt = [600, 1500];
+    lines.forEach((l, i) => {
+      l.classList.add('run');
+      if (i === 1 && state.sleep === 'skipped') { l.classList.remove('run'); l.classList.add('skip'); l.lastChild.textContent = 'Сон — по паузам экрана'; }
+      later(() => { l.classList.remove('run'); if (!l.classList.contains('skip')) l.classList.add('done'); }, doneAt[i]);
+    });
+    const b = $('ctabar');
+    requestAnimationFrame(() => { b.style.transition = 'transform 1.7s cubic-bezier(.4,0,.2,1)'; b.style.transform = 'scaleX(1)'; });
+    later(() => $('final').classList.add('show'), 1900);
+  }
+
+  $('cta').onclick = () => {
+    pokeOrb();
+    const id = STEPS[step].id;
+    if (id === 'intro') return goto(1);
+    if (id === 'sample') return goto(2);
+    if (id === 'usage') return grant('usage');
+    if (id === 'steps') return grant('steps');
+    if (id === 'sleep') return grant('sleep');
+    if (id === 'notif') { state.notif = 'granted'; return goto(LAST); }
+  };
+  $('skip').onclick = () => {
+    const id = STEPS[step].id;
+    if (id === 'steps') { state.steps = 'skipped'; goto(step + 1); }
+    if (id === 'sleep') { state.sleep = 'skipped'; goto(step + 1); }
+  };
+  $('prev').onclick = () => {
+    if (step === 0) return;
+    $('final').classList.remove('show');
+    if (step - 1 < STEP('usage')) state = { usage: null, steps: null, sleep: null, notif: null };
+    goto(step - 1, true);
+  };
+  const reset = () => { state = { usage: null, steps: null, sleep: null, notif: null }; usageBlockedShown = false; $('final').classList.remove('show'); step = 0; render(true); };
+  $('reset').onclick = reset;
+  $('again').onclick = reset;
+  $('theme').onclick = () => {
     const r = document.documentElement;
-    const cur = r.getAttribute('data-theme');
-    r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
-  });
+    r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  };
 
-  recompute();
+  render();
 })();
 </script>
 </body>
