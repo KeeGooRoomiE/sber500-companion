@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>v4 · Главный экран — кандидат</title>
+<style>
+  /* Цвета — как в приложении (Theme.kt). Все цифры на странице — пример, форма «реальные» взята со скринов 0.9.8. */
+  :root {
+    --page: #e9e7f5; --bg: #f7f6ff; --surface: #ffffff; --ink: #1a1525; --muted: #6e6a85;
+    --outline: #ddd9f8; --primary: #6b5ce7; --primary-2: #8b7cf8; --primary-faint: #ede9ff;
+    --wave-1: #f1e3f6; --wave-2: #e3c4ee;
+    --shadow: 0 14px 40px rgba(26,21,37,.14);
+  }
+  :root[data-theme="dark"] {
+    --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+    --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+    --wave-1: #3a1745; --wave-2: #55207a;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+      --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+      --wave-1: #3a1745; --wave-2: #55207a; --shadow: 0 14px 40px rgba(0,0,0,.55);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; padding: 20px 16px 40px; gap: 14px;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); max-width: 720px; }
+  .toolbar button { font: inherit; color: var(--muted); background: var(--surface); border: 1px solid var(--outline); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .toolbar button:hover { color: var(--ink); }
+  .toolbar a { color: var(--primary); }
+
+  .hp {
+    width: 100%; max-width: 380px; height: 800px; border-radius: 34px; border: 1px solid var(--outline);
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 22%, var(--wave-1) 62%, var(--wave-2) 100%);
+    box-shadow: var(--shadow); overflow-y: auto; scrollbar-width: none; padding: 22px 18px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .hp::-webkit-scrollbar { display: none; }
+
+  /* Приветствие в одну строку с обрезкой, орб справа; цвет и дыхание зависят от состояния дня */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; gap: 10px; }
+  .greet { font-size: 30px; font-weight: 300; letter-spacing: -.8px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .orb {
+    --hue: 0deg; --breath: 4.5s;
+    width: 72px; height: 72px; flex: none;
+    background: radial-gradient(circle at 35% 30%, #c7bdff 0%, var(--primary) 55%, #4a3dc4 100%);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 45%, transparent);
+    filter: hue-rotate(var(--hue));
+    animation: morph 7s ease-in-out infinite, breathe var(--breath) ease-in-out infinite;
+  }
+  @keyframes morph { 0%,100% { border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%; } 33% { border-radius: 45% 55% 42% 58% / 56% 44% 56% 44%; } 66% { border-radius: 52% 48% 60% 40% / 42% 58% 42% 58%; } }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.07; } }
+  @media (prefers-reduced-motion: reduce) { .orb { animation: none; } }
+
+  .grad { border-radius: 22px; padding: 16px 18px 16px; color: #fff; text-align: left;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2)); display: flex; flex-direction: column; gap: 9px; }
+  .grad .head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .chip { background: rgba(255,255,255,.22); color: #fff; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+  .grad .text { font-size: 16px; line-height: 1.55; }
+  .grad .why { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.88); cursor: pointer; user-select: none; }
+  .grad .whybody { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.92); background: rgba(255,255,255,.14); border-radius: 12px; padding: 9px 11px; }
+  .grad .sub { font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.92); }
+  .grad .stat { font-size: 13px; color: rgba(255,255,255,.9); }
+  .divider { height: 1px; background: rgba(255,255,255,.22); margin: 4px 0 2px; }
+
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; margin-top: 2px; }
+  .bars i { flex: 1; background: rgba(255,255,255,.28); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .bars i.hi { background: #fff; }
+  .bars i.now { background: transparent; border-right: 2px dashed rgba(255,255,255,.75); border-radius: 0; }
+  .bars i.future { background: rgba(255,255,255,.1); height: 4% !important; }
+  .ax { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,.7); margin-top: -3px; }
+
+  /* Ряд действий внизу панели */
+  .actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 4px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,.22); }
+  .pill { font-size: 13px; font-weight: 600; color: #fff; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.14); border-radius: 20px; padding: 7px 13px; }
+  .brk { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: #fff; }
+  .seg { display: inline-flex; background: rgba(255,255,255,.18); border-radius: 20px; padding: 2px; }
+  .seg span { padding: 4px 10px; border-radius: 18px; font-weight: 600; font-size: 12.5px; color: rgba(255,255,255,.8); cursor: pointer; user-select: none; }
+  .seg span.on { background: #fff; color: var(--primary); }
+
+  .card { background: var(--surface); border: 1px solid var(--outline); border-radius: 20px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 4px; font-size: 15px; }
+  .card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 11px 12px; }
+  .tile b { display: block; font-size: 17px; letter-spacing: -.3px; }
+  .tile span { font-size: 10.5px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .feels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .feel { background: var(--primary-faint); border-radius: 14px; padding: 10px 4px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .feel i { display: block; font-style: normal; font-size: 22px; margin-bottom: 3px; }
+
+  /* Шторка «Прошлые разборы» */
+  .sheet-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .sheet-h h4 { margin: 0; font-size: 15px; }
+  .sheet-h a, .link { font-size: 14px; font-weight: 600; color: var(--primary); text-decoration: none; }
+  .hrow { padding: 9px 0; border-top: 1px solid var(--outline); }
+  .hrow:first-of-type { border-top: 0; }
+  .hrow .d { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; gap: 8px; }
+  .hrow .t { font-size: 13.5px; line-height: 1.45; color: var(--muted); margin-top: 2px; }
+  .mk { font-size: 12.5px; font-weight: 600; color: var(--primary); }
+  .mk.no { color: var(--muted); font-weight: 500; }
+  .chips { display: flex; gap: 6px; }
+  .chips span { font-size: 12.5px; font-weight: 600; color: var(--primary); border: 1.5px solid var(--outline); border-radius: 20px; padding: 3px 11px; }
+  .week { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; }
+
+  .legend { max-width: 780px; font-size: 12.5px; line-height: 1.6; color: var(--muted); text-align: center; }
+  .legend b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>v4 · одна колонка, панель из v3, прогноз целиком (цифры — пример)</span>
+    <a href="../v3/">← v3</a>
+    <button id="tod">время: утро</button>
+    <button id="data">данные: пример</button>
+    <button id="hist">история: накоплена</button>
+    <button id="day">день: ровный</button>
+    <button id="theme">◐ тема</button>
+  </div>
+
+  <div class="hp" id="P"></div>
+
+  <p class="legend"><b>Что в v4.</b> Одна колонка. Фиолетовая панель — как в v3, прогноз целиком и ничем не сжат; в ней «Почему такой прогноз», лента часов, строка с фактом и ряд действий: слева «Спросить о себе ✦» (одно название вместо «Хочу ещё» / «Спросить о себе»), справа один контрол «Разбор: вчера | сегодня →». Ниже три нейтральные плитки (без «хорошо/плохо»), шторка «Прошлые разборы» и «Итоги недели →».<br><br>
+  <b>Орб</b> привязан к состоянию дня (переключатель «день»): меняет оттенок и скорость дыхания, без оценок «хорошо/плохо». <b>Имя</b> в приветствии — одна строка с обрезкой.<br><br>
+  <b>«Совпало с днём?»</b> — чипы в первой строке шторки после 14:00; вечером это не второй опрос подряд, а строка в шторке под чек-ином. <b>Фраза-закономерность</b> только при накопленной истории (переключатель «история»); в первые дни показываются числа вчерашнего дня, а шторка объясняет, когда появятся разборы. Что «Спросить о себе» — эксперимент или состояние, неизвестно.</p>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const SAMPLE = {
+    name: '', greetName: '',
+    yest:  [1,0,0,0,0,0,1,3,6,8,9,12,5,4,6,9,7,8,10,6,4,3,2,1],
+    today: [0,0,0,0,0,1,2,5,8,10,6,7,9,4,6,8,7,9,5,8,6,3,1,0],
+    forecastRich: 'После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.',
+    factRich: 'Вчера экран погас в 23:40, без позднего скролла.',
+    stat: { yest: '2 ч 40 мин у экрана · 36 разблокировок', day: '1 ч 27 мин у экрана · 20 разблокировок', eve: '3 ч 05 мин у экрана · 48 разблокировок' },
+    why: 'Сравниваю вчерашний вечер с твоими обычными вечерами за последние недели.',
+    howDay: ['Экран и разблокировки близки к средним — день пока идёт ровно.', 'День прошёл ровно, без всплесков — экран около обычного.'],
+    tiles: [['1ч 27м','экран'], ['7ч 44м','без телефона'], ['20','разблок.']],
+  };
+  const REAL = {
+    name: 'Вячеслав', greetName: ', Вячеслав',
+    yest:  [0,0,0,0,9,8,0,0,0,0,3,11,2,0,0,0,0,0,0,0,0,0,0,0],
+    today: [0,0,0,0,9,8,0,0,0,0,3,11,2,0,0,0,0,0,0,0,0,0,0,0],
+    forecastRich: 'Вчера был день с минимумом обращений к телефону — 14 минут и 5 разблокировок при твоей норме 16 минут и 8 раз. После таких дней у тебя обычно сохраняется ровное настроение и быстрое восстановление к середине дня.',
+    factRich: 'Ночью экран включался около 4 и 5 часов.',
+    stat: { yest: '14 мин у экрана · 5 разблокировок', day: '3 ч 07 мин у экрана · 8 разблокировок', eve: '3 ч 07 мин у экрана · 8 разблокировок' },
+    why: 'Сравнил вчерашний день с твоими обычными днями за последние недели.',
+    howDay: ['Экран выше обычного: почти 3 часа против 41 минуты.', 'Экран выше обычного: почти 3 часа против 41 минуты.'],
+    tiles: [['3ч 7м','экран'], ['4ч 55м','без телефона'], ['8','разблок.']],
+  };
+  const EARLY = { forecast: 'Сегодня можно идти как обычно — я пока наблюдаю и собираю картину твоих дней.', fact: 'Первые дни я только собираю картину.' };
+  const TODS = ['утро', 'день', 'вечер']; // утро — до 14:00, день — после 14:00, вечер — чек-ин поднят
+  let D = SAMPLE, real = false, rich = true, tod = 0, busy = false, whyOpen = false, breakdown = 'вчера';
+
+  const forecast = () => rich ? D.forecastRich : EARLY.forecast;
+  const fact = () => rich ? D.factRich : EARLY.fact;
+  const MAX = () => Math.max(...D.yest, ...D.today, 1);
+  const night = i => i >= 23 || i < 6;
+
+  function bars(type, nowH) {
+    let h = '<div class="bars">';
+    for (let i = 0; i < 24; i++) {
+      if (type === 'today' && i >= nowH) { h += '<i class="' + (i === nowH ? 'now ' : '') + 'future"></i>'; continue; }
+      const v = (type === 'today' ? D.today : D.yest)[i];
+      h += '<i' + (night(i) && v > 0 ? ' class="hi"' : '') + ' style="height:' + (v ? Math.max(8, Math.round(v / MAX() * 100)) : 4) + '%"></i>';
+    }
+    return h + '</div><div class="ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>';
+  }
+
+  function panel() {
+    const todayView = tod > 0, nowH = tod === 2 ? 21 : 14;
+    const chartLabel = todayView ? 'Сегодня по часам' : 'Вчера по часам';
+    const stat = todayView ? (tod === 2 ? D.stat.eve : D.stat.day) : D.stat.yest;
+    const showFact = !todayView;
+    return '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div>' +
+      '<div class="text">' + forecast() + '</div>' +
+      '<div class="why" id="why">Почему такой прогноз ' + (whyOpen ? '▴' : '▾') + '</div>' +
+      (whyOpen ? '<div class="whybody">' + D.why + '</div>' : '') +
+      '<div class="divider"></div>' +
+      '<div class="head"><span>' + chartLabel + '</span></div>' + bars(todayView ? 'today' : 'yest', nowH) +
+      '<div class="stat">' + stat + '</div>' +
+      (showFact ? '<div class="sub">' + fact() + '</div>' : '') +
+      '<div class="actions"><span class="pill">Спросить о себе ✦</span>' +
+        '<span class="brk">Разбор <span class="seg"><span data-b="вчера" class="' + (breakdown === 'вчера' ? 'on' : '') + '">вчера</span><span data-b="сегодня" class="' + (breakdown === 'сегодня' ? 'on' : '') + '">сегодня</span></span> →</span></div></div>';
+  }
+
+  function history() {
+    if (!rich) return '<div class="card"><div class="sheet-h"><h4>Прошлые разборы</h4></div><p>Разборы появятся через несколько дней — когда я смогу сравнить прогноз с тем, как прошёл день.</p></div>';
+    const todayRow = tod > 0 ? '<div class="hrow"><div class="d"><span>Сегодня</span><span class="chips"><span>Совпало</span><span>Не совсем</span></span></div><div class="t">' + (real ? 'Ровное настроение и быстрое восстановление к середине дня.' : 'Лёгкое утро, хороший день для важных дел.') + '</div></div>' : '';
+    const rows = tod > 0
+      ? [['Вс, 9 ноября', 'После спокойного вечера утро лёгкое — так и вышло.', 'совпало ✓', ''], ]
+      : [['Сб, 8 ноября', 'После спокойного вечера утро лёгкое — так и вышло.', 'совпало ✓', ''], ['Пт, 7 ноября', 'После короткой ночи день тяжелее, но собрался к обеду.', 'не совсем', ' no']];
+    return '<div class="card"><div class="sheet-h"><h4>Прошлые разборы</h4><a>Все →</a></div>' + todayRow +
+      rows.map(r => '<div class="hrow"><div class="d"><span>' + r[0] + '</span><span class="mk' + r[3] + '">' + r[2] + '</span></div><div class="t">' + r[1] + '</div></div>').join('') + '</div>';
+  }
+
+  function render() {
+    const greets = ['Доброе утро', 'Добрый день', 'Добрый вечер'];
+    const checkin = tod === 2
+      ? '<div class="card"><h4>Как прошёл день?</h4><div class="feels"><div class="feel"><i>😊</i>Отлично</div><div class="feel"><i>😐</i>Нормально</div><div class="feel"><i>😮‍💨</i>Тяжело</div></div></div>'
+      : tod === 1 ? '<div class="card"><h4>Как идёт день?</h4><p>' + D.howDay[0] + '</p></div>' : '';
+    const tiles = '<div class="tiles">' + D.tiles.map(t => '<div class="tile"><b>' + t[0] + '</b><span>' + t[1] + '</span></div>').join('') + '</div>';
+    const orbHue = busy ? '38deg' : '0deg', orbBreath = busy ? '3s' : '4.5s';
+    $('P').innerHTML = '<div class="top"><div class="greet">' + greets[tod] + D.greetName + '</div><div class="orb" style="--hue:' + orbHue + ';--breath:' + orbBreath + '"></div></div>' +
+      (tod === 2 ? checkin + panel() : panel() + checkin) + tiles + history() +
+      '<div class="week"><a class="link">Итоги недели →</a></div>';
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('#why')) { whyOpen = !whyOpen; render(); return; }
+    const s = e.target.closest('.seg span'); if (s) { breakdown = s.dataset.b; render(); }
+  });
+  $('tod').onclick = () => { tod = (tod + 1) % 3; $('tod').textContent = 'время: ' + TODS[tod]; render(); };
+  $('data').onclick = () => { real = !real; D = real ? REAL : SAMPLE; $('data').textContent = 'данные: ' + (real ? 'реальные' : 'пример'); render(); };
+  $('hist').onclick = () => { rich = !rich; $('hist').textContent = 'история: ' + (rich ? 'накоплена' : 'первые дни'); render(); };
+  $('day').onclick = () => { busy = !busy; $('day').textContent = 'день: ' + (busy ? 'насыщенный' : 'ровный'); render(); };
+  $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
+  render();
+})();
+</script>
+</body>
+</html>
