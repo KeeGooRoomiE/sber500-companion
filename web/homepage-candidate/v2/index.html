@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>v2 · Главный экран — кандидаты</title>
+<style>
+  /* Цвета — как в приложении (Theme.kt) и в онбординге v3. Все цифры на странице — пример. */
+  :root {
+    --page: #e9e7f5; --bg: #f7f6ff; --surface: #ffffff; --ink: #1a1525; --muted: #6e6a85;
+    --outline: #ddd9f8; --primary: #6b5ce7; --primary-2: #8b7cf8; --primary-faint: #ede9ff;
+    --shadow: 0 14px 40px rgba(26,21,37,.14);
+  }
+  :root[data-theme="dark"] {
+    --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+    --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+      --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+      --shadow: 0 14px 40px rgba(0,0,0,.55);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; padding: 20px 16px 40px; gap: 14px;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); }
+  .toolbar button { font: inherit; color: var(--muted); background: var(--surface); border: 1px solid var(--outline); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .toolbar button:hover { color: var(--ink); }
+  .toolbar a { color: var(--primary); }
+
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 360px; }
+  .cap { font-size: 13px; color: var(--muted); text-align: center; max-width: 340px; line-height: 1.45; }
+  .cap b { color: var(--ink); display: block; font-size: 15px; margin-bottom: 2px; }
+
+  .hp {
+    width: 100%; height: 720px; background: var(--bg); border-radius: 34px; border: 1px solid var(--outline);
+    box-shadow: var(--shadow); overflow-y: auto; scrollbar-width: none; padding: 22px 18px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .hp::-webkit-scrollbar { display: none; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+  .greet { font-size: 26px; font-weight: 300; letter-spacing: -.5px; }
+  .orb {
+    width: 46px; height: 46px; flex: none;
+    background: radial-gradient(circle at 35% 30%, #c7bdff 0%, var(--primary) 55%, #4a3dc4 100%);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 45%, transparent);
+    animation: morph 7s ease-in-out infinite, breathe 4.5s ease-in-out infinite;
+  }
+  @keyframes morph { 0%,100% { border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%; } 33% { border-radius: 45% 55% 42% 58% / 56% 44% 56% 44%; } 66% { border-radius: 52% 48% 60% 40% / 42% 58% 42% 58%; } }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.06; } }
+  @media (prefers-reduced-motion: reduce) { .orb { animation: none; } }
+
+  /* Карточка с лёгким градиентом (как панель онбординга) */
+  .grad { border-radius: 22px; padding: 16px 18px 18px; color: #fff; text-align: left;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2)); display: flex; flex-direction: column; gap: 9px; }
+  .grad .head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .chip { background: rgba(255,255,255,.22); color: #fff; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+  .grad .text { font-size: 16px; line-height: 1.55; }
+  .grad .why { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.85); }
+  .grad .sub { font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.92); }
+  .grad.compact { padding: 13px 16px 15px; gap: 7px; }
+
+  .divider { height: 1px; background: rgba(255,255,255,.22); margin: 4px 0 2px; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; margin-top: 2px; }
+  .bars.sm { height: 34px; }
+  .bars i { flex: 1; background: rgba(255,255,255,.28); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .bars i.hi { background: #fff; }
+  .bars i.now { background: transparent; border-right: 2px dashed rgba(255,255,255,.75); border-radius: 0; }
+  .bars i.future { background: rgba(255,255,255,.1); height: 4% !important; }
+  .ax { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,.7); margin-top: -3px; }
+  .stat { font-size: 13px; color: rgba(255,255,255,.9); }
+
+  .card { background: var(--surface); border: 1px solid var(--outline); border-radius: 20px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 4px; font-size: 15px; }
+  .card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 11px 12px; }
+  .tile b { display: block; font-size: 17px; letter-spacing: -.3px; }
+  .tile span { font-size: 10.5px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .feels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .feel { background: var(--primary-faint); border-radius: 14px; padding: 10px 4px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .feel i { display: block; font-style: normal; font-size: 22px; margin-bottom: 3px; }
+  .link { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: var(--primary); padding: 4px 6px; }
+  .note { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; padding: 0 6px; }
+
+  .legend { max-width: 760px; font-size: 12.5px; line-height: 1.6; color: var(--muted); text-align: center; }
+  .legend b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>v2 · одна панель в A и B (все цифры — пример)</span>
+    <a href="../">← v1</a>
+    <button id="hist">история: накоплена</button>
+    <button id="tod">B: день</button>
+    <button id="theme">◐ тема</button>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="hp" id="A"></div>
+      <div class="cap"><b>A · Утро</b>Одна фиолетовая панель: прогноз, под ним «Вчера по часам» и фраза-вывод. Ниже метрики нейтральным цветом.</div>
+    </div>
+    <div class="col">
+      <div class="hp" id="B"></div>
+      <div class="cap"><b>B · День / вечер</b>Одна панель: прогноз и «Сегодня по часам» (будущие часы пустые, текущий — пунктир). Вечером чек-ин поднят наверх.</div>
+    </div>
+    <div class="col">
+      <div class="hp" id="C"></div>
+      <div class="cap"><b>C · Лёгкий</b>Одна карточка: прогноз и компактная лента часов внутри неё. Больше ничего на экране, кроме входа в историю.</div>
+    </div>
+  </div>
+
+  <p class="legend"><b>Что здесь проверяем.</b> v2: в вариантах A и B прогноз и «по часам» слиты в одну панель — меньше блоков, чем в первой версии. Градиентная карточка и столбики из онбординга — на главном. Данные возможны: приложение уже собирает экран и разблокировки по часам (24 значения), сон и шаги — из Health Connect.<br><br>
+  <b>Оговорка про фразу-вывод.</b> «После таких вечеров утро лёгкое» честна только когда накоплена история закономерности. В первые дни такую фразу показывать нельзя — переключатель «история» показывает оба состояния. График на главной уместен (человек уже внутри); в онбординге v3 его намеренно нет.<br><br>
+  <b>Отличие от плана AND-08.</b> «Совпало с днём?» здесь не под прогнозом утром (спрашивать про день до его начала странно) и не вторым опросом вечером — вечером остаётся один чек-ин, как в исследовании.</p>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const YEST  = [1,0,0,0,0,0,1,3,6,8,9,12,5,4,6,9,7,8,10,6,4,3,2,1];
+  const TODAY = [0,0,0,0,0,1,2,5,8,10,6,7,9,4,6,8,7,9,5,8,6,3,1,0];
+  const MAX = Math.max(...YEST);
+  let rich = true;     // история закономерности накоплена
+  let evening = false; // B: день (14:00) или вечер (21:40)
+
+  const PHRASE_RICH  = 'Вчера экран гас в 23:40, без позднего скролла — после таких вечеров утро у тебя обычно лёгкое.';
+  const PHRASE_EARLY = 'Первые дни я знакомлюсь с твоим ритмом. Закономерности появятся примерно через неделю.';
+  const FORECAST_RICH  = 'После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.';
+  const FORECAST_EARLY = 'Сегодня можно идти как обычно — я пока наблюдаю и собираю картину твоих дней.';
+
+  // type: 'yest' — все 24 часа, ночные выделены; 'today' — до текущего часа
+  function bars(type, nowH, small) {
+    let h = '<div class="bars' + (small ? ' sm' : '') + '">';
+    for (let i = 0; i < 24; i++) {
+      if (type === 'today' && i >= nowH) { h += '<i class="' + (i === nowH ? 'now ' : '') + 'future"></i>'; continue; }
+      const v = (type === 'today' ? TODAY : YEST)[i];
+      h += '<i' + (type === 'yest' && i >= 22 ? ' class="hi"' : '') + ' style="height:' + Math.max(4, Math.round(v / MAX * 100)) + '%"></i>';
+    }
+    return h + '</div><div class="ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>';
+  }
+  const top = g => '<div class="top"><div class="greet">' + g + '</div><div class="orb"></div></div>';
+  const tiles = '<div class="tiles"><div class="tile"><b>1ч 27м</b><span>экран</span></div><div class="tile"><b>7ч 44м</b><span>без телефона</span></div><div class="tile"><b>20</b><span>разблок.</span></div></div>';
+  const hist = '<div class="link"><span>Прошлые прогнозы</span><span>Итоги недели →</span></div>';
+  const forecast = () => rich ? FORECAST_RICH : FORECAST_EARLY;
+  const phrase = () => rich ? PHRASE_RICH : PHRASE_EARLY;
+
+  // Одна панель: прогноз, под ним лента часов и фраза-вывод
+  function merged(label, chartLabel, chartHtml, statText, showPhrase, compact) {
+    return '<div class="grad' + (compact ? ' compact' : '') + '"><div class="head"><span>' + label + '</span><span class="chip">пример</span></div>' +
+      '<div class="text">' + forecast() + '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="head"><span>' + chartLabel + '</span></div>' + chartHtml +
+      '<div class="stat">' + statText + '</div>' +
+      (showPhrase ? '<div class="sub">' + phrase() + '</div>' : '') + '</div>';
+  }
+  function renderA() {
+    $('A').innerHTML = top('Доброе утро') +
+      merged('Прогноз на сегодня', 'Вчера по часам', bars('yest'), '2 ч 40 мин у экрана · 36 разблокировок', true) +
+      tiles + hist;
+  }
+  function renderB() {
+    const nowH = evening ? 21 : 14;
+    const checkin = '<div class="card"><h4>Как прошёл день?</h4><div class="feels"><div class="feel"><i>😊</i>Отлично</div><div class="feel"><i>😐</i>Нормально</div><div class="feel"><i>😮‍💨</i>Тяжело</div></div></div>';
+    const how = '<div class="card"><h4>Как идёт день</h4><p>' + (evening ? 'День прошёл ровно, без всплесков — экран около обычного.' : 'Экран и разблокировки близки к средним — день пока идёт ровно, без всплесков.') + '</p></div>';
+    const panel = merged('Прогноз на сегодня', 'Сегодня по часам', bars('today', nowH), evening ? '3 ч 05 мин у экрана · 48 разблокировок' : '1 ч 27 мин у экрана · 20 разблокировок', false);
+    $('B').innerHTML = top(evening ? 'Добрый вечер' : 'Добрый день') +
+      (evening ? checkin + panel + tiles : how + panel + tiles) + hist;
+  }
+  function renderC() {
+    $('C').innerHTML = top('Доброе утро') +
+      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + forecast() + '</div>' +
+        '<div class="head" style="margin-top:4px"><span>Вчера по часам</span></div>' + bars('yest', 0, true) +
+        '<div class="sub" style="font-size:13px">' + phrase() + '</div></div>' +
+      '<div class="note">Всё остальное — на тап глубже: метрики, чек-ин вечером, прошлые прогнозы.</div>' + hist;
+  }
+  function render() { renderA(); renderB(); renderC(); }
+
+  $('hist').onclick = () => { rich = !rich; $('hist').textContent = 'история: ' + (rich ? 'накоплена' : 'первые дни'); render(); };
+  $('tod').onclick = () => { evening = !evening; $('tod').textContent = 'B: ' + (evening ? 'вечер' : 'день'); renderB(); };
+  $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
+  render();
+})();
+</script>
+</body>
+</html>
