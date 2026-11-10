@@ -205,6 +205,9 @@
   .card div { flex: 1; font-size: 14px; line-height: 1.4; } .card b { display: block; font-size: 14.5px; }
   .card span { color: var(--muted); font-size: 13px; }
   .card button { font: inherit; font-size: 13px; font-weight: 600; color: var(--primary); background: var(--primary-faint); border: none; border-radius: 20px; padding: 7px 14px; cursor: pointer; }
+  .bars i.now { background: transparent; border-right: 2px dashed rgba(255,255,255,.7); border-radius: 0; }
+  .bars i.future { background: rgba(255,255,255,.1); height: 4% !important; }
+  .stat { font-size: 13px; color: rgba(255,255,255,.88); margin-top: 2px; }
   .tag { font-size: 11.5px; color: var(--muted); margin-top: 14px; }
 </style>
 </head>
@@ -214,6 +217,7 @@
     <button id="prev">‹ назад</button>
     <button id="reset">↺ сначала</button>
     <button id="theme">◐ тема</button>
+    <button id="tod">время: вечер</button>
     <a href="../" style="color:var(--primary)">← прошлый вариант</a>
   </div>
 
@@ -243,7 +247,7 @@
     </div>
   </div>
 
-  <p class="legend">Идея: просим только то, без чего нельзя, и сразу показываем пользу — вчерашний день по данным экрана. Шаги и сон — карточками на главной, уведомления — когда человек уже увидел, что получит. Данные в разборе — пример.</p>
+  <p class="legend">Идея: просим только то, без чего нельзя, и сразу показываем пользу — вчерашний день по данным экрана. Шаги и сон — карточками на главной, уведомления — когда человек уже увидел, что получит. Данные в разборе — пример. Вечером показываем сегодня до текущего часа, утром (сегодня почти пусто) — вчера: переключатель «время» в шапке.</p>
 
 <script>
 (function () {
@@ -253,13 +257,16 @@
     { id: 'access', orb: 'data', title: 'Один доступ — и начнём',
       body: 'Нужно видеть, сколько минут был включён экран. Ни переписок, ни фото.',
       cta: 'Разрешить', more: true },
-    { id: 'reveal', orb: 'ping', title: 'Вот твой вчерашний день',
-      body: 'Это уже видно по истории экрана — ждать неделю не нужно.\nПрислать такую фразу завтра утром?',
+    { id: 'reveal', orb: 'ping', title: 'Вот твой день',
+      body: '',
       cta: 'Да, присылай', skip: 'Не сейчас' },
   ];
   const LAST = 3;
   const SAMPLE = 'После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.';
-  const HOURS = [1,0,0,0,0,0,1,3,6,8,9,12,5,4,6,9,7,8,10,6,4,3,2,1];
+  const YESTERDAY = [1,0,0,0,0,0,1,3,6,8,9,12,5,4,6,9,7,8,10,6,4,3,2,1];
+  const TODAY = [0,0,0,0,0,1,2,5,8,10,6,7,9,4,6,8,7,9,5,8,6]; // до 21:00, сегодня вечером
+  let evening = true;               // демо: вечер → «сегодня», утро → «вчера»
+  const NOW_H = 21;
   const $ = id => document.getElementById(id);
   let step = 0, timers = [];
   const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
@@ -268,6 +275,10 @@
 
   function renderCopy(back) {
     const st = STEPS[step], c = $('copy');
+    if (st.id === 'reveal') {
+      st.title = evening ? 'Вот твой сегодняшний день' : 'Вот твой вчерашний день';
+      st.body = (evening ? 'Это уже видно по истории экрана — ждать неделю не нужно.' : 'Сегодня только началось, поэтому показываю вчера. Ждать неделю не нужно.') + '\nПрислать такую фразу завтра утром?';
+    }
     c.className = 'copy in' + (back ? ' back' : '');
     c.innerHTML = '<h1>' + st.title + '</h1><p class="body">' + st.body + '</p>' + (st.more ? '<button class="more">Подробнее о данных</button>' : '');
     const m = c.querySelector('.more'); if (m) m.onclick = () => alert('В приложении откроется страница про данные: companion-app.ru/privacy');
@@ -280,11 +291,21 @@
     if (step === 0) {
       html = '<div class="panel"><div class="panel-head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="panel-text">' + SAMPLE + '</div></div>';
     } else if (step === 2) {
-      const mx = Math.max(...HOURS);
-      html = '<div class="panel"><div class="panel-head"><span>Вчера по часам</span><span class="chip">пример</span></div>' +
-        '<div class="bars">' + HOURS.map((v, i) => '<i data-h="' + Math.round(v / mx * 100) + '"' + (i >= 22 ? ' class="hi"' : '') + '></i>').join('') + '</div>' +
+      const data = evening ? TODAY : YESTERDAY;
+      const mx = Math.max(...YESTERDAY);
+      const cells = Array.from({ length: 24 }, (_, i) => {
+        if (evening && i > NOW_H - 1) return '<i class="' + (i === NOW_H ? 'now ' : '') + 'future" data-h="4"></i>';
+        const v = data[i] || 0;
+        return '<i data-h="' + Math.round(v / mx * 100) + '"' + (!evening && i >= 22 ? ' class="hi"' : '') + '></i>';
+      }).join('');
+      const stat = evening
+        ? '3 ч 05 мин у экрана · 48 разблокировок'
+        : 'Вчера: 2 ч 40 мин у экрана · 36 разблокировок';
+      html = '<div class="panel"><div class="panel-head"><span>' + (evening ? 'Сегодня по часам, до сих пор' : 'Вчера по часам') + '</span><span class="chip">пример</span></div>' +
+        '<div class="bars">' + cells + '</div>' +
         '<div class="bars-ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>' +
-        '<div class="panel-text" style="margin-top:6px">Экран гас в 23:40, без позднего скролла — после таких вечеров утро у тебя обычно лёгкое.</div></div>';
+        '<div class="stat">' + stat + '</div>' +
+        '<div class="panel-text" style="margin-top:4px">Вчера экран гас в 23:40, без позднего скролла — после таких вечеров утро у тебя обычно лёгкое.</div></div>';
     }
     slot.innerHTML = html;
     slot.querySelectorAll('.bars i').forEach((b, i) => later(() => { b.style.height = b.dataset.h + '%'; }, 80 + i * 25));
@@ -339,6 +360,7 @@
   $('prev').onclick = () => { if (step > 0) { $('final').classList.remove('show'); goto(step - 1, true); } };
   const reset = () => { $('final').classList.remove('show'); helpOpen = false; skippedAccess = false; step = 0; render(true); };
   $('reset').onclick = reset; $('again').onclick = reset;
+  $('tod').onclick = () => { evening = !evening; $('tod').textContent = 'время: ' + (evening ? 'вечер' : 'утро'); if (step === 2) render(); };
   $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
   render();
 })();
