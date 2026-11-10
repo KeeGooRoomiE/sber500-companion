@@ -231,11 +231,14 @@
       <div class="orb" style="width:84px;height:84px"></div>
       <h2>Добрый вечер</h2>
       <p id="finalText"></p>
-      <div class="cards">
+      <div class="cards" id="finalAccess" style="display:none">
+        <div class="card"><div><b>Доступ к экрану</b><span>Нужен, чтобы прогноз заработал</span></div><button>Разрешить</button></div>
+      </div>
+      <div class="cards" id="finalCards">
         <div class="card"><div><b>Шаги</b><span>Прогноз станет точнее</span></div><button>Добавить</button></div>
         <div class="card"><div><b>Сон</b><span>Точное время вместо пауз экрана</span></div><button>Добавить</button></div>
       </div>
-      <div class="tag">Эти карточки появятся на главном экране на второй день, не сразу</div>
+      <div class="tag" id="finalTag">Эти карточки появятся на главном экране на второй день, не сразу</div>
       <button class="cta" id="again" style="max-width:240px;margin-top:auto">Пройти ещё раз</button>
     </div>
   </div>
@@ -297,7 +300,7 @@
         'Так бывает с приложениями не из магазина — это защита Android, разблокировать нужно один раз.' +
         '<ol><li>Открой «О приложении» кнопкой ниже</li><li>Нажми ⋮ справа вверху → «Разрешить ограниченные настройки»</li><li>Вернись сюда и снова нажми «Разрешить»</li></ol>' +
         '<button class="linkbtn" id="openApp" style="margin:6px 0 0">Открыть «О приложении»</button>' +
-        '<button class="skip-link" id="skipAccess">Пропустить — без этого доступа прогноз будет беднее</button></div>';
+        '<button class="skip-link" id="skipAccess">Позже — без доступа прогноз не заработает</button></div>';
       $('openApp').onclick = () => alert('В приложении откроются системные настройки Companion («О приложении»).');
       $('skipAccess').onclick = () => { skippedAccess = true; helpOpen = false; finish(); };
     } else {
@@ -314,8 +317,11 @@
   function goto(n, back) { step = n; helpOpen = false; render(back); }
   function finish() {
     $('finalText').innerHTML = skippedAccess
-      ? 'Без доступа к экрану прогноз будет общим.<br>Разрешить можно в любой момент на главном экране.'
+      ? 'Без доступа к экрану прогноза не будет — приложению не на чем его строить.'
       : 'Первый прогноз придёт завтра утром.<br>Пока приложение просто собирает картину.';
+    $('finalCards').style.display = skippedAccess ? 'none' : '';
+    $('finalTag').style.display = skippedAccess ? 'none' : '';
+    $('finalAccess').style.display = skippedAccess ? '' : 'none';
     $('final').classList.add('show');
   }
 
