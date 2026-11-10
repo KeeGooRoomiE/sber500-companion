@@ -230,7 +230,7 @@
     <div class="final" id="final" style="justify-content:flex-start;padding-top:46px">
       <div class="orb" style="width:84px;height:84px"></div>
       <h2>Добрый вечер</h2>
-      <p>Первый прогноз придёт завтра утром.<br>Пока приложение просто собирает картину.</p>
+      <p id="finalText"></p>
       <div class="cards">
         <div class="card"><div><b>Шаги</b><span>Прогноз станет точнее</span></div><button>Добавить</button></div>
         <div class="card"><div><b>Сон</b><span>Точное время вместо пауз экрана</span></div><button>Добавить</button></div>
@@ -287,9 +287,23 @@
     slot.querySelectorAll('.bars i').forEach((b, i) => later(() => { b.style.height = b.dataset.h + '%'; }, 80 + i * 25));
   }
 
+  let helpOpen = false, skippedAccess = false;
   function renderSheet() {
-    $('sheetSlot').innerHTML = step === 1 ? '<button class="linkbtn" id="blocked">Android пишет «Доступ запрещен»? (показать, как в приложении)</button>' : '';
-    const b = $('blocked'); if (b) b.onclick = () => alert('Как в приложении: «О приложении» → ⋮ → «Разрешить ограниченные настройки».');
+    const s = $('sheetSlot');
+    if (step !== 1) { s.innerHTML = ''; return; }
+    if (helpOpen) {
+      s.innerHTML =
+        '<div class="sheet"><b>Android пишет «Доступ запрещен»?</b>' +
+        'Так бывает с приложениями не из магазина — это защита Android, разблокировать нужно один раз.' +
+        '<ol><li>Открой «О приложении» кнопкой ниже</li><li>Нажми ⋮ справа вверху → «Разрешить ограниченные настройки»</li><li>Вернись сюда и снова нажми «Разрешить»</li></ol>' +
+        '<button class="linkbtn" id="openApp" style="margin:6px 0 0">Открыть «О приложении»</button>' +
+        '<button class="skip-link" id="skipAccess">Пропустить — без этого доступа прогноз будет беднее</button></div>';
+      $('openApp').onclick = () => alert('В приложении откроются системные настройки Companion («О приложении»).');
+      $('skipAccess').onclick = () => { skippedAccess = true; helpOpen = false; finish(); };
+    } else {
+      s.innerHTML = '<button class="linkbtn" id="help">Не получается разрешить? Подсказать, как</button>';
+      $('help').onclick = () => { helpOpen = true; renderSheet(); };
+    }
   }
 
   function render(back) {
@@ -297,8 +311,13 @@
     renderDots(); renderCopy(back); renderPanel(); renderSheet();
     $('orb').className = 'orb ' + STEPS[step].orb;
   }
-  function goto(n, back) { step = n; render(back); }
-  function finish() { $('final').classList.add('show'); }
+  function goto(n, back) { step = n; helpOpen = false; render(back); }
+  function finish() {
+    $('finalText').innerHTML = skippedAccess
+      ? 'Без доступа к экрану прогноз будет общим.<br>Разрешить можно в любой момент на главном экране.'
+      : 'Первый прогноз придёт завтра утром.<br>Пока приложение просто собирает картину.';
+    $('final').classList.add('show');
+  }
 
   $('cta').onclick = () => {
     const id = STEPS[step].id;
@@ -312,7 +331,7 @@
   };
   $('skip').onclick = finish;
   $('prev').onclick = () => { if (step > 0) { $('final').classList.remove('show'); goto(step - 1, true); } };
-  const reset = () => { $('final').classList.remove('show'); step = 0; render(true); };
+  const reset = () => { $('final').classList.remove('show'); helpOpen = false; skippedAccess = false; step = 0; render(true); };
   $('reset').onclick = reset; $('again').onclick = reset;
   $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
   render();
