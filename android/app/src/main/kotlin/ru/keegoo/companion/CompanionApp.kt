@@ -9,6 +9,8 @@ import dagger.hilt.android.HiltAndroidApp
 import io.appmetrica.analytics.AppMetrica
 import io.appmetrica.analytics.AppMetricaConfig
 import ru.keegoo.companion.notifications.createNotificationChannels
+import ru.rustore.sdk.pushclient.common.logger.DefaultLogger
+import ru.rustore.sdk.pushclient.RuStorePushClient
 import ru.keegoo.companion.work.DailyCollectWorker
 import ru.keegoo.companion.work.UpdateCheckWorker
 import javax.inject.Inject
@@ -45,6 +47,9 @@ class CompanionApp : Application(), Configuration.Provider {
             )
         }
         createNotificationChannels(this)
+        if (BuildConfig.RUSTORE_PUSH_PROJECT_ID.isNotEmpty()) {
+            RuStorePushClient.init(this, BuildConfig.RUSTORE_PUSH_PROJECT_ID, DefaultLogger())
+        }
         DailyCollectWorker.schedule(this)
         UpdateCheckWorker.schedule(this)
         appScope.launch { NotificationScheduler.ensureScheduled(this@CompanionApp) }

@@ -26,6 +26,16 @@ val appMetricaKey: String = System.getenv("APPMETRICA_KEY")
         ?.trim()
     ?: ""
 
+// RuStore Push project id (RuStore Console → push → Projects). Not a secret, but kept out of the
+// repo like the other keys: CI env var or local.properties. Empty = push client stays off.
+val rustorePushProjectId: String = System.getenv("RUSTORE_PUSH_PROJECT_ID")?.takeIf { it.isNotBlank() }
+    ?: rootProject.file("local.properties").takeIf { it.exists() }
+        ?.readLines()
+        ?.firstOrNull { it.startsWith("rustore.push.project_id=") }
+        ?.substringAfter('=')
+        ?.trim()
+    ?: ""
+
 android {
     namespace = "ru.keegoo.companion"
     compileSdk = 35
@@ -34,8 +44,8 @@ android {
         applicationId = "ru.keegoo.companion"
         minSdk = 29
         targetSdk = 35
-        versionCode = 25
-        versionName = "1.0.2"
+        versionCode = 26
+        versionName = "1.0.2-push"
     }
 
     signingConfigs {
@@ -56,6 +66,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
             buildConfigField("String", "INSTALL_SOURCE", "\"$installSource\"")
+            buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"$rustorePushProjectId\"")
         }
         release {
             // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
@@ -66,6 +77,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://api.94-183-236-169.sslip.io/\"")
             buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
             buildConfigField("String", "INSTALL_SOURCE", "\"$installSource\"")
+            buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"$rustorePushProjectId\"")
             if (sharedKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
     }
@@ -116,6 +128,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
     implementation(libs.appmetrica.sdk)
+    implementation("ru.rustore.sdk:pushclient:7.5.0")
 
     debugImplementation(libs.androidx.ui.tooling)
 }

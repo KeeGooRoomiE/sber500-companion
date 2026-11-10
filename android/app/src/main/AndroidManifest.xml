@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- WorkManager network constraints -->
@@ -74,6 +75,16 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+
+        <!-- RuStore Push: server-initiated wake-ups -->
+        <service
+            android:name=".push.MyRuStoreMessagingService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="ru.rustore.sdk.pushclient.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Check-in notification actions -->
         <receiver

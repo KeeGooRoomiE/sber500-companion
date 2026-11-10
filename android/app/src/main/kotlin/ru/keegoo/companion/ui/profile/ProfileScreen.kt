@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -141,7 +143,7 @@ private val OrbDockEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
  * opens the next. One-time questions fold away 5 s after the answer and don't come back
  * (except through «Изменить прошлые ответы»).
  */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
     sharedScope: SharedTransitionScope,
@@ -150,6 +152,8 @@ fun ProfileScreen(
     vm: ProfileViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    var showPushDebug by remember { mutableStateOf(false) }
+    if (showPushDebug) ru.keegoo.companion.push.PushDebugDialog { showPushDebug = false }
     val scope = rememberCoroutineScope()
     val answersFlow = remember { context.profileAnswers() }
     val loaded by answersFlow.collectAsState(initial = null)
@@ -380,10 +384,12 @@ fun ProfileScreen(
                     // The orb used to sit inline here; it is a floating overlay now (below),
                     // so the title doesn't jump up — this just holds its old place open.
                     Spacer(Modifier.height(ORB_SLOT_HEIGHT))
+                    // push-test: long-press opens the push token / availability panel
                     Text(
                         text = "Расскажи о себе",
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { showPushDebug = true }),
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
