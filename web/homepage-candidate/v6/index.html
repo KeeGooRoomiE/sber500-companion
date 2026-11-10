@@ -115,8 +115,7 @@
     padding: 18px 18px 20px; box-shadow: 0 -8px 40px rgba(20,16,40,.3); transform: translateY(105%);
     transition: transform .32s cubic-bezier(.22,.9,.3,1); display: flex; flex-direction: column; gap: 10px; max-height: 80%;
   }
-  .sheet.full { height: 94%; max-height: none; }
-  .sheet.on { transform: none; }
+    .sheet.on { transform: none; }
   .sheet .bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex: none; }
   .sheet h4 { margin: 0; font-size: 18px; }
   .x { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-faint); color: var(--primary); border: 0; font-size: 18px; line-height: 1; cursor: pointer; flex: none; display: grid; place-items: center; }
@@ -206,17 +205,18 @@
   const op = (p, k) => 'data-open="' + k + '" data-p="' + p + '"';
   const top = g => '<div class="top"><div class="greet">' + g + D.name + '</div><div class="orb"></div></div>';
   const tiles = '<div class="tiles">' + D.tiles.map(t => '<div class="tile"><b>' + t[0] + '</b><span>' + t[1] + '</span></div>').join('') + '</div>';
-  const links = p => '<div class="links"><span class="go" ' + op(p, 'why') + '>Почему такой прогноз ›</span><span class="go" ' + op(p, 'day') + '>Разбор дня →</span></div>';
+  const whyL = p => '<span class="go" ' + op(p, 'why') + '>Почему такой прогноз ›</span>';
+  const links = p => '<div class="links"><span class="go" ' + op(p, 'day') + '>Разбор дня →</span></div>';
 
   function bottom(p) {
     const rows = HIST.slice(0, 2).map((r, i) => '<div class="hrow' + (i ? '' : ' first') + '"><div class="d"><span>' + r[0] + '</span><span class="mk' + r[3] + '">' + r[2] + '</span></div><div class="t">' + r[1] + '</div></div>').join('');
-    return '<div class="card"><div class="sh"><h4>Прошлые прогнозы</h4><span class="lnk" ' + op(p, 'past') + '>Все →</span></div>' + rows + '</div>' +
-      '<button class="btnw" ' + op(p, 'week') + '>Разбор недели</button>';
+    return '<div class="card"><div class="sh"><h4>Прошлые прогнозы</h4><span class="lnk" ' + op(p, 'past') + '>Все →</span></div>' + rows +
+      '<div class="hrow" style="text-align:center;padding-bottom:0"><span class="lnk" ' + op(p, 'week') + '>Разбор недели →</span></div></div>';
   }
 
   function renderA() {
     $('A').innerHTML = top('Доброе утро') +
-      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' +
+      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('A') +
       '<div class="divider"></div><div class="head"><span>Вчера по часам</span></div>' + bars('yest') +
       '<div class="stat">' + D.stat.yest + '</div><div class="sub">' + D.fact + '</div>' + links('A') + '</div>' + tiles + bottom('A');
   }
@@ -224,13 +224,13 @@
     const nowH = evening ? 21 : 13;
     const checkin = '<div class="card"><h4>Как прошёл день?</h4><div class="feels"><div class="feel"><i>😊</i>Отлично</div><div class="feel"><i>😐</i>Нормально</div><div class="feel"><i>😮‍💨</i>Тяжело</div></div></div>';
     const how = '<div class="card"><h4>Как идёт день</h4><p>' + D.howDay + '</p></div>';
-    const panel = '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' +
+    const panel = '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('B') +
       '<div class="divider"></div><div class="head"><span>Сегодня по часам</span></div>' + bars('today', nowH) + '<div class="stat">' + D.stat.day + '</div>' + links('B') + '</div>';
     $('B').innerHTML = top(evening ? 'Добрый вечер' : 'Добрый день') + (evening ? checkin + panel + tiles : how + panel + tiles) + bottom('B');
   }
   function renderC() {
     $('C').innerHTML = top('Доброе утро') +
-      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' +
+      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('C') +
       '<div class="head" style="margin-top:4px"><span>Вчера по часам</span></div>' + bars('yest', 0, true) +
       '<div class="sub" style="font-size:13px">' + D.fact + '</div>' + links('C') + '</div>' + bottom('C');
   }
@@ -264,7 +264,7 @@
       if (!s) { c = document.createElement('div'); c.className = 'scrim'; c.dataset.close = '1'; s = document.createElement('div'); s.className = 'sheet'; ph.appendChild(c); ph.appendChild(s); }
       if (open && open.p === p) {
         const [title, body, full] = sheet(open.k);
-        s.className = 'sheet' + (full ? ' full' : '');
+        s.className = 'sheet';
         s.innerHTML = '<div class="bar"><h4>' + title + '</h4><button class="x" data-close="1" aria-label="Закрыть">×</button></div><div class="sbody">' + body + '</div>';
         requestAnimationFrame(() => { s.classList.add('on'); c.classList.add('on'); });
       } else { s.classList.remove('on'); c.classList.remove('on'); }
