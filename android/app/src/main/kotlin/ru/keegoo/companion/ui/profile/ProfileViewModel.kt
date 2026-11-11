@@ -93,6 +93,7 @@ class ProfileViewModel @Inject constructor(
      */
     val orbReaction: StateFlow<String?> = _orbReaction
     private var orbReactionJob: Job? = null
+    private var orbResolving = false
 
     init {
         viewModelScope.launch { _topApps.value = runCatching { today.weekTopApps() }.getOrDefault(emptyList()) }
@@ -175,9 +176,19 @@ class ProfileViewModel @Inject constructor(
 
     /** Three taps on the orb inside five seconds — poking the companion, not a question to it. */
     fun onOrbFlurry() {
+        // A phrase is being fetched: let it arrive. Cancelling here would throw away a server
+        // line whose daily slot is already spent, and fast tapping would burn all five unseen.
+        if (orbResolving) return
         orbReactionJob?.cancel()
         orbReactionJob = viewModelScope.launch {
-            _orbReaction.value = resolveOrbReaction(context, repository)
+            orbResolving = true
+            val phrase = try {
+                resolveOrbReaction(context, repository)
+            } finally {
+                orbResolving = false
+            }
+            // A phrase already on screen is simply replaced by the next one.
+            _orbReaction.value = phrase
             delay(ORB_REACTION_MS)
             _orbReaction.value = null
         }

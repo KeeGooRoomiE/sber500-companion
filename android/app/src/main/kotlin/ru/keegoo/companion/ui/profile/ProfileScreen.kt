@@ -377,19 +377,30 @@ fun ProfileScreen(
                 top = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp,
                 bottom = bars.calculateBottomPadding() + 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            // No spacedBy here: a folded-away question is still an item, and every such item
+            // would keep its 10 dp, which added up to a hole in the middle of the list. Each
+            // visible block carries its own gap instead, so a hidden one takes no room at all.
         ) {
             item(key = "header") {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     // The orb used to sit inline here; it is a floating overlay now (below),
                     // so the title doesn't jump up — this just holds its old place open.
                     Spacer(Modifier.height(ORB_SLOT_HEIGHT))
-                    // push-test: long-press opens the push token / availability panel
+                    // 25 taps open the diagnostics a person can send to the author. No ripple: the
+                    // title must not look like a button to everyone else.
+                    var titleTaps by remember { mutableStateOf(0) }
+                    val titleSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                     Text(
                         text = "Расскажи о себе",
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { showPushDebug = true }),
+                        modifier = Modifier.clickable(interactionSource = titleSource, indication = null) {
+                            titleTaps++
+                            if (titleTaps >= ru.keegoo.companion.push.DIAGNOSTICS_TAPS) {
+                                titleTaps = 0
+                                showPushDebug = true
+                            }
+                        },
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -406,6 +417,7 @@ fun ProfileScreen(
                         ProgressLine(progress = progress, label = "$answered из ${questions.size}")
                         Spacer(Modifier.height(6.dp))
                     }
+                    Spacer(Modifier.height(10.dp))
                 }
             }
 
@@ -424,7 +436,7 @@ fun ProfileScreen(
             }
             // A plain function call: inside LazyItemScope a scoped AnimatedVisibility overload would not apply
             FoldAway(visible = visible(q)) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     QuestionCard(
                         modifier = rise,
                         question = q,

@@ -64,6 +64,9 @@ object ReminderConfig {
         return if (min in 0 until 24 * 60) LocalTime.of(min / 60, min % 60) else DefaultEveningTime
     }
 
+    /** When the server config was last stored, epoch ms; 0 if never. */
+    fun syncedAt(context: Context): Long = context.prefs().getLong(KEY_SYNCED_AT, 0)
+
     /** Days without any activity mark after which a person counts as silent. */
     fun silenceDays(context: Context): Int = context.prefs().getInt(KEY_SILENCE_DAYS, DEFAULT_SILENCE_DAYS)
 

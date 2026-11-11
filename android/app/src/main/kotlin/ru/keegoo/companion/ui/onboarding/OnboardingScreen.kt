@@ -381,6 +381,9 @@ fun OnboardingScreen(
         else -> current.cta
     }
 
+    // Filled in where the main button is built (it needs the launchers declared around it);
+    // the orb above it in the layout calls whatever is here at the moment of the tap.
+    val primaryAction = remember { arrayOf<() -> Unit>({}) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -401,7 +404,14 @@ fun OnboardingScreen(
                             animatedVisibilityScope = animatedScope,
                             boundsTransform = OrbBoundsTransform,
                         )
-                        .size(148.dp),
+                        .size(148.dp)
+                        // The orb does what the main button does: on a small screen the button
+                        // can end up below the fold, and the orb is always in view.
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                        ) { primaryAction[0]() },
                 )
             }
         }
@@ -504,7 +514,7 @@ fun OnboardingScreen(
             exit = fadeOut(),
         ) {
             Text(
-                text = "Не получается разрешить? Подсказать, как",
+                text = "Не получается разрешить? Подсказать как",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -589,9 +599,8 @@ fun OnboardingScreen(
                     .fillMaxWidth()
                     .graphicsLayer { scaleX = btnScale; scaleY = btnScale },
             ) {
-                Button(
-                    onClick = {
-                        if (reading || step == LAST_STEP) return@Button
+                val onPrimary: () -> Unit = primary@{
+                        if (reading || step == LAST_STEP) return@primary
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         when (step) {
                             STEP_HELLO -> step = STEP_ACCESS
@@ -635,7 +644,10 @@ fun OnboardingScreen(
                                 }
                             }
                         }
-                    },
+                    }
+                primaryAction[0] = onPrimary
+                Button(
+                    onClick = onPrimary,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = AppShapes.button,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
