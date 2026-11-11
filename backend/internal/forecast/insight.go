@@ -55,6 +55,13 @@ const (
 // Cached per (user, kind, argument, day), so re-opening a screen costs nothing and only a new
 // question costs a call.
 func (g *Generator) Insight(ctx context.Context, userID, kind, arg string) (*repo.Review, error) {
+	return g.InsightAs(ctx, userID, kind, arg, analytics.TriggerUserAction)
+}
+
+// InsightAs is Insight with the call_log trigger named by the caller. The midday notification
+// asks for its text from an alarm, with nobody tapping anything: that call must not read as a
+// person asking the model, so it is logged as scheduled.
+func (g *Generator) InsightAs(ctx context.Context, userID, kind, arg string, trigger analytics.Trigger) (*repo.Review, error) {
 	today := clock.Today()
 	cacheKind, err := insightCacheKind(kind, arg)
 	if err != nil {
@@ -106,7 +113,7 @@ func (g *Generator) Insight(ctx context.Context, userID, kind, arg string) (*rep
 	}
 	user := llm.BuildInsight(task, facts, profile)
 	return g.complete(ctx, userID, prompts.InsightSystem, analytics.ComponentLLMInsight,
-		analytics.TriggerUserAction, cacheKind, today, user, limits)
+		trigger, cacheKind, today, user, limits)
 }
 
 // insightCacheKind validates the kind and builds its cache key in one place, so an unknown

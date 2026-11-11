@@ -16,6 +16,7 @@ const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
 const val CHANNEL_REVIEW   = "ch_review"
 const val CHANNEL_UPDATE   = "ch_update"
+const val CHANNEL_MIDDAY   = "ch_midday"
 
 const val EXTRA_FEEL = "feel"
 const val EXTRA_NOTIF_SOURCE = "notif_source"
@@ -28,6 +29,7 @@ const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
 const val NOTIF_ID_UPDATE  = 1003
 const val NOTIF_ID_REVIEW  = 1004
+const val NOTIF_ID_MIDDAY  = 1005
 
 data class NotificationCopy(val title: String, val body: String)
 
@@ -56,6 +58,14 @@ val EveningCopies = listOf(
     NotificationCopy("Подведём итог", "Отлично, нормально или тяжело — выбери, и всё"),
 )
 
+// Midday: only for someone who has not looked at the app today, so the text must carry no
+// reproach and no news that has to be read — one open question. Used when the server text is
+// not there in time.
+val MiddayCopies = listOf(
+    NotificationCopy("Половина дня прошла", "Хочешь увидеть, что заметно по твоему дню?"),
+    NotificationCopy("Как идёт день?", "Днём у тебя обычно что-то меняется. Загляни, расскажу что."),
+)
+
 /** Deterministic pick per day, so the same text doesn't repeat two days in a row. */
 fun <T> List<T>.forToday(): T = this[LocalDate.now().dayOfYear % size]
 
@@ -74,6 +84,11 @@ fun createNotificationChannels(context: Context) {
     nm.createNotificationChannel(
         NotificationChannel(CHANNEL_REVIEW, "Разбор дня", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Объяснение прошедшего дня сразу после чек-ина"
+        }
+    )
+    nm.createNotificationChannel(
+        NotificationChannel(CHANNEL_MIDDAY, "Дневная мысль", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Одна мысль про день, если с утра ты не заглядывал в приложение"
         }
     )
     nm.createNotificationChannel(
@@ -120,6 +135,22 @@ private fun openAppIntent(context: Context, source: String): PendingIntent = Pen
         .putExtra(EXTRA_NOTIF_SOURCE, source),
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
+
+fun showMiddayNotification(context: Context, copy: NotificationCopy = MiddayCopies.forToday()) {
+    val notif = NotificationCompat.Builder(context, CHANNEL_MIDDAY)
+        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setContentTitle(copy.title)
+        .setContentText(copy.body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(openAppIntent(context, "midday"))
+        .setDeleteIntent(dismissIntent(context, "midday"))
+        .setAutoCancel(true)
+        .build()
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MIDDAY, notif) }
+    Events.notificationShown("midday")
+}
 
 /** Fires when the notification is swiped away (not when it is tapped or its buttons are used). */
 private fun dismissIntent(context: Context, kind: String): PendingIntent = PendingIntent.getBroadcast(

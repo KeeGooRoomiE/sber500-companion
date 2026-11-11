@@ -130,5 +130,7 @@ dependencies {
     implementation(libs.appmetrica.sdk)
     implementation("ru.rustore.sdk:pushclient:7.5.0")
 
+    testImplementation("junit:junit:4.13.2")
+
     debugImplementation(libs.androidx.ui.tooling)
 }

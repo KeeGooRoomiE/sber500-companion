@@ -134,6 +134,8 @@ data class PushTokenRequest(
 data class InsightRequest(
     @SerializedName("kind") val kind: String,  // midday | stat | retro | tag | question
     @SerializedName("arg") val arg: String,    // tile name, date, tag, or "1".."3" for question slot
+    /** True when an alarm, not a tap, asks (the midday notification): logged as background work. */
+    @SerializedName("background") val background: Boolean = false,
 )
 
 data class InsightResponse(

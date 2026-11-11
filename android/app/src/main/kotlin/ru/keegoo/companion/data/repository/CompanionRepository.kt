@@ -109,8 +109,8 @@ class CompanionRepository @Inject constructor(
      * One line about one slice of the data. The server caches it per (kind, argument, day), so
      * re-opening the same screen costs nothing and only a new slice costs a call.
      */
-    suspend fun insight(kind: String, arg: String = ""): Result<InsightResponse> =
-        runCatching { api.postInsight(InsightRequest(kind, arg)) }
+    suspend fun insight(kind: String, arg: String = "", background: Boolean = false): Result<InsightResponse> =
+        runCatching { api.postInsight(InsightRequest(kind, arg, background)) }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 
