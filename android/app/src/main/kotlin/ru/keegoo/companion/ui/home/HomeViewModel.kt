@@ -358,7 +358,14 @@ class HomeViewModel @Inject constructor(
             else -> "Разбор дня"
         }
         Events.dayReviewOpen()
-        runReview(ReviewUi(ReviewKind.Day, title)) { repository.dayReview(date) }
+        runReview(ReviewUi(ReviewKind.Day, title)) {
+            // Today's review is built from today's data: without a fresh snapshot the server answers
+            // from the morning upload or 404s (PR-09). Past days are already there.
+            if (date == today) {
+                ru.keegoo.companion.work.DailyCollectWorker.runNowAndWait(context, pastDays = 1, timeoutMs = 8_000)
+            }
+            repository.dayReview(date)
+        }
     }
 
     /** «Итоги недели»: the last 7 days summed up. */

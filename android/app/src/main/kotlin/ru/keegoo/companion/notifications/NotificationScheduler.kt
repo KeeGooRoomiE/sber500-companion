@@ -75,7 +75,7 @@ object NotificationScheduler {
     suspend fun ensureScheduled(context: Context) {
         val answers = context.profileAnswersNow()
         applyMorning(context, answers[ProfileIds.MORNING_TIME])
-        schedule(context, ReminderKind.Evening, parseTime(answers[ProfileIds.EVENING_TIME]) ?: DefaultEveningTime)
+        schedule(context, ReminderKind.Evening, parseTime(answers[ProfileIds.EVENING_TIME]) ?: ReminderConfig.eveningDefault(context))
         scheduleMidday(context)
     }
 
@@ -217,7 +217,7 @@ object NotificationScheduler {
 
     internal suspend fun nextEvening(context: Context): LocalDateTime {
         val answers = context.profileAnswersNow()
-        return tomorrowAt(parseTime(answers[ProfileIds.EVENING_TIME]) ?: DefaultEveningTime)
+        return tomorrowAt(parseTime(answers[ProfileIds.EVENING_TIME]) ?: ReminderConfig.eveningDefault(context))
     }
 }
 
@@ -233,7 +233,7 @@ suspend fun postMorningForecast(context: Context) {
         repo.getMorning().getOrNull()?.takeIf { it.message.isNotBlank() }
     }
     if (morning == null) {
-        showMorningNotification(context, MorningCopies.forToday())
+        showMorningNotification(context)
     } else {
         // Follow-up buttons only under a real server forecast: there is nothing to ask a local copy about.
         val chips = if (ReminderConfig.flag(context, "shade_followup", true)) morning.followups.orEmpty() else emptyList()

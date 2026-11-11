@@ -89,7 +89,18 @@ object Events {
      * The app came to the foreground and it starts a new session (30 minutes since the last
      * open). [source] is launcher | morning | checkin | review | update | link.
      */
-    fun appOpen(source: String) = report("app_open", mapOf("source" to source))
+    fun appOpen(source: String, hasUsageStats: Boolean, hasHealthData: Boolean?) = report(
+        "app_open",
+        buildMap {
+            put("source", source)
+            put("has_usage_stats", hasUsageStats)
+            // null = Health Connect could not be asked (not installed, error): say nothing rather than «no».
+            if (hasHealthData != null) put("has_health_connect_data", hasHealthData)
+        },
+    )
+
+    /** A screen came to the front (onboarding, home, profile). */
+    fun screenView(screen: String) = report("screen_view", mapOf("screen" to screen))
 
     /** A notification was drawn. [kind] is morning | checkin | review | update | midday. */
     fun notificationShown(kind: String) = report("notification_shown", mapOf("kind" to kind))

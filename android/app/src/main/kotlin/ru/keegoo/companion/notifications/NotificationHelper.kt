@@ -147,14 +147,23 @@ private fun openAppIntent(context: Context, source: String): PendingIntent = Pen
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-/** Server-supplied fallbacks for texts.midday, each «Заголовок | текст»; built-ins when none. */
-fun middayCopyFor(context: Context): NotificationCopy {
-    val remote = ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, "midday").mapNotNull {
-        val (title, body) = it.split("|", limit = 2).map(String::trim).takeIf { p -> p.size == 2 } ?: return@mapNotNull null
-        if (title.isEmpty() || body.isEmpty()) null else NotificationCopy(title, body)
-    }
-    return (remote.ifEmpty { MiddayCopies }).forToday()
+/**
+ * Local notification texts the server can replace without a build: texts.<key> in the config,
+ * each «Заголовок | текст». Built-ins when the config has none or they are malformed.
+ * Keys: morning, midday, evening.
+ */
+fun copyFor(context: Context, key: String, builtIn: List<NotificationCopy>): NotificationCopy {
+    val remote = ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, key).mapNotNull(::parseCopy)
+    return (remote.ifEmpty { builtIn }).forToday()
 }
+
+internal fun parseCopy(line: String): NotificationCopy? {
+    val parts = line.split("|", limit = 2).map(String::trim)
+    if (parts.size != 2 || parts[0].isEmpty() || parts[1].isEmpty()) return null
+    return NotificationCopy(parts[0], parts[1])
+}
+
+fun middayCopyFor(context: Context): NotificationCopy = copyFor(context, "midday", MiddayCopies)
 
 fun showMiddayNotification(context: Context, copy: NotificationCopy = middayCopyFor(context)) {
     val notif = NotificationCompat.Builder(context, CHANNEL_MIDDAY)
@@ -192,7 +201,7 @@ private fun dismissIntent(context: Context, kind: String): PendingIntent = Pendi
  */
 fun showMorningNotification(
     context: Context,
-    copy: NotificationCopy = MorningCopies.forToday(),
+    copy: NotificationCopy = copyFor(context, "morning", MorningCopies),
     date: String? = null,
     chips: List<FollowupQuestionDto> = emptyList(),
     note: String? = null,
@@ -287,7 +296,7 @@ fun showReviewNotification(context: Context, text: String, forecastDate: String?
     Events.notificationShown("review")
 }
 
-fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {
+fun showCheckinNotification(context: Context, copy: NotificationCopy = copyFor(context, "evening", EveningCopies)) {
     fun actionIntent(feel: String): PendingIntent {
         val intent = Intent(ACTION_CHECKIN).apply {
             setPackage(context.packageName)

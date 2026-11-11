@@ -19,6 +19,7 @@ type AppConfig struct {
 	Version int `json:"version"` // schema version, bumped only when a key changes meaning
 
 	Midday  MiddayConfig  `json:"midday"`
+	Evening EveningConfig `json:"evening"`
 	Silence SilenceConfig `json:"silence"`
 	Update  UpdateConfig  `json:"update"`
 
@@ -32,6 +33,12 @@ type MiddayConfig struct {
 	Enabled   bool `json:"enabled"`
 	CenterMin int  `json:"center_min"` // minutes after local midnight, 840 = 14:00
 	DeltaMin  int  `json:"delta_min"`  // ± window around the center
+}
+
+type EveningConfig struct {
+	// DefaultMin is the evening check-in time (minutes after local midnight) for people who never
+	// chose one in the profile; 0 keeps the app's built-in default. A chosen time always wins.
+	DefaultMin int `json:"default_min"`
 }
 
 type SilenceConfig struct {
@@ -71,6 +78,9 @@ func (c *AppConfig) sanitize() {
 	}
 	if c.Midday.DeltaMin < 0 || c.Midday.DeltaMin > 6*60 {
 		c.Midday.DeltaMin = d.Midday.DeltaMin
+	}
+	if c.Evening.DefaultMin < 0 || c.Evening.DefaultMin >= 24*60 {
+		c.Evening.DefaultMin = 0
 	}
 	if c.Silence.Days < 1 || c.Silence.Days > 60 {
 		c.Silence.Days = d.Silence.Days

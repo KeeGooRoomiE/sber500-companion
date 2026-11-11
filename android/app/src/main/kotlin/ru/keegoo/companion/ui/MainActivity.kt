@@ -1,5 +1,7 @@
 package ru.keegoo.companion.ui
 
+import ru.keegoo.companion.data.collector.hasUsageAccess
+import androidx.health.connect.client.HealthConnectClient
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,7 +29,15 @@ class MainActivity : ComponentActivity() {
         if (ActivityMarker.markOpen(this)) {
             val source = intent.getStringExtra(EXTRA_NOTIF_SOURCE)
                 ?: if (intent.data?.scheme == "companion") "link" else "launcher"
-            Events.appOpen(source)
+            val usage = hasUsageAccess()
+            lifecycleScope.launch {
+                // Any Health Connect read permission granted counts: the question is «is there a data source».
+                val health = runCatching {
+                    HealthConnectClient.getOrCreate(this@MainActivity).permissionController
+                        .getGrantedPermissions().isNotEmpty()
+                }.getOrNull()
+                Events.appOpen(source, usage, health)
+            }
         }
     }
 

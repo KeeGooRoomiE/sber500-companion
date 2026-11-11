@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import ru.keegoo.companion.data.repository.CompanionRepository
+import ru.keegoo.companion.domain.profile.DefaultEveningTime
 import java.time.LocalTime
 import kotlin.random.Random
 
@@ -20,6 +21,7 @@ object ReminderConfig {
     private const val KEY_MIDDAY_CENTER_MIN = "midday_center_min"
     private const val KEY_MIDDAY_DELTA_MIN = "midday_delta_min"
     private const val KEY_SALT = "install_salt"
+    private const val KEY_EVENING_DEFAULT_MIN = "evening_default_min"
     private const val KEY_SILENCE_DAYS = "silence_days"
     private const val KEY_FLAGS = "flags_json"
     private const val KEY_TEXTS = "texts_json"
@@ -53,6 +55,15 @@ object ReminderConfig {
         return p.getInt(KEY_SALT, 0)
     }
 
+    /**
+     * Evening check-in time for people who never chose one in the profile. A chosen time always
+     * wins: the server moves only the default.
+     */
+    fun eveningDefault(context: Context): LocalTime {
+        val min = context.prefs().getInt(KEY_EVENING_DEFAULT_MIN, -1)
+        return if (min in 0 until 24 * 60) LocalTime.of(min / 60, min % 60) else DefaultEveningTime
+    }
+
     /** Days without any activity mark after which a person counts as silent. */
     fun silenceDays(context: Context): Int = context.prefs().getInt(KEY_SILENCE_DAYS, DEFAULT_SILENCE_DAYS)
 
@@ -83,6 +94,7 @@ object ReminderConfig {
             c.midday?.enabled?.let { putBoolean(KEY_MIDDAY_ENABLED, it) }
             c.midday?.centerMin?.takeIf { it in 0 until 24 * 60 }?.let { putInt(KEY_MIDDAY_CENTER_MIN, it) }
             c.midday?.deltaMin?.takeIf { it in 0..6 * 60 }?.let { putInt(KEY_MIDDAY_DELTA_MIN, it) }
+            c.evening?.defaultMin?.takeIf { it in 0 until 24 * 60 }?.let { putInt(KEY_EVENING_DEFAULT_MIN, it) }
             c.silence?.days?.takeIf { it in 1..60 }?.let { putInt(KEY_SILENCE_DAYS, it) }
             c.flags?.let { putString(KEY_FLAGS, gson.toJson(it)) }
             c.texts?.let { putString(KEY_TEXTS, gson.toJson(it)) }

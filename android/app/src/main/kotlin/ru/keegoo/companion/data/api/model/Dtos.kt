@@ -12,6 +12,7 @@ data class VersionResponse(
 data class RemoteConfigResponse(
     val version: Int? = null,
     val midday: MiddayDto? = null,
+    val evening: EveningDto? = null,
     val silence: SilenceDto? = null,
     val update: UpdateDto? = null,
     val flags: Map<String, Boolean>? = null,
@@ -23,6 +24,8 @@ data class MiddayDto(
     @SerializedName("center_min") val centerMin: Int? = null,
     @SerializedName("delta_min") val deltaMin: Int? = null,
 )
+
+data class EveningDto(@SerializedName("default_min") val defaultMin: Int? = null)
 
 data class SilenceDto(val days: Int? = null)
 
