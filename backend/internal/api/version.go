@@ -125,6 +125,11 @@ func Version(w http.ResponseWriter, r *http.Request) {
 
 // latestVersion is the newest of the known sources (see Version).
 func latestVersion(ctx context.Context) string {
+	// A version set by hand in the config file wins outright (plan 1.1.0, item 8): it is set the
+	// day the store publishes, so the offer never points at a build people can't get yet.
+	if v := overrideLatest(); v != "" {
+		return v
+	}
 	latest := FallbackAppVersion
 	for _, v := range []string{strings.TrimSpace(os.Getenv("APP_LATEST_VERSION")), fromFile(), releases.get(ctx)} {
 		if newerVersion(v, latest) {

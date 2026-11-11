@@ -255,7 +255,7 @@ suspend fun postMiddayNotification(context: Context) {
             ?.takeIf { it.isNotBlank() }
             ?.let { NotificationCopy("Как идёт день?", it) }
     }
-    showMiddayNotification(context, serverText ?: MiddayCopies.forToday())
+    showMiddayNotification(context, serverText ?: middayCopyFor(context))
 }
 
 /** Fires the reminder and immediately arms the next one — an alarm is a one-shot. */

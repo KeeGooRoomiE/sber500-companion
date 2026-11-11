@@ -241,6 +241,7 @@ class HomeViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch { repository.ping() }
         ru.keegoo.companion.push.PushTokenSync.sync(context)
+        viewModelScope.launch { ru.keegoo.companion.data.prefs.ReminderConfig.sync(context, repository) }
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()

@@ -136,7 +136,16 @@ private fun openAppIntent(context: Context, source: String): PendingIntent = Pen
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-fun showMiddayNotification(context: Context, copy: NotificationCopy = MiddayCopies.forToday()) {
+/** Server-supplied fallbacks for texts.midday, each «Заголовок | текст»; built-ins when none. */
+fun middayCopyFor(context: Context): NotificationCopy {
+    val remote = ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, "midday").mapNotNull {
+        val (title, body) = it.split("|", limit = 2).map(String::trim).takeIf { p -> p.size == 2 } ?: return@mapNotNull null
+        if (title.isEmpty() || body.isEmpty()) null else NotificationCopy(title, body)
+    }
+    return (remote.ifEmpty { MiddayCopies }).forToday()
+}
+
+fun showMiddayNotification(context: Context, copy: NotificationCopy = middayCopyFor(context)) {
     val notif = NotificationCompat.Builder(context, CHANNEL_MIDDAY)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle(copy.title)

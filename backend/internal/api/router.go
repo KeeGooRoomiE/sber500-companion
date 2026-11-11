@@ -48,6 +48,8 @@ func Mount(r chi.Router, d Deps) {
 		metricsH := NewMetrics(d.DB, d.DevUserIDs)
 		// Newest APK version for the in-app «Меня можно обновить» (public, cached 5 min).
 		r.Get("/version", Version)
+		// Remote values for reminders, silence threshold, update offer, flags (public, cached 5 min).
+		r.Get("/config", Config)
 
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)

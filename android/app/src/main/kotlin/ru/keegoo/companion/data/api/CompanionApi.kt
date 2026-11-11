@@ -11,6 +11,7 @@ import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.FollowupRequest
 import ru.keegoo.companion.data.api.model.FollowupResponse
+import ru.keegoo.companion.data.api.model.RemoteConfigResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.InsightRequest
 import ru.keegoo.companion.data.api.model.InsightResponse
@@ -62,6 +63,9 @@ interface CompanionApi {
 
     @POST("api/v1/explore")
     suspend fun postExplore(@Body body: ExploreRequest): ExploreResponse
+
+    @GET("api/v1/config")
+    suspend fun getConfig(): RemoteConfigResponse
 
     @GET("api/v1/version")
     suspend fun getVersion(): VersionResponse

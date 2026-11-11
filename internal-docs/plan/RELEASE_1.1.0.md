@@ -326,3 +326,20 @@ spartan.dgs.121@icloud.com; позже — Telegram-бот, который св�
 - Кэш `midday` на день: если человек откроет приложение позже, текст уже готов и второго
   вызова модели нет.
 - Тесты: `MiddayPlanTest` (окно, детерминизм, разброс, условия пропуска), `insightTrigger` на бэкенде.
+
+**П. 7 и 8, серверный конфиг: сделано в коде (push-test).**
+- `GET /api/v1/config` (публичный, кэш 5 мин). Источник: файл `/opt/companion/app_config.json`
+  (или `APP_CONFIG_FILE`), перечитывается раз в минуту. Файл переопределяет только названные
+  ключи, остальные берутся из дефолтов в `backend/internal/api/config.go`; битый JSON или
+  значения вне диапазона сбрасываются на дефолты.
+- Состав: `midday {enabled, center_min, delta_min}`, `silence {days}`, `update {latest, download_url}`,
+  `flags {имя: bool}`, `texts {ключ: ["Заголовок | текст", ...]}`, `version` (схема).
+- П. 8: `update.latest` в файле выигрывает у `APP_LATEST_VERSION`, файла CI и GitHub. Ставится
+  руками в день публикации в сторе; `/version` и `/config` отдают одно и то же.
+  Остаётся убрать запись `latest_version` из `release.yml`/`deploy-backend.yml`, иначе без
+  override всплывашка по-прежнему показывается в момент сборки.
+- Приложение: `ReminderConfig.sync` из `HomeViewModel.refresh()`, не чаще раза в час, пишет в
+  prefs «remote_config»; отсутствующий ключ ничего не меняет, ошибка запроса тоже. Читатели:
+  `midday()`, `silenceDays()`, `flag()`, `texts()`. Тексты дневного пуша: сервер, затем
+  `texts.midday` из конфига, затем встроенные.
+- Пример файла: `{"midday":{"delta_min":60},"silence":{"days":3},"update":{"latest":"1.1.0"}}`.

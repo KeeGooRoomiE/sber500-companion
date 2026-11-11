@@ -17,6 +17,7 @@ import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.ExploreRequest
 import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
+import ru.keegoo.companion.data.api.model.RemoteConfigResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.InsightRequest
 import ru.keegoo.companion.data.api.model.InsightResponse
@@ -111,6 +112,8 @@ class CompanionRepository @Inject constructor(
      */
     suspend fun insight(kind: String, arg: String = "", background: Boolean = false): Result<InsightResponse> =
         runCatching { api.postInsight(InsightRequest(kind, arg, background)) }
+
+    suspend fun remoteConfig(): Result<RemoteConfigResponse> = runCatching { api.getConfig() }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 

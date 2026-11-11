@@ -8,6 +8,26 @@ data class VersionResponse(
     @SerializedName("download_url") val downloadUrl: String,
 )
 
+/** Remote values (plan 1.1.0, item 7). Every key may be absent: the app then keeps its defaults. */
+data class RemoteConfigResponse(
+    val version: Int? = null,
+    val midday: MiddayDto? = null,
+    val silence: SilenceDto? = null,
+    val update: UpdateDto? = null,
+    val flags: Map<String, Boolean>? = null,
+    val texts: Map<String, List<String>>? = null,
+)
+
+data class MiddayDto(
+    val enabled: Boolean? = null,
+    @SerializedName("center_min") val centerMin: Int? = null,
+    @SerializedName("delta_min") val deltaMin: Int? = null,
+)
+
+data class SilenceDto(val days: Int? = null)
+
+data class UpdateDto(val latest: String? = null, @SerializedName("download_url") val downloadUrl: String? = null)
+
 data class PassiveDataRequest(
     val date: String,             // "2006-01-02"
     val screen_min: Int?,
