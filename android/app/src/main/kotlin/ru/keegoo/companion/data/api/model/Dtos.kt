@@ -118,6 +118,12 @@ data class EventRequest(val type: String)
 /** Sent with every ping: the server cannot otherwise tell which build a phone is on. */
 data class PingRequest(@SerializedName("app_version") val appVersion: String)
 
+/** Where the server can reach this phone with a notification (RuStore Push token). */
+data class PushTokenRequest(
+    @SerializedName("token") val token: String,
+    @SerializedName("provider") val provider: String = "rustore",
+)
+
 /**
  * One line about a single slice of the person's own data: how today is going, one tile, a past
  * forecast, a tag from the check-in, or a question generated for them.

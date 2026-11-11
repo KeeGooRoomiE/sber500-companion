@@ -32,6 +32,8 @@ const (
 	ComponentMorningAPI         Component = "morning_api"
 	ComponentScenarioCompleted  Component = "scenario_completed"
 	ComponentNotificationOpened Component = "notification_opened"
+	// ComponentPush is a server-sent notification (RuStore Push), logged per recipient.
+	ComponentPush Component = "push"
 
 	TriggerUserAction Trigger = "user_action"
 	TriggerScheduled  Trigger = "scheduled"

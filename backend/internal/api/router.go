@@ -74,6 +74,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/checkin", h.Checkin)
 			r.Get("/morning", h.MorningMessage)
 			r.Post("/ping", h.Ping)
+			r.Put("/push-token", h.PutPushToken)
 			r.Put("/profile", h.PutProfile)
 			r.Get("/profile", h.GetProfile)
 			r.Get("/history", h.History)

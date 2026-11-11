@@ -23,6 +23,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/push"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/scheduler"
 )
@@ -85,7 +86,11 @@ func main() {
 	sched := scheduler.New(morningRepo, generator, scheduler.ConfigFromEnv())
 	sched.Start(ctx)
 	go heartbeat(ctx, repo.NewActivityRepo(db))
-	admin.New(db, promptStore, llmClient, callLog, devUserIDs).Start(ctx)
+	pushSender := push.NewSender(push.NewFromEnv(), repo.NewUserRepo(db), callLog)
+	if pushSender == nil {
+		slog.Info("push: off (RUSTORE_PUSH_PROJECT_ID / RUSTORE_PUSH_TOKEN not set)")
+	}
+	admin.New(db, promptStore, llmClient, callLog, devUserIDs, pushSender).Start(ctx)
 
 	port := os.Getenv("PORT")
 	if port == "" {

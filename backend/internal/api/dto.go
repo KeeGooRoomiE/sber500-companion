@@ -32,6 +32,13 @@ type PingRequest struct {
 	Timezone string `json:"timezone"`
 }
 
+// PushTokenRequest registers where this phone can be reached by a server-sent notification.
+type PushTokenRequest struct {
+	Token string `json:"token"`
+	// Provider names the push channel the token belongs to; empty means rustore.
+	Provider string `json:"provider"`
+}
+
 type AppUsageDTO struct {
 	Package     string `json:"package"`
 	PackageName string `json:"package_name"` // sent by app builds before 0.4.3

@@ -49,7 +49,7 @@ fun PushDebugDialog(onDismiss: () -> Unit) {
         title = { Text("Push (тест)") },
         text = {
             SelectionContainer {
-                Text("Пуши: $availability\n\nТокен:\n$token\n\nВерсия ${BuildConfig.VERSION_NAME}")
+                Text("Пуши: $availability\n\nТокен:\n$token\n\nСервис получил:\n${context.pushLogRead().ifBlank { "ничего" }}\n\nВерсия ${BuildConfig.VERSION_NAME}")
             }
         },
         confirmButton = {
