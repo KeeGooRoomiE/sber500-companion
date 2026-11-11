@@ -97,23 +97,23 @@ import androidx.compose.animation.shrinkVertically
 import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
 import ru.keegoo.companion.ui.permissions.appInfoIntent
 import ru.keegoo.companion.ui.permissions.usageAccessIntent
+import android.content.Context
+import androidx.compose.material3.Switch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ru.keegoo.companion.data.collector.UsageStatsCollector
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 
-// Asked one module at a time. A single dialog for «sleep and steps» made people decide about
-// the most private signal they have while deciding about step counts — interviews balked at
-// sleep specifically, and bundling cost both.
-//
-// The background permission rides with each: the collector reads from a worker, not from the
-// open app, and Android 14+ returns nothing to background reads without it. Health Connect
-// ignores whichever of the two is already granted.
-private val STEPS_PERMISSIONS = setOf(
-    HealthPermission.getReadPermission(StepsRecord::class),
-    HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
-)
+// Health Connect is asked once, for whatever the person switched on in «Сделать прогноз точнее?».
+// The background permission rides with it: the collector reads from a worker, not from the open
+// app, and Android 14+ returns nothing to background reads without it.
+private val STEPS_READ = HealthPermission.getReadPermission(StepsRecord::class)
+private val SLEEP_READ = HealthPermission.getReadPermission(SleepSessionRecord::class)
 
-private val SLEEP_PERMISSIONS = setOf(
-    HealthPermission.getReadPermission(SleepSessionRecord::class),
-    HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
-)
+/** What the extra card under the copy shows. */
+private enum class Panel { None, Sample, Reveal, Notification, Accuracy }
 
 /**
  * One onboarding screen.
@@ -128,49 +128,54 @@ private data class Step(
     val cta: String,
     val orb: OrbMode,
     val note: String? = null,
-    /** «Пропустить» under the button — the app works without this one. */
+    /** Text under the button — the app works without this one. */
     val skipLabel: String? = null,
-    /** Shows the sample forecast instead of plain copy. */
-    val sample: Boolean = false,
+    val panel: Panel = Panel.None,
 )
 
+// v3 flow (web/onboarding-reveal/v3). Usage access is the one mandatory step — without it there
+// is no product — so it has no «Пропустить», only a «Позже» inside the help sheet. The
+// «what I already see» peek is opt-in: showing analytics right after the permission looked
+// suspicious to the designer. Steps and sleep moved to one optional screen at the end.
 private val steps = listOf(
     Step(
         "Познакомимся?",
-        "Каждое утро — короткая мысль о дне, собранная из того, что телефон уже о себе пишет.\nНичего не нужно вводить вручную.",
+        "Каждое утро — одна фраза о том, чего ждать от дня.\nБез дневников и ручного ввода.",
         "Дальше", OrbMode.Calm,
+        panel = Panel.Sample,
     ),
     Step(
-        "Вот что приходит утром",
-        "Через неделю приложение начнёт замечать то, что сам за собой не видишь.",
-        "Хочу так же — дать доступ", OrbMode.Data,
-        sample = true,
-    ),
-    Step(
-        "Экран — основа",
-        "Видим только, сколько минут был включён экран и какие приложения открывались.",
+        "Один доступ — и начнём",
+        "Нужно видеть, сколько минут был включён экран.",
         "Разрешить", OrbMode.Data,
-        note = "Не видим, что на экране, — ни переписок, ни фото.",
+        note = "Ни переписок, ни фото.",
     ),
     Step(
-        "Шаги — точнее",
-        "По желанию. Передаём только число шагов за день.",
-        "Разрешить", OrbMode.Data,
-        note = "Без них прогноз чуть грубее.",
-        skipLabel = "Пропустить",
+        "Доступ есть",
+        "Android хранит историю экрана, поэтому ждать неделю не нужно.\nПоказать, что я уже вижу?",
+        "Показать, что я уже вижу", OrbMode.Ping,
+        skipLabel = "Не сейчас",
     ),
     Step(
-        "Сон — точнее",
-        "По желанию. Передаём только длительность и время сна — без пульса и стадий.",
-        "Разрешить", OrbMode.Data,
-        note = "Без него считаем сон по самой длинной паузе без экрана.",
-        skipLabel = "Пропустить",
+        "", // title depends on the time of day, see revealTitle()
+        "Утром из таких дней я буду собирать прогноз — по твоим закономерностям.",
+        "Дальше", OrbMode.Data,
+        panel = Panel.Reveal,
     ),
     Step(
         "Три уведомления в день",
         "Прогноз утром, вечером спрошу, как прошёл день, и пришлю разбор. Больше не будет.",
-        "Разрешить и начать", OrbMode.Ping,
+        "Разрешить", OrbMode.Ping,
         note = "Следом система спросит про работу в фоне — почти не тратит батарею, но без неё уведомления не придут.",
+        skipLabel = "Не сейчас",
+        panel = Panel.Notification,
+    ),
+    Step(
+        "Сделать прогноз точнее?",
+        "По желанию. Передаём только число шагов и время сна — без пульса и стадий.\nБез них прогноз чуть грубее, но работает.",
+        "Добавить и начать", OrbMode.Data,
+        skipLabel = "Пропустить",
+        panel = Panel.Accuracy,
     ),
     Step(
         "Смотрю твои данные",
@@ -179,15 +184,30 @@ private val steps = listOf(
     ),
 )
 
-private const val STEP_SAMPLE = 1
-private const val STEP_USAGE = 2
-private const val STEP_STEPS = 3
-private const val STEP_SLEEP = 4
-private const val STEP_NOTIFICATIONS = 5
+private const val STEP_HELLO = 0
+private const val STEP_ACCESS = 1
+private const val STEP_TEASE = 2
+private const val STEP_REVEAL = 3
+private const val STEP_NOTIFICATIONS = 4
+private const val STEP_ACCURACY = 5
 private const val LAST_STEP = 6
 
-/** Stable slugs for the funnel: step indexes alone are unreadable in a report a year later. */
-private val stepNames = listOf("intro", "sample", "usage_access", "steps", "sleep", "notifications", "collecting")
+/** Progress dots: the peek shares a dot with «Доступ есть» (5 dots, 7 screens). */
+private val dotOf = intArrayOf(0, 1, 2, 2, 3, 4, 4)
+private const val DOT_COUNT = 5
+
+private const val SAMPLE_FORECAST =
+    "После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел."
+
+/**
+ * Stable slugs for the funnel: step indexes alone are unreadable in a report a year later.
+ * v3 reorders and renames the screens (sample/steps/sleep are gone, tease/reveal/accuracy are
+ * new), so funnels before and after 1.1.0 are not comparable by index.
+ */
+private val stepNames = listOf("intro", "usage_access", "tease", "reveal", "notifications", "accuracy", "collecting")
+
+/** What the opt-in peek shows. [forToday]: evening shows «so far today», morning shows yesterday. */
+private data class RevealData(val forToday: Boolean, val screenMinutes: Int, val unlocks: Int)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(showBackground = true, showSystemUi = true, name = "Onboarding — step 1")
@@ -214,10 +234,15 @@ fun OnboardingScreen(
     val backdrop = LocalBackdrop.current
     val still = rememberReducedMotion()
     var step by rememberSaveable { mutableIntStateOf(0) }
-    var hcUnavailable by rememberSaveable { mutableStateOf(false) }
+    var wantSteps by rememberSaveable { mutableStateOf(true) }
+    var wantSleep by rememberSaveable { mutableStateOf(true) }
+    var reveal by remember { mutableStateOf<RevealData?>(null) }
+    // «Читаю историю…» between the permission and the next screen
+    var reading by remember { mutableStateOf(false) }
 
     LaunchedEffect(step) {
-        backdrop.scene = BackdropScene.Onboarding(step)
+        // The waves only speed up for «Смотрю твои данные»; the middle screens stay calm.
+        backdrop.scene = BackdropScene.Onboarding(if (step == LAST_STEP) 3 else step.coerceAtMost(2))
         Events.onboardingStep(step, stepNames.getOrElse(step) { "step_$step" })
     }
 
@@ -225,55 +250,50 @@ fun OnboardingScreen(
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
     }
 
-    val stepsLauncher = rememberLauncherForActivityResult(
-        PermissionController.createRequestPermissionResultContract()
-    ) { granted ->
-        Events.onboardingPermission(
-            "steps",
-            if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class)))
-                Events.PermissionResult.Granted else Events.PermissionResult.Denied,
-        )
-        step = STEP_SLEEP
-    }
-
-    val sleepLauncher = rememberLauncherForActivityResult(
-        PermissionController.createRequestPermissionResultContract()
-    ) { granted ->
-        Events.onboardingPermission(
-            "sleep",
-            if (granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class)))
-                Events.PermissionResult.Granted else Events.PermissionResult.Denied,
-        )
-        step = STEP_NOTIFICATIONS
-    }
-
-    /** Health Connect is missing on this phone: skip both of its steps, saying so once. */
-    fun skipHealthEntirely() {
-        hcUnavailable = true
-        Events.onboardingPermission("health", Events.PermissionResult.Unavailable)
-        step = STEP_NOTIFICATIONS
-    }
-
-    fun requestHealth() {
+    /** After notifications: the accuracy screen, or straight to the end if Health Connect is missing. */
+    fun afterNotifications() {
         if (healthAvailable) {
-            hcUnavailable = false
-            step = STEP_STEPS
+            step = STEP_ACCURACY
         } else {
-            skipHealthEntirely()
+            Events.onboardingPermission("health", Events.PermissionResult.Unavailable)
+            step = LAST_STEP
         }
     }
 
-    // Usage access lives in system settings. Back with access → next step. Back without it →
+    val healthLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        fun report(slug: String, wanted: Boolean, perm: String) = Events.onboardingPermission(
+            slug,
+            when {
+                !wanted -> Events.PermissionResult.Skipped
+                granted.contains(perm) -> Events.PermissionResult.Granted
+                else -> Events.PermissionResult.Denied
+            },
+        )
+        report("steps", wantSteps, STEPS_READ)
+        report("sleep", wantSleep, SLEEP_READ)
+        step = LAST_STEP
+    }
+
+    // Usage access lives in system settings. Back with access → «Читаю историю…». Back without it →
     // most likely Android's «restricted settings» for sideloaded apps: show how to unlock it
-    // (or skip) instead of silently moving on without the main data source.
+    // (or «Позже») instead of silently moving on without the main data source.
     var usageBlocked by rememberSaveable { mutableStateOf(false) }
+    var usageHelp by rememberSaveable { mutableStateOf(false) }
+
+    fun usageGranted() {
+        Events.onboardingPermission("usage_access", Events.PermissionResult.Granted)
+        usageBlocked = false
+        usageHelp = false
+        reading = true
+    }
+
     val usageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { _ ->
         if (context.hasUsageAccess()) {
-            Events.onboardingPermission("usage_access", Events.PermissionResult.Granted)
-            usageBlocked = false
-            requestHealth()
+            usageGranted()
         } else {
             // Not final yet: the «restricted settings» panel is about to offer another try.
             usageBlocked = true
@@ -293,7 +313,7 @@ fun OnboardingScreen(
             if (context.isIgnoringBatteryOptimizations()) Events.PermissionResult.Granted
             else Events.PermissionResult.Denied,
         )
-        step = LAST_STEP
+        afterNotifications()
     }
 
     val notifLauncher = rememberLauncherForActivityResult(
@@ -305,13 +325,31 @@ fun OnboardingScreen(
         )
         if (context.isIgnoringBatteryOptimizations()) {
             Events.onboardingPermission("battery", Events.PermissionResult.Granted)
-            step = LAST_STEP
+            afterNotifications()
         } else {
             runCatching { batteryLauncher.launch(batteryOptimizationIntent(context.packageName)) }
                 .onFailure {
                     Events.onboardingPermission("battery", Events.PermissionResult.Unavailable)
-                    step = LAST_STEP
+                    afterNotifications()
                 }
+        }
+    }
+
+    // «Читаю историю…»: a beat of reading, then the «Доступ есть» screen.
+    LaunchedEffect(reading) {
+        if (reading) {
+            delay(if (still) 300L else 1200L)
+            reading = false
+            step = STEP_TEASE
+        }
+    }
+
+    // The opt-in peek: what Android already recorded. Before noon today is nearly empty, so show
+    // yesterday; from noon show today so far. Read off the main thread; the screen is waiting on
+    // nothing — until the numbers arrive the card simply says it is reading.
+    LaunchedEffect(step) {
+        if (step == STEP_REVEAL && reveal == null) {
+            reveal = withContext(Dispatchers.Default) { readRevealData(context) }
         }
     }
 
@@ -337,6 +375,11 @@ fun OnboardingScreen(
     }
 
     val current = steps[step]
+    val ctaText = when {
+        reading -> "Читаю историю…"
+        step == STEP_ACCURACY && !wantSteps && !wantSleep -> "Начать"
+        else -> current.cta
+    }
 
     Column(
         modifier = Modifier
@@ -351,7 +394,7 @@ fun OnboardingScreen(
         Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
             with(sharedScope) {
                 CompanionOrb(
-                    mode = current.orb,
+                    mode = if (reading) OrbMode.Thinking else current.orb,
                     modifier = Modifier
                         .sharedElement(
                             rememberSharedContentState(SharedKeys.ORB),
@@ -365,7 +408,7 @@ fun OnboardingScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        StepDots(step = step, modifier = Modifier.graphicsLayer { alpha = if (step == LAST_STEP) 0f else 1f })
+        StepDots(active = dotOf[step], modifier = Modifier.graphicsLayer { alpha = if (step == LAST_STEP) 0f else 1f })
 
         Spacer(Modifier.height(24.dp))
 
@@ -384,7 +427,7 @@ fun OnboardingScreen(
             val st = steps[s]
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = st.title,
+                    text = if (s == STEP_REVEAL) revealTitle(reveal) else st.title,
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
@@ -397,9 +440,27 @@ fun OnboardingScreen(
                     textAlign = TextAlign.Center,
                     lineHeight = 26.sp,
                 )
-                if (st.sample) {
-                    Spacer(Modifier.height(18.dp))
-                    SampleForecast()
+                when (st.panel) {
+                    Panel.Sample -> {
+                        Spacer(Modifier.height(18.dp))
+                        ForecastPanel("Прогноз на сегодня", SAMPLE_FORECAST)
+                    }
+                    Panel.Reveal -> {
+                        Spacer(Modifier.height(18.dp))
+                        RevealPanel(reveal)
+                    }
+                    Panel.Notification -> {
+                        Spacer(Modifier.height(18.dp))
+                        NotificationMock(SAMPLE_FORECAST)
+                    }
+                    Panel.Accuracy -> {
+                        Spacer(Modifier.height(18.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OptionRow("Шаги", "сколько ты двигался за день", wantSteps) { wantSteps = it }
+                            OptionRow("Сон", "точное время вместо пауз экрана", wantSleep) { wantSleep = it }
+                        }
+                    }
+                    Panel.None -> Unit
                 }
                 st.note?.let { note ->
                     Spacer(Modifier.height(12.dp))
@@ -410,31 +471,52 @@ fun OnboardingScreen(
                         textAlign = TextAlign.Center,
                         lineHeight = 20.sp,
                     )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        text = "Подробнее о данных",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))
-                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    )
+                    if (s == STEP_ACCESS) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "Подробнее о данных",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    }
                                 }
-                            }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
                 }
             }
         }
 
         Spacer(Modifier.weight(1f))
 
+        // «Подсказать, как» is always one tap away on the access step; the sheet also opens by
+        // itself when the person comes back from settings without having switched it on.
         AnimatedVisibility(
-            visible = usageBlocked && step == STEP_USAGE,
+            visible = step == STEP_ACCESS && !(usageBlocked || usageHelp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Text(
+                text = "Не получается разрешить? Подсказать, как",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { usageHelp = true }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = step == STEP_ACCESS && (usageBlocked || usageHelp),
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
         ) {
@@ -454,8 +536,10 @@ fun OnboardingScreen(
                             }
                         },
                     )
+                    // Mandatory step: no «Пропустить», only «Позже». Home then says plainly that
+                    // there will be no forecast and keeps a «Разрешить» card for later.
                     Text(
-                        text = "Пропустить — без этого доступа прогноз будет беднее",
+                        text = "Позже — без доступа прогноз не заработает",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .8f),
                         modifier = Modifier
@@ -463,30 +547,13 @@ fun OnboardingScreen(
                             .clickable {
                                 Events.onboardingPermission("usage_access", Events.PermissionResult.Skipped)
                                 usageBlocked = false
-                                requestHealth()
+                                usageHelp = false
+                                Events.onboardingFinished()
+                                onFinish()
                             }
                             .padding(vertical = 4.dp),
                     )
                 }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = hcUnavailable && step == STEP_NOTIFICATIONS,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut(),
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                Text(
-                    text = "Health Connect на этом телефоне нет. Прогноз будет строиться по экрану, разблокировкам и твоим отметкам.",
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
 
@@ -497,9 +564,14 @@ fun OnboardingScreen(
             animationSpec = spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioMediumBouncy),
             label = "btnScale",
         )
+        val filling = step == LAST_STEP || reading
         val progress by animateFloatAsState(
-            targetValue = if (step == LAST_STEP) 1f else 0f,
-            animationSpec = if (step == LAST_STEP) tween(1700, easing = FastOutSlowInEasing) else tween(0),
+            targetValue = if (filling) 1f else 0f,
+            animationSpec = when {
+                reading -> tween(if (still) 300 else 1200, easing = FastOutSlowInEasing)
+                step == LAST_STEP -> tween(1700, easing = FastOutSlowInEasing)
+                else -> tween(0)
+            },
             label = "ctaProgress",
         )
 
@@ -519,27 +591,15 @@ fun OnboardingScreen(
             ) {
                 Button(
                     onClick = {
-                        if (step != LAST_STEP) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        if (reading || step == LAST_STEP) return@Button
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         when (step) {
-                            0 -> step = STEP_SAMPLE
-                            STEP_SAMPLE -> step = STEP_USAGE
-                            STEP_STEPS -> if (healthAvailable) {
-                                stepsLauncher.launch(STEPS_PERMISSIONS)
-                            } else {
-                                skipHealthEntirely()
-                            }
-                            STEP_SLEEP -> if (healthAvailable) {
-                                sleepLauncher.launch(SLEEP_PERMISSIONS)
-                            } else {
-                                skipHealthEntirely()
-                            }
-                            STEP_USAGE -> if (context.hasUsageAccess()) {
+                            STEP_HELLO -> step = STEP_ACCESS
+                            STEP_ACCESS -> if (context.hasUsageAccess()) {
                                 // Already granted — a reinstall, or it was given earlier. The
                                 // launcher never runs, so the funnel has to be told here or this
                                 // person silently disappears from the step.
-                                Events.onboardingPermission("usage_access", Events.PermissionResult.Granted)
-                                usageBlocked = false
-                                requestHealth()
+                                usageGranted()
                             } else {
                                 // Straight to our own switch where the phone supports it
                                 try {
@@ -550,14 +610,29 @@ fun OnboardingScreen(
                                     } catch (_: ActivityNotFoundException) {
                                         // No settings screen to send them to at all.
                                         Events.onboardingPermission("usage_access", Events.PermissionResult.Unavailable)
-                                        requestHealth()
+                                        step = STEP_TEASE
                                     }
                                 }
                             }
+                            STEP_TEASE -> step = STEP_REVEAL
+                            STEP_REVEAL -> step = STEP_NOTIFICATIONS
                             STEP_NOTIFICATIONS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
-                                step = LAST_STEP
+                                afterNotifications()
+                            }
+                            STEP_ACCURACY -> {
+                                val perms = buildSet {
+                                    if (wantSteps) add(STEPS_READ)
+                                    if (wantSleep) add(SLEEP_READ)
+                                }
+                                if (perms.isEmpty()) {
+                                    Events.onboardingPermission("steps", Events.PermissionResult.Skipped)
+                                    Events.onboardingPermission("sleep", Events.PermissionResult.Skipped)
+                                    step = LAST_STEP
+                                } else {
+                                    healthLauncher.launch(perms + HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
+                                }
                             }
                         }
                     },
@@ -567,11 +642,11 @@ fun OnboardingScreen(
                     interactionSource = btnInteraction,
                 ) {
                     Text(
-                        text = current.cta,
+                        text = ctaText,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     )
                 }
-                // «Готовлю…» fill that runs while the orb is thinking
+                // «Готовлю…» / «Читаю…» fill that runs while the orb is thinking
                 Box(
                     Modifier
                         .matchParentSize()
@@ -587,12 +662,12 @@ fun OnboardingScreen(
             }
         }
 
-        // «Пропустить» only where the app genuinely works without the permission. Interviews
+        // A text button only where the app genuinely works without the answer. Interviews
         // named a forced walkthrough as a reason to uninstall, and an optional step that cannot
-        // be declined is a forced one.
+        // be declined is a forced one. Usage access is the exception and has none here.
         val skip = steps[step].skipLabel
         AnimatedVisibility(
-            visible = skip != null,
+            visible = skip != null && !reading,
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
@@ -605,13 +680,15 @@ fun OnboardingScreen(
                     .clip(RoundedCornerShape(10.dp))
                     .clickable {
                         when (step) {
-                            STEP_STEPS -> {
-                                Events.onboardingPermission("steps", Events.PermissionResult.Skipped)
-                                step = STEP_SLEEP
+                            STEP_TEASE -> step = STEP_NOTIFICATIONS
+                            STEP_NOTIFICATIONS -> {
+                                Events.onboardingPermission("notifications", Events.PermissionResult.Skipped)
+                                afterNotifications()
                             }
-                            STEP_SLEEP -> {
+                            STEP_ACCURACY -> {
+                                Events.onboardingPermission("steps", Events.PermissionResult.Skipped)
                                 Events.onboardingPermission("sleep", Events.PermissionResult.Skipped)
-                                step = STEP_NOTIFICATIONS
+                                step = LAST_STEP
                             }
                         }
                     }
@@ -623,69 +700,154 @@ fun OnboardingScreen(
     }
 }
 
-
 private const val PRIVACY_URL = "https://keegooroomie.github.io/sber500-companion/privacy.html"
 
+// ─── The opt-in peek ─────────────────────────────────────────────────────────
+
+private fun readRevealData(context: Context): RevealData? {
+    val zone = ZoneId.systemDefault()
+    val now = LocalDateTime.now()
+    val forToday = now.hour >= 12
+    val todayStart = LocalDate.now().atStartOfDay(zone).toInstant().toEpochMilli()
+    val from = if (forToday) todayStart else LocalDate.now().minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val to = if (forToday) System.currentTimeMillis() else todayStart
+    val snap = UsageStatsCollector(context).collect(from, to) ?: return null
+    return RevealData(forToday, snap.screenMinutes, snap.unlocks)
+}
+
+private fun revealTitle(r: RevealData?): String =
+    if (r == null || r.forToday) "Вот твой сегодняшний день" else "Вот твой вчерашний день"
+
+private fun formatScreenTime(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (h == 0) "$m мин" else "$h ч ${m.toString().padStart(2, '0')} мин"
+}
+
+private fun unlocksText(n: Int): String {
+    val word = when {
+        n % 100 in 11..14 -> "разблокировок"
+        n % 10 == 1 -> "разблокировка"
+        n % 10 in 2..4 -> "разблокировки"
+        else -> "разблокировок"
+    }
+    return "$n $word"
+}
+
+// ─── Panels ──────────────────────────────────────────────────────────────────
+
 /**
- * What a morning actually looks like, shown before anything is asked for.
- *
- * Permissions were the step people balked at, and they balked without knowing what they were
- * buying. So the ask comes after the answer: a real-shaped card, marked as an example, with the
- * «Почему» already open — because the point is not the number, it is the chain nobody sees in
- * their own week.
+ * The brand-gradient card the real forecast uses, not colorScheme.primary: that is the CTA's
+ * colour, so the two merged into one block — and its onPrimary is dark in the dark theme while
+ * this card's text is white. The gradient is fixed in both themes, so white stays correct and
+ * the sample looks like what actually arrives.
  */
 @Composable
-private fun SampleForecast(modifier: Modifier = Modifier) {
-    // The brand gradient the real card uses, not colorScheme.primary: that is the CTA's colour,
-    // so the two merged into one block — and its onPrimary is dark in the dark theme while this
-    // card's text is white, which left the two reading differently. The gradient is fixed in
-    // both themes, so white stays correct and the sample looks like what actually arrives.
+private fun PanelCard(kicker: String, chip: String?, content: @Composable () -> Unit) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .clip(AppShapes.cardHero)
             .background(Brush.linearGradient(listOf(Primary, Color(0xFF8B7CF8))))
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        run {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Прогноз на сегодня",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = .75f),
-                    fontWeight = FontWeight.SemiBold,
-                )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = kicker,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = .75f),
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (chip != null) {
                 Surface(shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = .22f)) {
                     Text(
-                        text = "пример",
+                        text = chip,
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
             }
+        }
+        content()
+    }
+}
+
+@Composable
+private fun ForecastPanel(kicker: String, text: String) {
+    PanelCard(kicker, chip = "пример") {
+        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = Color.White, lineHeight = 24.sp)
+    }
+}
+
+/** The one number Android already recorded. No chart, no pattern — a light touch on purpose. */
+@Composable
+private fun RevealPanel(data: RevealData?) {
+    PanelCard(
+        kicker = if (data == null || data.forToday) "Сегодня, до сих пор" else "Вчера",
+        chip = null,
+    ) {
+        if (data == null || (data.screenMinutes == 0 && data.unlocks == 0)) {
             Text(
-                text = "Два вечера подряд экран гас за полночь — завтра, скорее всего, будет тяжелее, чем кажется с утра.",
+                text = "Android пока отдал мало истории — картина начнёт собираться с сегодняшнего дня.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White,
                 lineHeight = 24.sp,
             )
-            Spacer(Modifier.height(2.dp))
+        } else {
             Text(
-                text = "Почему",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = .75f),
-                fontWeight = FontWeight.SemiBold,
+                text = formatScreenTime(data.screenMinutes),
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.White,
             )
             Text(
-                text = "Тяжесть дня на этой неделе решала не нагрузка и не день недели, а один рычаг — во сколько ночью гас экран.",
+                text = "у экрана · ${unlocksText(data.unlocks)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = .9f),
+            )
+            // Not «data stays on the phone»: the worker sends daily snapshots to the server.
+            Text(
+                text = "Это Android записал сам, я только прочитал историю на телефоне.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = .8f),
+                lineHeight = 18.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotificationMock(text: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp,
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(16.dp).clip(RoundedCornerShape(50)).background(Primary))
+                Text(
+                    text = "Companion · сейчас",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = "Прогноз на сегодня",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp,
             )
         }
@@ -693,12 +855,36 @@ private fun SampleForecast(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun StepDots(step: Int, modifier: Modifier = Modifier) {
+private fun OptionRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onChange(!checked) },
+        shape = RoundedCornerShape(16.dp),
+        color = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                Text(text = title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = checked, onCheckedChange = onChange)
+        }
+    }
+}
+
+@Composable
+private fun StepDots(active: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        (0 until LAST_STEP).forEach { i ->
-            val active = i == step.coerceAtMost(LAST_STEP - 1)
+        (0 until DOT_COUNT).forEach { i ->
+            val on = i == active
             val dotWidth by animateDpAsState(
-                targetValue = if (active) 20.dp else 8.dp,
+                targetValue = if (on) 20.dp else 8.dp,
                 animationSpec = spring(dampingRatio = .6f, stiffness = Spring.StiffnessMedium),
                 label = "dot$i",
             )
@@ -706,7 +892,7 @@ private fun StepDots(step: Int, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .size(dotWidth, 8.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
+                    .background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
             )
         }
     }
