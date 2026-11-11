@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import ru.keegoo.companion.analytics.Events
 import android.content.Intent
 import android.net.Uri
 import androidx.core.app.NotificationCompat
@@ -120,6 +121,16 @@ private fun openAppIntent(context: Context, source: String): PendingIntent = Pen
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
+/** Fires when the notification is swiped away (not when it is tapped or its buttons are used). */
+private fun dismissIntent(context: Context, kind: String): PendingIntent = PendingIntent.getBroadcast(
+    context,
+    "dismiss_$kind".hashCode(),
+    Intent(context, NotificationDismissReceiver::class.java)
+        .setAction(ACTION_NOTIF_DISMISSED)
+        .putExtra(EXTRA_DISMISS_KIND, kind),
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+)
+
 fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCopies.forToday()) {
     val notif = NotificationCompat.Builder(context, CHANNEL_MORNING)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -128,10 +139,12 @@ fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCo
         .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "morning"))
+        .setDeleteIntent(dismissIntent(context, "morning"))
         .setAutoCancel(true)
         .build()
 
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif) }
+    Events.notificationShown("morning")
 }
 
 /**
@@ -170,6 +183,7 @@ fun showReviewNotification(context: Context, text: String, forecastDate: String?
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "review"))
+        .setDeleteIntent(dismissIntent(context, "review"))
         .setAutoCancel(true)
 
     if (forecastDate != null) {
@@ -180,6 +194,7 @@ fun showReviewNotification(context: Context, text: String, forecastDate: String?
     }
 
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_REVIEW, builder.build()) }
+    Events.notificationShown("review")
 }
 
 fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {
@@ -201,6 +216,7 @@ fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCo
         .setContentText(copy.body)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "checkin"))
+        .setDeleteIntent(dismissIntent(context, "checkin"))
         .setAutoCancel(true)
         .addAction(0, "😊 Отлично",   actionIntent("OK"))
         .addAction(0, "😐 Нормально", actionIntent("MEH"))
@@ -209,4 +225,5 @@ fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCo
 
     // POST_NOTIFICATIONS may be denied — notify() then throws SecurityException on some OEMs
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_CHECKIN, notif) }
+    Events.notificationShown("checkin")
 }

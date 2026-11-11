@@ -7,7 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import ru.keegoo.companion.analytics.Events
 import ru.keegoo.companion.data.auth.DeviceCredentials
+import ru.keegoo.companion.data.prefs.ActivityMarker
 import ru.keegoo.companion.data.repository.CompanionRepository
 import ru.keegoo.companion.notifications.EXTRA_NOTIF_SOURCE
 import ru.keegoo.companion.ui.theme.CompanionTheme
@@ -18,6 +20,16 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var repository: CompanionRepository
     @Inject lateinit var credentials: DeviceCredentials
+
+    override fun onStart() {
+        super.onStart()
+        // Every open leaves a mark; analytics hears only about a new session (30 min apart).
+        if (ActivityMarker.markOpen(this)) {
+            val source = intent.getStringExtra(EXTRA_NOTIF_SOURCE)
+                ?: if (intent.data?.scheme == "companion") "link" else "launcher"
+            Events.appOpen(source)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

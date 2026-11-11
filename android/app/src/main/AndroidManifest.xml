@@ -95,6 +95,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- A notification swiped away: counts as a sign of life -->
+        <receiver
+            android:name=".notifications.NotificationDismissReceiver"
+            android:exported="false" />
+
         <!-- «Совпало?» for the morning forecast, from the day-review notification -->
         <receiver
             android:name=".notifications.MorningFeedbackReceiver"

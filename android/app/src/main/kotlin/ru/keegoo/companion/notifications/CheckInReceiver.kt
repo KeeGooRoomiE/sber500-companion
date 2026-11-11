@@ -1,6 +1,7 @@
 package ru.keegoo.companion.notifications
 
 import ru.keegoo.companion.data.prefs.checkInDay
+import ru.keegoo.companion.data.prefs.ActivityMarker
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -39,6 +40,8 @@ class CheckInReceiver : BroadcastReceiver() {
             else   -> return
         }
 
+        ActivityMarker.mark(context, ActivityMarker.Source.Action)
+        Events.notificationAction("checkin")
         NotificationManagerCompat.from(context).cancel(NOTIF_ID_CHECKIN)
 
         val label = when (feel) {
@@ -81,6 +84,8 @@ class MorningFeedbackReceiver : BroadcastReceiver() {
         val date = intent.getStringExtra(EXTRA_FORECAST_DATE) ?: return
         val hit = intent.getBooleanExtra(EXTRA_HIT, true)
 
+        ActivityMarker.mark(context, ActivityMarker.Source.Action)
+        Events.notificationAction("morning_rating")
         NotificationManagerCompat.from(context).cancel(NOTIF_ID_REVIEW)
         Toast.makeText(context, if (hit) "Совпало — записано ✓" else "Не совсем — записано ✓", Toast.LENGTH_SHORT).show()
 

@@ -79,6 +79,27 @@ object Events {
      */
     fun checkInDone(source: String) = report("checkin_done", mapOf("source" to source))
 
+    // ─── Opens and notifications ─────────────────────────────────────────────
+    //
+    // The same three signs of life that the on-device activity marker counts (open, swipe,
+    // button), reported so that «DAU» can be read from the app side too. Nothing from the
+    // person's data travels with them.
+
+    /**
+     * The app came to the foreground and it starts a new session (30 minutes since the last
+     * open). [source] is launcher | morning | checkin | review | update | link.
+     */
+    fun appOpen(source: String) = report("app_open", mapOf("source" to source))
+
+    /** A notification was drawn. [kind] is morning | checkin | review | update | midday. */
+    fun notificationShown(kind: String) = report("notification_shown", mapOf("kind" to kind))
+
+    /** A notification was swiped away without opening the app. */
+    fun notificationDismissed(kind: String) = report("notification_dismissed", mapOf("kind" to kind))
+
+    /** A button inside a notification was pressed (check-in answer, «Совпало / Не совсем»). */
+    fun notificationAction(kind: String) = report("notification_action", mapOf("kind" to kind))
+
     // ─── Engagement with the mechanics ───────────────────────────────────────
     //
     // Unlike the daily markers above these are not capped at one a day: how often a mechanic

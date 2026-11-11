@@ -290,3 +290,17 @@ spartan.dgs.121@icloud.com; позже — Telegram-бот, который св�
 (`drawable-nodpi/pearl_foreground.png`), слой для тематических иконок Android 13+,
 512×512 для консоли RuStore лежит в `internal-docs/research/icon/pearl/pearl-4-512.png`.
 Фиксируется для всех следующих версий.
+
+**AND-01, маркер активности и события (11.11, в коде, не проверено на устройстве).**
+- `ActivityMarker` (`data/prefs/ActivityMarker.kt`): на устройстве хранит время и источник
+  последнего признака жизни: `open` (приложение открыто), `dismiss` (уведомление смахнуто),
+  `action` (нажата кнопка в уведомлении: чек-ин или «Совпало / Не совсем»). Показ уведомления
+  активностью не считается. Тап по самому уведомлению открывает приложение и покрыт `open`.
+  Читается так: `wasActiveToday`, `silentDays`.
+- Смахивание: `setDeleteIntent` у утреннего, вечернего и разбора дня → `NotificationDismissReceiver`.
+- События AppMetrica: `app_open` (источник: launcher / morning / checkin / review / update / link;
+  один раз на сессию, 30 минут между открытиями), `notification_shown`, `notification_dismissed`,
+  `notification_action`. Данных человека в событиях нет.
+- Маркер пока никем не читается: дневной пуш (п. 1) подключится к нему следующим шагом.
+- Не сделано из AND-01: показы карточек и чипов (impressions), `screen_view`, события «Дня 0»,
+  `has_usage_stats`, `has_health_connect_data`.
