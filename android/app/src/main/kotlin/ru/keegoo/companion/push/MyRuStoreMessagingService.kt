@@ -21,6 +21,9 @@ class MyRuStoreMessagingService : RuStoreMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         Log.i(TAG, "message: data=${message.data} notification=${message.notification}")
+        // «notification» messages are drawn by the SDK itself; posting them here too showed every
+        // push twice. Only data-only messages need us to build the notification.
+        if (message.notification != null) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) return
