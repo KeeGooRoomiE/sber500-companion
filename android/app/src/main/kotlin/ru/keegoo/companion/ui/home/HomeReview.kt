@@ -88,6 +88,8 @@ internal fun DayTimelineCard(
     hourlyScreen: List<Int>?,
     onReviewYesterday: () -> Unit,
     onReviewToday: () -> Unit,
+    /** «День 0»: shown instead of the review buttons while there is nothing to review. */
+    reviewHint: String? = null,
 ) {
     val grow = remember { Animatable(0f) }
     LaunchedEffect(hourlyScreen) {
@@ -159,11 +161,20 @@ internal fun DayTimelineCard(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Today carries the accent: the app is «скачал и забыл», and what just happened
-            // is the more interesting of the two. It was the other way round.
-            PillButton("Разбор вчера", Modifier.weight(1f), filled = false, onClick = onReviewYesterday)
-            PillButton("Разбор сегодня", Modifier.weight(1f), filled = true, onClick = onReviewToday)
+        if (reviewHint != null) {
+            // An honest line instead of two buttons that would open an empty sheet.
+            Text(
+                text = reviewHint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Today carries the accent: the app is «скачал и забыл», and what just happened
+                // is the more interesting of the two. It was the other way round.
+                PillButton("Разбор вчера", Modifier.weight(1f), filled = false, onClick = onReviewYesterday)
+                PillButton("Разбор сегодня", Modifier.weight(1f), filled = true, onClick = onReviewToday)
+            }
         }
     }
 }

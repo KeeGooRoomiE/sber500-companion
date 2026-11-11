@@ -461,6 +461,8 @@ fun ProfileScreen(
                 )
             }
         }
+        // The very bottom of the questions: whoever scrolled this far is the person worth hearing from.
+        item(key = "contact") { ContactAuthor() }
         }
 
         // Fixed back button, pinned above the list — it also doubles as the "camera" the orb
@@ -920,6 +922,59 @@ private fun AnswerChip(text: String, on: Boolean, onClick: () -> Unit) {
             text = text,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = if (on) primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+const val AUTHOR_CONTACT_DEFAULT = "spartan.dgs.121@icloud.com"
+
+/** An e-mail address becomes a mailto link; anything with a scheme (a bot link later) opens as is. */
+internal fun contactUri(target: String): String =
+    if ("://" in target || target.startsWith("mailto:")) target
+    else "mailto:$target?subject=" + android.net.Uri.encode("Компаньон: отзыв")
+
+/**
+ * «Написать автору» under the last question (plan 1.1.0, item 6). The target comes from the
+ * server config (texts.contact) so the e-mail can become a Telegram bot without a new build.
+ */
+@Composable
+private fun ContactAuthor() {
+    val context = LocalContext.current
+    val target = remember {
+        ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, "contact").firstOrNull() ?: AUTHOR_CONTACT_DEFAULT
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Это приложение делает один человек. Если что-то непонятно, мешает или не хватает, мне правда важно это услышать.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "Написать автору",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .clip(AppShapes.chip)
+                .clickable {
+                    ru.keegoo.companion.analytics.Events.contactAuthor()
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(contactUri(target)))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }.onFailure {
+                        // No mail app on the phone: at least show where to write.
+                        android.widget.Toast.makeText(context, target, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         )
     }
 }

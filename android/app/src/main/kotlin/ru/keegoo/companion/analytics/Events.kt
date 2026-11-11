@@ -99,6 +99,9 @@ object Events {
         },
     )
 
+    /** «Написать автору» tapped at the bottom of the questions. */
+    fun contactAuthor() = report("contact_author")
+
     /** A screen came to the front (onboarding, home, profile). */
     fun screenView(screen: String) = report("screen_view", mapOf("screen" to screen))
 

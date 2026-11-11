@@ -77,6 +77,8 @@ internal fun CheckInSection(
     insight: InsightUi?,
     onSelect: (DayFeel) -> Unit,
     onToggleTag: (String) -> Unit,
+    /** «День 0»: what the mark gives back, shown until the person has a few marks behind them. */
+    valueLine: String? = null,
 ) {
     val ringColor = MaterialTheme.colorScheme.primary
     val ring by animateFloatAsState(if (highlighted) 1f else 0f, tween(400), label = "ring")
@@ -114,6 +116,7 @@ internal fun CheckInSection(
                     tags = tags,
                     onSelect = { touched = true; onSelect(it) },
                     onToggleTag = { touched = true; onToggleTag(it) },
+                    valueLine = valueLine,
                 )
             }
         }
@@ -171,6 +174,7 @@ private fun CheckInForm(
     tags: Set<String>,
     onSelect: (DayFeel) -> Unit,
     onToggleTag: (String) -> Unit,
+    valueLine: String? = null,
 ) {
     val view = LocalView.current
     Column(
@@ -204,6 +208,14 @@ private fun CheckInForm(
                     },
                 )
             }
+        }
+        // Before the first tap only: once answered, the tags take this place.
+        if (valueLine != null && selected == null) {
+            Text(
+                text = valueLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         AnimatedVisibility(
             visible = selected != null,

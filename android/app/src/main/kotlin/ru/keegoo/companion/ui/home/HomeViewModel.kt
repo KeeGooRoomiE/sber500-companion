@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui.home
 
+import ru.keegoo.companion.data.prefs.checkInCount
 import ru.keegoo.companion.data.prefs.checkInDay
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -129,7 +130,13 @@ data class HomeUiState(
      * that fetched it succeeds.
      */
     val dailyQuestion: String? = null,
-)
+    /** Day marks counted on this phone; with [history] decides the «День 0» lines. */
+    val checkIns: Int = 0,
+    /** No source writes sleep and steps (no watch, band or health app). */
+    val noHealthSource: Boolean = false,
+) {
+    val day0: Day0 get() = day0(checkIns, history.size, noHealthSource)
+}
 
 /** One question in «Хочу ещё»: waiting for the answer, answered, or failed. */
 data class ExploreItemUi(
@@ -198,6 +205,9 @@ class HomeViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch {
+            context.checkInCount().collect { n -> _state.update { it.copy(checkIns = n) } }
+        }
         viewModelScope.launch {
             context.todayCheckIn().collect { saved ->
                 _state.update { it.copy(checkedIn = saved?.feel, tags = saved?.tags.orEmpty()) }
@@ -583,6 +593,7 @@ private fun HomeUiState.withData(d: TodayData): HomeUiState {
         unlocks = d.unlocks,
         sleepMin = d.sleepMin,
         sleepLabel = if (phoneFree) "Без телефона" else "Сон",
+        noHealthSource = phoneFree || d.sleepMin == null,
         hourlyScreen = d.hourlyScreen,
         details = mapOf(
             StatKind.Screen to StatDetail(
