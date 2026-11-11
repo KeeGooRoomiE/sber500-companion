@@ -1,5 +1,6 @@
 package ru.keegoo.companion.notifications
 
+import ru.keegoo.companion.data.api.model.FollowupQuestionDto
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -24,6 +25,16 @@ const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 const val ACTION_RATE_MORNING = "ru.keegoo.companion.ACTION_RATE_MORNING"
 const val EXTRA_HIT = "hit"
 const val EXTRA_FORECAST_DATE = "forecast_date"
+const val ACTION_SHADE_FOLLOWUP = "ru.keegoo.companion.ACTION_SHADE_FOLLOWUP"
+const val EXTRA_FU_DATE = "fu_date"
+const val EXTRA_FU_ID = "fu_id"
+const val EXTRA_FU_LABEL = "fu_label"
+const val EXTRA_FU_TITLE = "fu_title"
+const val EXTRA_FU_TEXT = "fu_text"
+const val EXTRA_FU_REST_IDS = "fu_rest_ids"
+const val EXTRA_FU_REST_LABELS = "fu_rest_labels"
+/** Android shows at most three actions and long labels get cut, so two chips ride along. */
+const val SHADE_FOLLOWUP_MAX = 2
 
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
@@ -171,8 +182,23 @@ private fun dismissIntent(context: Context, kind: String): PendingIntent = Pendi
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCopies.forToday()) {
-    val notif = NotificationCompat.Builder(context, CHANNEL_MORNING)
+/**
+ * The morning forecast. With [chips] it also carries follow-up questions as buttons: a tap asks
+ * the server and the answer replaces the text right here, without opening the app (plan 1.1.0,
+ * item 2). Follow-up was found by under a fifth of active people while it sat only on Home.
+ *
+ * [alert] is false when the same notification is being rewritten (thinking, answer, failure):
+ * no second sound, and no second «shown» event.
+ */
+fun showMorningNotification(
+    context: Context,
+    copy: NotificationCopy = MorningCopies.forToday(),
+    date: String? = null,
+    chips: List<FollowupQuestionDto> = emptyList(),
+    note: String? = null,
+    alert: Boolean = true,
+) {
+    val builder = NotificationCompat.Builder(context, CHANNEL_MORNING)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle(copy.title)
         .setContentText(copy.body)
@@ -180,11 +206,35 @@ fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCo
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "morning"))
         .setDeleteIntent(dismissIntent(context, "morning"))
+        .setOnlyAlertOnce(!alert)
         .setAutoCancel(true)
-        .build()
+    if (note != null) builder.setSubText(note)
 
-    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif) }
-    Events.notificationShown("morning")
+    if (date != null) {
+        chips.take(SHADE_FOLLOWUP_MAX).forEachIndexed { i, chip ->
+            val rest = chips.filterNot { it.id == chip.id }
+            val intent = Intent(ACTION_SHADE_FOLLOWUP).apply {
+                setPackage(context.packageName)
+                putExtra(EXTRA_FU_DATE, date)
+                putExtra(EXTRA_FU_ID, chip.id)
+                putExtra(EXTRA_FU_LABEL, chip.label)
+                putExtra(EXTRA_FU_TITLE, copy.title)
+                putExtra(EXTRA_FU_TEXT, copy.body)
+                putExtra(EXTRA_FU_REST_IDS, rest.map { it.id }.toTypedArray())
+                putExtra(EXTRA_FU_REST_LABELS, rest.map { it.label }.toTypedArray())
+            }
+            builder.addAction(
+                0, chip.label,
+                PendingIntent.getBroadcast(
+                    context, 300 + i, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+        }
+    }
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, builder.build()) }
+    if (alert) Events.notificationShown("morning")
 }
 
 /**

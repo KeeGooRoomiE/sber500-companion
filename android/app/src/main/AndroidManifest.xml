@@ -109,6 +109,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- A follow-up question asked from the morning forecast notification -->
+        <receiver
+            android:name=".notifications.ShadeFollowupReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ru.keegoo.companion.ACTION_SHADE_FOLLOWUP" />
+            </intent-filter>
+        </receiver>
+
         <!-- Daily reminders (AlarmManager one-shots; each fire arms the next) -->
         <receiver
             android:name=".notifications.ReminderReceiver"

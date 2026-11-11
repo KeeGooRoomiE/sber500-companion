@@ -229,13 +229,19 @@ suspend fun postMorningForecast(context: Context) {
     // A BroadcastReceiver gets roughly ten seconds, while the API client allows 15 s to connect
     // and 30 s to read. Waiting the full time risks the process dying with nothing shown, so the
     // server text gets a short window and the local forecast goes out if it misses it.
-    val llmText = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
-        repo.getMorning()
-            .getOrNull()
-            ?.takeIf { it.message.isNotBlank() }
-            ?.let { NotificationCopy("Прогноз на сегодня", it.message) }
+    val morning = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
+        repo.getMorning().getOrNull()?.takeIf { it.message.isNotBlank() }
     }
-    showMorningNotification(context, llmText ?: MorningCopies.forToday())
+    if (morning == null) {
+        showMorningNotification(context, MorningCopies.forToday())
+    } else {
+        // Follow-up buttons only under a real server forecast: there is nothing to ask a local copy about.
+        val chips = if (ReminderConfig.flag(context, "shade_followup", true)) morning.followups.orEmpty() else emptyList()
+        showMorningNotification(
+            context, NotificationCopy("Прогноз на сегодня", morning.message),
+            date = morning.date, chips = chips,
+        )
+    }
     context.markMorningDelivered()
 }
 

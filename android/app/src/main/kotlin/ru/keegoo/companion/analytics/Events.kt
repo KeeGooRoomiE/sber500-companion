@@ -117,6 +117,9 @@ object Events {
      * A follow-up chip under a review was tapped. [kind] is day | week — never the question
      * itself, which is generated from the person's own data.
      */
+    /** The answer to a follow-up asked from the notification reached the shade. */
+    fun shadeFollowupAnswered() = report("shade_followup_answered", emptyMap())
+
     fun followupClick(kind: String) = report("followup_click", mapOf("kind" to kind))
 
     /** «Хочу ещё» was opened — the moment the explore mechanic is discovered at all. */
