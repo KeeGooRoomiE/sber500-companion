@@ -65,9 +65,13 @@ app build keeps working against a newer server, so the server can go out before 
 3. Built-in prompts only apply when no DB version is active (`prompt.sh list` → `active_version: 0`).
    If an older version is active, `prompt.sh reset` (per prompt) or push a new one.
 4. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
-5. Publish the APK after the server is up (push the tag). The in-app «Меня можно обновить» toast
-   follows by itself: `/api/v1/version` reads the latest GitHub release (cached 10 min). So it never
-   points to a build that isn't downloadable yet. `APP_LATEST_VERSION` in `.env` overrides it.
+5. Publish the APK after the server is up (push the tag). CI no longer writes
+   `/opt/companion/latest_version`. Without an override `/api/v1/version` still follows the latest
+   GitHub release (cached 10 min), i.e. the moment of the build, not of store publication. To hold
+   the in-app «Меня можно обновить» until the store has the build: BEFORE tagging put the version
+   that is live in the store into `update.latest` of `/opt/companion/app_config.json`, and change it
+   to the new one on the day the store publishes. `update.latest` beats `APP_LATEST_VERSION`, the
+   file and GitHub.
 
 Rollback: the previous binary is not kept. Check out the previous tag and run `deploy.sh`; new tables
 stay and are harmless. Restore the dump only if data itself is broken.
