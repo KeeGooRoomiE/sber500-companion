@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Привлечение · companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary:#6B5CE7; --primary-light:#EDE9FF; --primary-mid:#9B8AFF;
+      --bg:#F7F6FF; --white:#FFFFFF; --text:#18181B; --muted:#71717A; --border:#E4E4E7;
+      --radius:16px; --shadow:0 2px 12px rgba(107,92,231,.08);
+      --ok:#10B981; --ok-bg:#ECFDF5; --warn:#F59E0B; --warn-bg:#FFFBEB; --danger:#EF4444; --danger-bg:#FEF2F2;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:64px;-webkit-font-smoothing:antialiased}
+    nav{position:sticky;top:10px;z-index:100;background:rgba(247,246,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:28px;padding:12px 22px;margin:10px 16px 0;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+    .nav-logo{font-weight:700;font-size:17px;color:var(--primary);text-decoration:none;letter-spacing:-.3px}
+    .badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;color:var(--primary);background:var(--primary-light);text-decoration:none}
+    main{max-width:1060px;margin:32px auto 0;padding:0 16px}
+    h1{font-size:clamp(24px,5vw,34px);font-weight:800;letter-spacing:-.7px;margin-bottom:6px}
+    .lead{font-size:14px;color:var(--muted);line-height:1.6;max-width:720px}
+    .stamp{display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--primary);background:var(--primary-light);border-radius:20px;padding:4px 12px}
+    section{margin-top:36px}
+    h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px}
+    .sub{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px;max-width:760px}
+    .card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:22px}
+    .kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+    .kpi .v{font-size:28px;font-weight:800;letter-spacing:-.8px;color:var(--text)}
+    .kpi .l{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+    .kpi .d{font-size:12px;font-weight:600;margin-top:6px;color:var(--ok)}
+    .kpi .d.w{color:var(--warn)}
+    .takeaways{margin-top:22px;display:grid;gap:10px}
+    .tk{display:flex;gap:12px;align-items:flex-start;background:var(--white);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.5}
+    .tk b{font-weight:700}
+    .chart-box{position:relative;height:320px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:760px){.grid2{grid-template-columns:1fr}.chart-box{height:280px}}
+    .seg{display:inline-flex;background:var(--primary-light);border-radius:20px;padding:3px;gap:2px;margin-bottom:12px}
+    .seg button{border:none;background:transparent;font:inherit;font-size:12px;font-weight:600;color:var(--primary);padding:6px 14px;border-radius:16px;cursor:pointer}
+    .seg button.on{background:var(--primary);color:#fff}
+    table.heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:13px}
+    table.heat th{font-weight:600;font-size:12px;color:var(--muted);text-align:center;padding:4px 2px}
+    table.heat td{text-align:center;padding:9px 4px;border-radius:8px;font-weight:600;font-variant-numeric:tabular-nums}
+    table.heat td.rowh{text-align:left;font-weight:600;background:none;color:var(--text);padding-left:2px;white-space:nowrap}
+    table.heat td.na{background:#F4F4F5;color:#A1A1AA;font-weight:500}
+    .note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
+    .calc{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px;align-items:start}
+    @media(max-width:760px){.calc{grid-template-columns:1fr}}
+    label.f{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+    input[type=number]{width:100%;font:inherit;font-size:20px;font-weight:700;padding:10px 14px;border:1px solid var(--border);border-radius:12px;color:var(--text);background:#fff}
+    input[type=number]:focus{outline:2px solid var(--primary-mid);border-color:transparent}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{border:none;background:var(--primary-light);color:var(--primary);font:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer}
+    .res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+    .res .kpi .v{font-size:24px}
+    .sliders{display:grid;gap:14px;margin-bottom:6px}
+    .sl{display:grid;grid-template-columns:200px 1fr 70px;gap:12px;align-items:center;font-size:13px}
+    .sl span.n{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+    @media(max-width:760px){.sl{grid-template-columns:1fr 60px}.sl input{grid-column:1/-1;order:3}}
+    input[type=range]{accent-color:var(--primary);width:100%}
+    .verdict{margin-top:14px;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;font-weight:500}
+    .verdict.ok{background:var(--ok-bg);color:#065F46}
+    .verdict.warn{background:var(--warn-bg);color:#92400E}
+    .verdict.bad{background:var(--danger-bg);color:#991B1B}
+    .funnel{display:grid;gap:8px}
+    .fr{display:grid;grid-template-columns:150px 1fr 90px;gap:10px;align-items:center;font-size:13px}
+    .fr .bar{height:18px;background:#F4F4F5;border-radius:9px;overflow:hidden}
+    .fr .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--primary-mid),var(--primary));border-radius:9px}
+    .fr .p{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+    footer{max-width:1060px;margin:44px auto 0;padding:0 16px;font-size:12px;color:var(--muted);line-height:1.65}
+    footer li{margin-left:18px;margin-bottom:4px}
+  </style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="../../">companion</a>
+  <a class="badge" href="../../metrics.html">Живые метрики →</a>
+</nav>
+
+<main>
+  <header>
+    <h1>Привлечение: итоги первой недели рекламы</h1>
+    <p class="lead">С 5 ноября идёт зачётный период. Здесь: приток и DAU по дням, из кого складывается DAU, удержание по когортам, стоимость регистрации и прогноз к 2 декабря.</p>
+    <span class="stamp" id="stamp"></span>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="takeaways" id="takeaways"></div>
+
+  <section>
+    <h2>Приток и DAU по дням</h2>
+    <p class="sub">Регистрация происходит при первом запуске приложения. «Живая» регистрация — человек прошёл онбординг и дал данные.</p>
+    <div class="card"><div class="chart-box"><canvas id="cDaily"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>Из кого состоит DAU</h2>
+    <p class="sub">Каждый столбец — активные в этот день, разложенные по дню регистрации. Растущая доля старых когорт значит, что накопленная аудитория возвращается, а не держится только на новых показах рекламы.</p>
+    <div class="card"><div class="chart-box" style="height:360px"><canvas id="cCohort"></canvas></div></div>
+  </section>
+
+  <section>
+    <h2>Удержание по когортам</h2>
+    <p class="sub">Доля когорты, вернувшейся ровно на N-й день после регистрации. «Вернулся» — любое взаимодействие с продуктом (в том числе через уведомление, открывать приложение необязательно). Только прошедшие дни.</p>
+    <div class="card">
+      <div class="seg" id="retSeg"><button data-m="all" class="on">Все регистрации</button><button data-m="real">Только живые</button></div>
+      <div style="overflow-x:auto"><table class="heat" id="heat"></table></div>
+      <p class="note" id="retNote"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Стоимость регистрации</h2>
+    <p class="sub">Расход взят из отчёта Яндекс Директа за 4–9 ноября. Регистрации и DAU посчитаны за тот же период (5–9 ноября, 4 ноября регистраций не было). Расход можно поправить, цены пересчитаются.</p>
+    <div class="card calc">
+      <div>
+        <label class="f" for="spend">Расход Директа за 4–9 ноября, ₽</label>
+        <input type="number" id="spend" min="0" step="1" value="63907.59">
+        <p class="note" id="spendNote"></p>
+      </div>
+      <div class="res" id="costRes"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Кампании Директа</h2>
+    <p class="sub">Отчёт Директа за 4–9 ноября. «Конверсия» здесь — целевое действие, которое считает сам Директ, это не то же самое, что регистрация в продукте. Привязать регистрации к кампаниям мы не можем: приложение передаёт источник только в сборке 1.0.2.</p>
+    <div class="card" style="overflow-x:auto"><table class="heat" id="ads"></table><p class="note" id="adsNote"></p></div>
+  </section>
+
+  <section>
+    <h2>Прогноз DAU до 2 декабря</h2>
+    <p class="sub">Модель: DAU = (регистрации в день) × (доля вернувшихся на N-й день по нашим когортам) + небольшая база до рекламы. Это сценарий, а не обещание: правее D6 данных у нас пока нет, поэтому «долгий хвост удержания» задаётся вручную.</p>
+    <div class="card">
+      <div class="seg" id="scen">
+        <button data-s="150,12,1">Консервативно</button>
+        <button data-s="200,20,1" class="on">Текущий темп</button>
+        <button data-s="200,20,2">Второй транш</button>
+        <button data-s="250,23,2">Оптимистично</button>
+      </div>
+      <div class="sliders">
+        <div class="sl"><label for="sReg">Регистраций в день</label><input type="range" id="sReg" min="50" max="600" step="10"><span class="n" id="nReg"></span></div>
+        <div class="sl"><label for="sTail">Доля вернувшихся с 7-го дня</label><input type="range" id="sTail" min="3" max="30" step="1"><span class="n" id="nTail"></span></div>
+        <div class="sl"><label for="sMult">Рост притока с 17.11 (после health check)</label><input type="range" id="sMult" min="1" max="4" step="0.25"><span class="n" id="nMult"></span></div>
+      </div>
+      <div class="chart-box" style="height:340px"><canvas id="cForecast"></canvas></div>
+      <div class="verdict" id="verdict"></div>
+      <p class="note" id="modelNote"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Качество трафика</h2>
+    <p class="sub">Воронка онбординга по данным AppMetrica (период 3–9 ноября, 657 человек дошли до первого экрана) и источники установок.</p>
+    <div class="grid2">
+      <div class="card"><div class="funnel" id="funnel"></div></div>
+      <div class="card">
+        <div class="funnel" id="perm"></div>
+        <p class="note">Источник установок по AppMetrica: <b>Yandex.Direct 635 из 662 (96%)</b>, органика 27. Разбивки по креативам пока нет: приложение передаёт метку источника только в сборке 1.0.2.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <ul>
+    <li>Данные: боевая база продукта, срез на момент, указанный вверху. Исключены разработчики и тестовые аккаунты.</li>
+    <li>DAU — число людей с любым взаимодействием за день по московскому времени (так же, как в зачёте). По открытиям приложения (AppMetrica) цифры около 20–30% ниже: часть людей пользуется только утренним сообщением из уведомления.</li>
+    <li>Регистрации ≈ установки с первым запуском; установки из стора, которые не были запущены, сюда не попадают.</li>
+    <li>D7 по рекламным когортам появится после 12 ноября: первая когорта созревает в этот день.</li>
+  </ul>
+</footer>
+
+<script>
+const DATA = {"generated_msk":"2026-11-12 05:46","last_complete_day":"2026-11-11","daily":[{"date":"2026-11-05","regs":64,"regs_real":41,"dau":57,"llm_calls":280,"total_users":154},{"date":"2026-11-06","regs":163,"regs_real":108,"dau":148,"llm_calls":834,"total_users":317},{"date":"2026-11-07","regs":145,"regs_real":101,"dau":194,"llm_calls":1036,"total_users":462},{"date":"2026-11-08","regs":192,"regs_real":141,"dau":302,"llm_calls":1617,"total_users":654},{"date":"2026-11-09","regs":195,"regs_real":145,"dau":361,"llm_calls":1904,"total_users":849},{"date":"2026-11-10","regs":217,"regs_real":163,"dau":446,"llm_calls":2184,"total_users":1066},{"date":"2026-11-11","regs":189,"regs_real":123,"dau":473,"llm_calls":2092,"total_users":1255},{"date":"2026-11-12","regs":29,"regs_real":20,"dau":161,"llm_calls":892,"total_users":1284}],"dau_by_cohort":[{"date":"2026-11-05","cohort":"11-05","n":39},{"date":"2026-11-05","cohort":"pre","n":18},{"date":"2026-11-06","cohort":"11-05","n":24},{"date":"2026-11-06","cohort":"11-06","n":105},{"date":"2026-11-06","cohort":"pre","n":19},{"date":"2026-11-07","cohort":"11-05","n":17},{"date":"2026-11-07","cohort":"11-06","n":64},{"date":"2026-11-07","cohort":"11-07","n":98},{"date":"2026-11-07","cohort":"pre","n":15},{"date":"2026-11-08","cohort":"11-05","n":20},{"date":"2026-11-08","cohort":"11-06","n":52},{"date":"2026-11-08","cohort":"11-07","n":66},{"date":"2026-11-08","cohort":"11-08","n":144},{"date":"2026-11-08","cohort":"pre","n":20},{"date":"2026-11-09","cohort":"11-05","n":16},{"date":"2026-11-09","cohort":"11-06","n":43},{"date":"2026-11-09","cohort":"11-07","n":52},{"date":"2026-11-09","cohort":"11-08","n":101},{"date":"2026-11-09","cohort":"11-09","n":134},{"date":"2026-11-09","cohort":"pre","n":15},{"date":"2026-11-10","cohort":"11-05","n":13},{"date":"2026-11-10","cohort":"11-06","n":41},{"date":"2026-11-10","cohort":"11-07","n":46},{"date":"2026-11-10","cohort":"11-08","n":76},{"date":"2026-11-10","cohort":"11-09","n":96},{"date":"2026-11-10","cohort":"11-10","n":156},{"date":"2026-11-10","cohort":"pre","n":18},{"date":"2026-11-11","cohort":"11-05","n":15},{"date":"2026-11-11","cohort":"11-06","n":41},{"date":"2026-11-11","cohort":"11-07","n":42},{"date":"2026-11-11","cohort":"11-08","n":60},{"date":"2026-11-11","cohort":"11-09","n":82},{"date":"2026-11-11","cohort":"11-10","n":92},{"date":"2026-11-11","cohort":"11-11","n":122},{"date":"2026-11-11","cohort":"pre","n":19},{"date":"2026-11-12","cohort":"11-05","n":3},{"date":"2026-11-12","cohort":"11-06","n":14},{"date":"2026-11-12","cohort":"11-07","n":15},{"date":"2026-11-12","cohort":"11-08","n":19},{"date":"2026-11-12","cohort":"11-09","n":25},{"date":"2026-11-12","cohort":"11-10","n":32},{"date":"2026-11-12","cohort":"11-11","n":24},{"date":"2026-11-12","cohort":"11-12","n":20},{"date":"2026-11-12","cohort":"pre","n":9}],"retention":[{"reg":"2026-11-05","size_all":64,"size_real":41,"steps":[{"n":1,"all":24,"real":23},{"n":2,"all":17,"real":14},{"n":3,"all":20,"real":17},{"n":4,"all":16,"real":14},{"n":5,"all":13,"real":13},{"n":6,"all":15,"real":13},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-06","size_all":163,"size_real":108,"steps":[{"n":1,"all":64,"real":60},{"n":2,"all":52,"real":49},{"n":3,"all":43,"real":42},{"n":4,"all":41,"real":38},{"n":5,"all":41,"real":41},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-07","size_all":145,"size_real":101,"steps":[{"n":1,"all":66,"real":61},{"n":2,"all":52,"real":47},{"n":3,"all":46,"real":42},{"n":4,"all":42,"real":36},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-08","size_all":192,"size_real":141,"steps":[{"n":1,"all":101,"real":93},{"n":2,"all":76,"real":72},{"n":3,"all":60,"real":57},{"n":4,"all":null,"real":null},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-09","size_all":195,"size_real":145,"steps":[{"n":1,"all":96,"real":90},{"n":2,"all":82,"real":78},{"n":3,"all":null,"real":null},{"n":4,"all":null,"real":null},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-10","size_all":217,"size_real":163,"steps":[{"n":1,"all":92,"real":88},{"n":2,"all":null,"real":null},{"n":3,"all":null,"real":null},{"n":4,"all":null,"real":null},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-11","size_all":189,"size_real":123,"steps":[{"n":1,"all":null,"real":null},{"n":2,"all":null,"real":null},{"n":3,"all":null,"real":null},{"n":4,"all":null,"real":null},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]},{"reg":"2026-11-12","size_all":29,"size_real":20,"steps":[{"n":1,"all":null,"real":null},{"n":2,"all":null,"real":null},{"n":3,"all":null,"real":null},{"n":4,"all":null,"real":null},{"n":5,"all":null,"real":null},{"n":6,"all":null,"real":null},{"n":7,"all":null,"real":null}]}]};
+const FUNNEL = [['Начали онбординг',657],['Экран «sample»',561],['Доступ к статистике',512],['Уведомления',469],['Сбор данных',433],['Онбординг завершён',415],['Первый прогноз',390]];
+const PERMS = [['Батарея: отказали',116,427],['Шаги: отказали',73,414],['Сон: отказали',37,411],['Уведомления: отказали',26,436]];
+const f = n => Math.round(n).toLocaleString('ru-RU');
+const pct = (a,b) => b ? a/b*100 : null;
+const p1 = v => v===null ? '—' : (Math.round(v*10)/10).toString().replace('.',',') + '%';
+const dm = s => s.slice(8,10)+'.'+s.slice(5,7);
+const LAST = DATA.last_complete_day;
+const done = DATA.daily.filter(d => d.date <= LAST);
+const today = DATA.daily.find(d => d.date > LAST);
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#71717A';
+
+/* totals */
+const sumRegs = done.reduce((s,d)=>s+d.regs,0), sumReal = done.reduce((s,d)=>s+d.regs_real,0);
+const ret = DATA.retention.filter(r => r.reg <= LAST);
+function rate(k, key){ let a=0,b=0; ret.forEach(r=>{const st=r.steps.find(x=>x.n===k); if(st && st[key]!==null){a+=st[key]; b+= key==='all'?r.size_all:r.size_real;}}); return b? a/b : null; }
+const d1 = rate(1,'all'), d3 = rate(3,'all'), d1r = rate(1,'real'), d3r = rate(3,'real');
+const peak = done.reduce((m,d)=>d.dau>m.dau?d:m, done[0]);
+const last = done[done.length-1], first = done[0];
+const callsPer = last.llm_calls/last.dau;
+const newActive = {}; DATA.dau_by_cohort.forEach(x => { if (x.cohort === x.date.slice(5)) newActive[x.date]=x.n; });
+const retShare = (last.dau - (newActive[last.date]||0)) / last.dau * 100;
+
+document.getElementById('stamp').textContent = 'Данные на ' + dm(DATA.generated_msk.slice(0,10)) + ' ' + DATA.generated_msk.slice(11) + ' МСК · день зачётного периода ' + (DATA.daily.length) + ' из 28';
+
+const kpis = [
+  [f(sumRegs), 'регистраций с 5 ноября', 'живых: ' + f(sumReal) + ' (' + p1(pct(sumReal,sumRegs)) + ')', ''],
+  [f(last.dau), 'DAU за ' + dm(last.date), peak.date===last.date ? 'рекорд периода' : 'пик периода ' + f(peak.dau) + ' ('+dm(peak.date)+')', ''],
+  [f(last.regs), 'регистраций за ' + dm(last.date), 'в первый день было ' + f(first.regs), ''],
+  [p1(d1*100), 'возврат на 1-й день', 'у живых ' + p1(d1r*100), ''],
+  [p1(d3*100), 'возврат на 3-й день', 'у живых ' + p1(d3r*100), ''],
+  [(Math.round(callsPer*10)/10).toString().replace('.',','), 'запросов к LLM на DAU', 'цель зачёта: 10', 'w']
+];
+document.getElementById('kpis').innerHTML = kpis.map(k => '<div class="kpi"><div class="v">'+k[0]+'</div><div class="l">'+k[1]+'</div><div class="d '+k[3]+'">'+k[2]+'</div></div>').join('')
+  + (today ? '<div class="kpi"><div class="v">'+f(today.dau)+'</div><div class="l">DAU сегодня (день не закончен)</div><div class="d w">регистраций '+f(today.regs)+'</div></div>' : '');
+
+const tk = [
+  'Живых регистраций в день: <b>'+f(first.regs_real)+' → '+f(Math.max(...done.map(d=>d.regs_real)))+'</b> с 5 ноября, DAU вырос с <b>'+f(first.dau)+'</b> до <b>'+f(last.dau)+'</b>.',
+  'Рост DAU держится на вернувшихся: <b>'+Math.round(retShare)+'%</b> активных за '+dm(last.date)+' — люди, пришедшие в предыдущие дни.',
+  'Удержание: <b>'+p1(d1*100)+'</b> на 1-й день и <b>'+p1(d3*100)+'</b> на 3-й по всем регистрациям (<b>'+p1(d1r*100)+'</b> и <b>'+p1(d3r*100)+'</b> у живых).',
+  'Узкое место по зачёту — частота использования: <b>'+(Math.round(callsPer*10)/10).toString().replace('.',',')+'</b> запроса к LLM на DAU при цели 10.'
+];
+document.getElementById('takeaways').innerHTML = tk.map(t=>'<div class="tk"><span>'+t+'</span></div>').join('');
+
+/* daily chart */
+new Chart(document.getElementById('cDaily'), {
+  data: { labels: done.map(d=>dm(d.date)), datasets: [
+    { type:'bar', label:'Регистраций', data: done.map(d=>d.regs), backgroundColor:'#DDD6FE', borderRadius:6, order:3 },
+    { type:'bar', label:'Из них живых', data: done.map(d=>d.regs_real), backgroundColor:'#6B5CE7', borderRadius:6, order:2 },
+    { type:'line', label:'DAU', data: done.map(d=>d.dau), borderColor:'#18181B', backgroundColor:'#18181B', tension:.3, pointRadius:5, borderWidth:3, order:1 }
+  ]},
+  options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8}}},
+    scales:{ y:{beginAtZero:true,grid:{color:'#F0F0F2'}}, x:{grid:{display:false}} } }
+});
+
+/* cohort stack */
+const cohorts = ['pre', ...done.map(d=>d.date.slice(5))];
+const palette = ['#D4D4D8','#4C3FC4','#6B5CE7','#8575F0','#9B8AFF','#B5A9FF','#CFC6FF','#E6E0FF'];
+const cohortLabel = c => c==='pre' ? 'Пользователи до рекламы' : 'Регистрация '+c.slice(3)+'.'+c.slice(0,2);
+new Chart(document.getElementById('cCohort'), {
+  type:'bar',
+  data:{ labels: done.map(d=>dm(d.date)), datasets: cohorts.map((c,i)=>({
+    label: cohortLabel(c), backgroundColor: palette[i%palette.length], borderRadius:2,
+    data: done.map(d => { const x = DATA.dau_by_cohort.find(y=>y.date===d.date && y.cohort===c); return x?x.n:0; })
+  }))},
+  options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8}}, tooltip:{itemSort:(a,b)=>b.datasetIndex-a.datasetIndex}},
+    scales:{ x:{stacked:true,grid:{display:false}}, y:{stacked:true,beginAtZero:true,grid:{color:'#F0F0F2'}} } }
+});
+
+/* heatmap */
+let retMode='all';
+function color(v){ if(v===null) return ''; const a=Math.min(.85, .12 + v/70); return 'background:rgba(107,92,231,'+a.toFixed(2)+');color:'+(a>.5?'#fff':'#18181B'); }
+function drawHeat(){
+  let h='<tr><th></th><th>Размер</th>'; for(let k=1;k<=7;k++) h+='<th>D'+k+'</th>'; h+='</tr>';
+  ret.forEach(r=>{
+    const size = retMode==='all'?r.size_all:r.size_real;
+    h+='<tr><td class="rowh">'+dm(r.reg)+'</td><td class="rowh" style="color:#71717A;font-weight:500">'+f(size)+'</td>';
+    for(let k=1;k<=7;k++){ const st=r.steps.find(x=>x.n===k); const v=(st && st[retMode]!==null)? st[retMode]/size*100 : null;
+      h+= v===null ? '<td class="na">—</td>' : '<td style="'+color(v)+'">'+Math.round(v)+'%</td>'; }
+    h+='</tr>';
+  });
+  h+='<tr><td class="rowh" style="padding-top:8px">В среднем</td><td></td>';
+  for(let k=1;k<=7;k++){ const v=rate(k,retMode); h+= v===null?'<td class="na">—</td>':'<td style="font-weight:800;'+color(v*100)+'">'+Math.round(v*100)+'%</td>'; }
+  h+='</tr>';
+  document.getElementById('heat').innerHTML=h;
+  document.getElementById('retNote').textContent = retMode==='all'
+    ? 'Все регистрации, включая тех, кто ушёл на онбординге. Среднее взвешено по размеру когорт.'
+    : 'Только те, кто прошёл онбординг и дал данные. Среднее взвешено по размеру когорт. Данные далеких дней по свежим когортам ещё копятся.';
+}
+document.getElementById('retSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; retMode=b.dataset.m; [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b)); drawHeat(); });
+drawHeat();
+
+/* cost */
+const ADS = {period:'04.11–09.11', total:{spend:63907.59,impr:500581,clicks:25160,conv:1108},
+  campaigns:[
+    {n:'РСЯ · посадка companion-app.ru · смартфоны',spend:14947.38,impr:117748,clicks:8738,conv:381},
+    {n:'РСЯ · посадка RuStore',spend:24077.93,impr:226296,clicks:15507,conv:537},
+    {n:'Поиск · посадка RuStore',spend:24882.28,impr:156537,clicks:915,conv:190}]};
+const PERIOD_END='2026-11-09';
+const inP = done.filter(d=>d.date<=PERIOD_END);
+const regsP = inP.reduce((a,d)=>a+d.regs,0), realP = inP.reduce((a,d)=>a+d.regs_real,0), dauP = inP.reduce((a,d)=>a+d.dau,0);
+const d1P = (()=>{ let a=0,b=0; ret.filter(r=>r.reg<=PERIOD_END).forEach(r=>{const st=r.steps.find(x=>x.n===1); if(st&&st.all!==null){a+=st.all;b+=r.size_all;}}); return a/b; })();
+const spendEl=document.getElementById('spend');
+const rub = n => f(n)+' ₽';
+const rub1 = n => (Math.round(n*10)/10).toString().replace('.',',')+' ₽';
+function drawCost(){
+  const s=parseFloat(spendEl.value);
+  const el=document.getElementById('costRes'), note=document.getElementById('spendNote');
+  if(!(s>0)){ el.innerHTML=''; note.textContent='Введите расход.'; return; }
+  note.textContent='За 5–9 ноября в продукте: '+f(regsP)+' регистраций, из них '+f(realP)+' живых; у Директа '+f(ADS.total.conv)+' целевых действий ('+Math.round(regsP/ADS.total.conv*100)+'% из них дошли до регистрации).';
+  const t=[[rub(s/regsP),'за регистрацию (установку с запуском)'],[rub(s/realP),'за живую регистрацию (с данными)'],[rub(s/regsP/d1P),'за пользователя, вернувшегося на 1-й день'],[rub(s/dauP),'за один активный день (расход ÷ сумма DAU)'],[rub1(s/ADS.total.conv),'за целевое действие по данным Директа']];
+  el.innerHTML=t.map(x=>'<div class="kpi"><div class="v">'+x[0]+'</div><div class="l">'+x[1]+'</div></div>').join('');
+}
+spendEl.addEventListener('input',drawCost); drawCost();
+(function(){
+  const T=ADS.total, rows=[...ADS.campaigns, {n:'Итого',spend:T.spend,impr:T.impr,clicks:T.clicks,conv:T.conv,total:true}];
+  let h='<tr><th style="text-align:left">Кампания</th><th>Расход</th><th>Показы</th><th>Клики</th><th>CTR</th><th>CPC</th><th>Конверсии</th><th>Цена конверсии</th></tr>';
+  const cpas=ADS.campaigns.map(c=>c.spend/c.conv), mn=Math.min(...cpas), mx=Math.max(...cpas);
+  rows.forEach(c=>{ const cpa=c.spend/c.conv; const st=c.total?'font-weight:800;':''; const bg=c.total?'':(cpa===mn?'background:#ECFDF5;color:#065F46;':(cpa===mx?'background:#FEF2F2;color:#991B1B;':''));
+    h+='<tr><td class="rowh" style="'+st+'">'+c.n+'</td><td style="'+st+'">'+rub(c.spend)+'</td><td style="'+st+'">'+f(c.impr)+'</td><td style="'+st+'">'+f(c.clicks)+'</td><td style="'+st+'">'+p1(c.clicks/c.impr*100)+'</td><td style="'+st+'">'+rub1(c.spend/c.clicks)+'</td><td style="'+st+'">'+f(c.conv)+'</td><td style="font-weight:700;'+bg+'">'+rub1(cpa)+'</td></tr>'; });
+  document.getElementById('ads').innerHTML=h;
+  const srch=ADS.campaigns[2], rsya=ADS.campaigns.slice(0,2); const rs=rsya.reduce((a,c)=>a+c.spend,0)/rsya.reduce((a,c)=>a+c.conv,0);
+  document.getElementById('adsNote').textContent='Поиск стоит '+(Math.round(srch.spend/srch.conv/rs*10)/10).toString().replace('.',',')+'× дороже РСЯ за одну конверсию ('+rub1(srch.spend/srch.conv)+' против '+rub1(rs)+'). Самая дешёвая — РСЯ на посадку companion-app.ru ('+rub1(ADS.campaigns[0].spend/ADS.campaigns[0].conv)+'). Конверсия по поиску считается по меньшему числу кликов, выводы по ней осторожнее.';
+})();
+
+/* forecast model */
+const R0 = (()=>{ let a=0,b=0; done.forEach(d=>{a+=(newActive[d.date]||0); b+=d.regs;}); return a/b; })();
+const RK = [R0]; for(let k=1;k<=6;k++) RK.push(rate(k,'all'));
+const PRE = (()=>{ const xs=DATA.dau_by_cohort.filter(x=>x.cohort==='pre').map(x=>x.n); return xs.reduce((a,b)=>a+b,0)/xs.length; })();
+const START=new Date('2026-11-05T00:00:00Z'), END=new Date('2026-12-02T00:00:00Z');
+const dates=[]; for(let t=new Date(START); t<=END; t=new Date(t.getTime()+864e5)) dates.push(t.toISOString().slice(0,10));
+function simulate(base,tail,mult){
+  const regs = dates.map(d => { const a=done.find(x=>x.date===d); if(a) return a.regs; return d>='2026-11-17' ? base*mult : base; });
+  const r = k => k<=6 ? RK[k] : tail/100;
+  return dates.map((d,i)=>{ let s=PRE; for(let j=0;j<=i;j++) s+=regs[j]*r(i-j); return s; });
+}
+function daysAbove(sim){ let n=0, firstD=null; sim.forEach((v,i)=>{ if(dates[i]>LAST && v>=1000){ n++; if(!firstD) firstD=dates[i]; } }); return [n,firstD]; }
+function needRegs(tail,mult){ for(let b=50;b<=2000;b+=10){ if(daysAbove(simulate(b,tail,mult))[0]>=14) return b; } return null; }
+const sReg=document.getElementById('sReg'), sTail=document.getElementById('sTail'), sMult=document.getElementById('sMult');
+const fc = new Chart(document.getElementById('cForecast'), {
+  type:'line',
+  data:{ labels: dates.map(dm), datasets:[
+    { label:'Факт', data: dates.map(d=>{const a=done.find(x=>x.date===d); return a?a.dau:null;}), borderColor:'#18181B', backgroundColor:'#18181B', borderWidth:3, pointRadius:4, tension:.25 },
+    { label:'Прогноз', data:[], borderColor:'#6B5CE7', backgroundColor:'#6B5CE7', borderWidth:3, borderDash:[7,5], pointRadius:0, tension:.25 },
+    { label:'Порог зачёта 1000', data: dates.map(()=>1000), borderColor:'#EF4444', borderWidth:2, borderDash:[3,4], pointRadius:0 }
+  ]},
+  options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8}}},
+    scales:{ y:{beginAtZero:true,grid:{color:'#F0F0F2'}}, x:{grid:{display:false}, ticks:{maxTicksLimit:14}} } }
+});
+function drawForecast(){
+  const base=+sReg.value, tail=+sTail.value, mult=+sMult.value;
+  document.getElementById('nReg').textContent=base; document.getElementById('nTail').textContent=tail+'%'; document.getElementById('nMult').textContent='×'+String(mult).replace('.',',');
+  const sim=simulate(base,tail,mult);
+  fc.data.datasets[1].data = sim.map((v,i)=> dates[i]>=LAST ? (dates[i]===LAST ? done[done.length-1].dau : Math.round(v)) : null);
+  fc.update();
+  const [n,firstD]=daysAbove(sim), need=needRegs(tail,mult), v=document.getElementById('verdict');
+  const lastDau=Math.round(sim[sim.length-1]);
+  if(n>=14){ v.className='verdict ok'; v.innerHTML='При этих допущениях DAU ≥ 1000 в <b>'+n+' днях</b> до 2 декабря (первый — '+dm(firstD)+'): порог «14 из 28» проходится. DAU на 2 декабря ≈ <b>'+f(lastDau)+'</b>.'; }
+  else { v.className='verdict '+(n>=7?'warn':'bad'); v.innerHTML='При этих допущениях DAU ≥ 1000 только в <b>'+n+' днях</b> из нужных 14'+(firstD?' (первый — '+dm(firstD)+')':'')+'. DAU на 2 декабря ≈ <b>'+f(lastDau)+'</b>. Чтобы набрать 14 дней, нужно около <b>'+(need?need+' регистраций в день':'больше 2000 регистраций в день')+'</b> при выбранных удержании и росте после 17.11.'; }
+  const back = done.filter(d=>d.date>first.date).map(d=>{const i=dates.indexOf(d.date); return Math.abs(sim[i]-d.dau)/d.dau*100;});
+  document.getElementById('modelNote').textContent='Проверка на уже прошедших днях (модель использует свои же кривые удержания, поэтому это проверка согласованности, а не прогноза): расхождение с фактом до '+Math.round(Math.max(...back))+'%. Доля активных в день регистрации принята '+Math.round(R0*100)+'%, база до рекламы '+Math.round(PRE)+' DAU в день. Хвост удержания с 7-го дня принят постоянным; у первой когорты (64 человека) на 4–6-й день наблюдается 20–25%, остальные когорты до этих дней ещё не дожили.';
+}
+[sReg,sTail,sMult].forEach(el=>el.addEventListener('input',()=>{ document.querySelectorAll('#scen button').forEach(b=>b.classList.remove('on')); drawForecast(); }));
+document.getElementById('scen').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const [r,t,m]=b.dataset.s.split(',').map(Number); sReg.value=r; sTail.value=t; sMult.value=m; document.querySelectorAll('#scen button').forEach(x=>x.classList.toggle('on',x===b)); drawForecast(); });
+sReg.value=200; sTail.value=20; sMult.value=1; drawForecast();
+
+/* funnel */
+document.getElementById('funnel').innerHTML = '<div style="font-weight:700;font-size:14px;margin-bottom:4px">Воронка онбординга</div>' + FUNNEL.map(x=>'<div class="fr"><span>'+x[0]+'</span><div class="bar"><i style="width:'+(x[1]/FUNNEL[0][1]*100)+'%"></i></div><span class="p">'+x[1]+' · '+Math.round(x[1]/FUNNEL[0][1]*100)+'%</span></div>').join('');
+document.getElementById('perm').innerHTML = '<div style="font-weight:700;font-size:14px;margin-bottom:4px">Отказы от разрешений</div>' + PERMS.map(x=>'<div class="fr"><span>'+x[0]+'</span><div class="bar"><i style="width:'+(x[1]/x[2]*100*2)+'%;background:linear-gradient(90deg,#FCA5A5,#EF4444)"></i></div><span class="p">'+x[1]+' из '+x[2]+' · '+Math.round(x[1]/x[2]*100)+'%</span></div>').join('');
+</script>
+</body>
+</html>
