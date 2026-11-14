@@ -67,11 +67,15 @@ app build keeps working against a newer server, so the server can go out before 
 4. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
 5. Publish the APK after the server is up (push the tag). CI no longer writes
    `/opt/companion/latest_version`. Without an override `/api/v1/version` still follows the latest
-   GitHub release (cached 10 min), i.e. the moment of the build, not of store publication. To hold
-   the in-app «Меня можно обновить» until the store has the build: BEFORE tagging put the version
-   that is live in the store into `update.latest` of `/opt/companion/app_config.json`, and change it
-   to the new one on the day the store publishes. `update.latest` beats `APP_LATEST_VERSION`, the
-   file and GitHub.
+   GitHub release (cached 10 min), i.e. the moment of the build, not of store publication. The
+   override lives in the repo: `deploy/app_config.json` is copied to `/opt/companion/app_config.json`
+   on every deploy (the server copy is replaced, do not edit it by hand). To hold the in-app
+   «Меня можно обновить» until the store has the build: BEFORE tagging keep the version that is
+   live in the store in `update.latest` there, and change it to the new one (commit, push to main)
+   on the day the store publishes. `update.latest` beats `APP_LATEST_VERSION`, the file and GitHub.
+6. RuStore push: the deploy workflow writes `RUSTORE_PUSH_PROJECT_ID` and `RUSTORE_PUSH_TOKEN`
+   from the repository secrets into `/opt/companion/.env` (a secret that is not set leaves the
+   line alone). After reissuing the service token: update the secret, run «Deploy backend».
 
 Rollback: the previous binary is not kept. Check out the previous tag and run `deploy.sh`; new tables
 stay and are harmless. Restore the dump only if data itself is broken.
