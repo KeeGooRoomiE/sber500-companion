@@ -94,6 +94,13 @@ jobs:
         run: |
           ssh "root@$SERVER" 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -c "SELECT name, applied_at FROM schema_migrations ORDER BY name"'
 
+      - name: Push log (last 24 h)
+        continue-on-error: true
+        run: |
+          # What the automatic notifications did: journal lines and the per-campaign send count.
+          ssh "root@$SERVER" 'journalctl -u companion --since "-24 hours" --no-pager | grep -i "push" | tail -40 || echo "no push lines in the journal"'
+          ssh "root@$SERVER" 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -c "SELECT campaign, COUNT(*) AS sends, MAX(sent_at) AS last FROM push_campaign_sends GROUP BY 1"'
+
       - name: Prompt versions
         continue-on-error: true
         run: |
