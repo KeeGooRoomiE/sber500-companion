@@ -91,6 +91,10 @@ func main() {
 		slog.Info("push: off (RUSTORE_PUSH_PROJECT_ID / RUSTORE_PUSH_TOKEN not set)")
 	}
 	admin.New(db, promptStore, llmClient, callLog, devUserIDs, pushSender).Start(ctx)
+	// Automatic notifications for people who went silent (hourly, by each person's own clock).
+	if campaigns := push.NewCampaigns(pushSender, repo.NewUserRepo(db), api.PushCampaignSettings); campaigns != nil {
+		campaigns.Start(ctx)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {

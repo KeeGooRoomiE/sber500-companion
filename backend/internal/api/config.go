@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/push"
 )
 
 // AppConfig is the remote config the app reads at start and applies as plain values (plan 1.1.0,
@@ -152,4 +154,26 @@ func Config(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	writeJSON(w, http.StatusOK, c)
+}
+
+// flagOr reads a switch that is on or off by default when the file does not name it.
+func (c AppConfig) flagOr(name string, def bool) bool {
+	if v, ok := c.Flags[name]; ok {
+		return v
+	}
+	return def
+}
+
+// PushCampaignSettings is what the automatic notifications run on, read from the same config
+// the app gets: silence.days, flags push_reactivation / push_weekly (on unless switched off),
+// texts push_reactivation / push_weekly («Заголовок | текст»).
+func PushCampaignSettings() push.Settings {
+	c := currentConfig()
+	return push.Settings{
+		SilenceDays:       c.Silence.Days,
+		ReactivationOn:    c.flagOr("push_reactivation", true),
+		WeeklyOn:          c.flagOr("push_weekly", true),
+		ReactivationTexts: c.Texts["push_reactivation"],
+		WeeklyTexts:       c.Texts["push_weekly"],
+	}
 }
