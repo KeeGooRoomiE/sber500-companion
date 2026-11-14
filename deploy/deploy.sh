@@ -16,6 +16,10 @@ ssh "root@$SERVER" "mkdir -p $APP_DIR/migrations"
 scp "$ROOT/build/server" "root@$SERVER:$APP_DIR/server.new"
 scp "$ROOT"/backend/migrations/*.sql "root@$SERVER:$APP_DIR/migrations/"
 scp "$ROOT/deploy/companion.service" "root@$SERVER:/etc/systemd/system/companion.service"
+# Remote config (GET /api/v1/config) is kept in the repo: this file replaces the server's copy on
+# every deploy. update.latest in it is the version old apps are offered, set it to the new version
+# only on the day the store has actually published it.
+scp "$ROOT/deploy/app_config.json" "root@$SERVER:$APP_DIR/app_config.json"
 
 echo "==> Applying new migrations"
 # Each file runs once, in order, in its own transaction; applied names go to schema_migrations.

@@ -68,6 +68,25 @@ jobs:
           echo "SERVER=$HOST" >> "$GITHUB_ENV"
           ssh "root@$HOST" 'echo "connected: $(hostname), $(uptime -p)"'
 
+      - name: RuStore push credentials
+        env:
+          RUSTORE_PUSH_PROJECT_ID: ${{ secrets.RUSTORE_PUSH_PROJECT_ID }}
+          RUSTORE_PUSH_TOKEN: ${{ secrets.RUSTORE_PUSH_TOKEN }}
+        run: |
+          # Written into the server's .env only when the secret is set; an existing line is replaced.
+          for name in RUSTORE_PUSH_PROJECT_ID RUSTORE_PUSH_TOKEN; do
+            value="$(printf '%s' "${!name}" | tr -d '\r\n')"
+            [ -z "$value" ] && { echo "$name: secret not set, left as is"; continue; }
+            printf '%s=%s\n' "$name" "$value" | ssh "root@$SERVER" "
+              set -e
+              f=/opt/companion/.env
+              grep -v '^$name=' \$f > \$f.tmp || true
+              cat >> \$f.tmp
+              chmod --reference=\$f \$f.tmp && chown --reference=\$f \$f.tmp
+              mv \$f.tmp \$f"
+            echo "$name: written"
+          done
+
       - name: Deploy (backup, migrations, restart, health)
         run: bash deploy/deploy.sh "$SERVER"
 
