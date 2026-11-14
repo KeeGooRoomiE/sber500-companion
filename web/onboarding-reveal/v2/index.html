@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v2 · Онбординг — проявляющийся прогноз</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  /* Цвета и тексты — из приложения (Theme.kt, OnboardingScreen.kt). */
+  :root {
+    --page: #e9e7f5;
+    --bg: #f7f6ff;
+    --surface: #ffffff;
+    --ink: #1a1525;
+    --muted: #6e6a85;
+    --outline: #ddd9f8;
+    --primary: #6b5ce7;
+    --primary-2: #8b7cf8;
+    --primary-faint: #ede9ff;
+    --on-primary: #ffffff;
+    --lock: #cfc9f3;
+    --ok: #2e8b57;
+    --shadow: 0 14px 40px rgba(26,21,37,.14);
+  }
+  :root[data-theme="dark"] {
+    --page: #0b0a10;
+    --bg: #121019;
+    --surface: #1c1926;
+    --ink: #f1eefc;
+    --muted: #a39fbd;
+    --outline: #34304a;
+    --primary: #9b8aff;
+    --primary-2: #8b7cf8;
+    --primary-faint: #26213f;
+    --on-primary: #1a1525;
+    --lock: #3a3456;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc;
+      --muted: #a39fbd; --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8;
+      --primary-faint: #26213f; --on-primary: #1a1525; --lock: #3a3456;
+      --shadow: 0 14px 40px rgba(0,0,0,.55);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px 40px; gap: 14px;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); }
+  .toolbar button {
+    font: inherit; color: var(--muted); background: var(--surface); border: 1px solid var(--outline);
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .toolbar button:hover { color: var(--ink); }
+
+  .phone {
+    width: 100%; max-width: 390px; height: 800px; max-height: calc(100vh - 110px); min-height: 620px;
+    background: var(--bg); border-radius: 34px; border: 1px solid var(--outline);
+    box-shadow: var(--shadow); overflow: hidden; position: relative;
+    display: flex; flex-direction: column; align-items: center; padding: 28px 24px 22px;
+  }
+
+  /* Орб — упрощённо; режимы как в приложении: Calm, Data, Ping, Thinking */
+  .orb-wrap { width: 190px; height: 170px; display: flex; align-items: center; justify-content: center; position: relative; flex: none; }
+  .orb {
+    width: 120px; height: 120px; position: relative;
+    background: radial-gradient(circle at 35% 30%, #c7bdff 0%, var(--primary) 55%, #4a3dc4 100%);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--primary) 45%, transparent);
+    animation: morph 7s ease-in-out infinite, breathe 4.5s ease-in-out infinite;
+    transition: transform .4s;
+  }
+  .orb.data { animation-duration: 4.5s, 3.2s; }
+  .orb.thinking { animation-duration: 2.4s, 1.6s; }
+  .orb.ping::after, .orb.ping::before {
+    content: ""; position: absolute; inset: -6px; border-radius: inherit;
+    border: 2px solid var(--primary); opacity: 0; animation: ring 2.2s ease-out infinite;
+  }
+  .orb.ping::before { animation-delay: 1.1s; }
+  .orb.poke { transform: scale(.93); }
+  @keyframes morph {
+    0%,100% { border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%; }
+    33% { border-radius: 45% 55% 42% 58% / 56% 44% 56% 44%; }
+    66% { border-radius: 52% 48% 60% 40% / 42% 58% 42% 58%; }
+  }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.05; } }
+  @keyframes ring { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.7); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb::before, .orb::after { animation: none !important; } }
+
+  .dots { display: flex; gap: 8px; margin-top: 8px; height: 8px; transition: opacity .3s; }
+  .dots i { display: block; height: 8px; width: 8px; border-radius: 50px; background: var(--outline); transition: width .35s cubic-bezier(.3,1.6,.5,1), background .2s; }
+  .dots i.on { width: 20px; background: var(--primary); }
+  .dots.hide { opacity: 0; }
+
+  .copy { margin-top: 22px; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .copy.in { animation: slidein .38s cubic-bezier(.22,.9,.3,1); }
+  @keyframes slidein { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+  .copy.back.in { animation-name: slideback; }
+  @keyframes slideback { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0; letter-spacing: -.01em; font-weight: 700; }
+  .body { margin: 14px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted); white-space: pre-line; }
+  .note { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: color-mix(in srgb, var(--muted) 80%, transparent); }
+  .more { margin-top: 8px; font-size: 14px; font-weight: 600; color: var(--primary); background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 8px; font-family: inherit; }
+
+  /* ЕДИНАЯ ПАНЕЛЬ: одна карточка на экранах 1–6, содержимое проявляется по шагам */
+  .panel-slot { width: 100%; margin-top: 16px; }
+  .panel {
+    width: 100%; border-radius: 22px; padding: 16px 18px 18px; color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    display: flex; flex-direction: column; gap: 9px; text-align: left;
+    animation: pop .45s cubic-bezier(.22,.9,.3,1);
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .chip { background: rgba(255,255,255,.22); color: #fff; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+  .panel-text { font-size: 16px; line-height: 1.7; }
+  .panel-why-h { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); margin-top: 2px; }
+  .panel-why { font-size: 14px; line-height: 1.5; color: rgba(255,255,255,.92); }
+
+  .frag { display: inline; border-radius: 8px; padding: 1px 4px; transition: background .5s, color .5s; font-weight: 600; }
+  .frag.locked { color: transparent; background: rgba(255,255,255,.26); user-select: none; position: relative; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .frag.reading { color: rgba(255,255,255,.85); background: rgba(255,255,255,.18); font-weight: 500; }
+  .frag.on { background: rgba(255,255,255,.2); color: #fff; animation: flash .8s ease-out; }
+  .frag.off { background: transparent; color: rgba(255,255,255,.7); font-weight: 400; font-style: italic; }
+  @keyframes flash { from { background: rgba(255,255,255,.55); } to { background: rgba(255,255,255,.2); } }
+  .why-locked { filter: blur(5px); user-select: none; transition: filter .6s; }
+  .why-locked.on { filter: none; }
+
+  /* панель в режиме «уведомление» (экран 5) */
+  .panel.notif { background: var(--surface); color: var(--ink); border: 1px solid var(--outline); box-shadow: 0 6px 22px rgba(26,21,37,.1); gap: 4px; }
+  .notif-app { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .notif-ic { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c7bdff, var(--primary)); }
+  .notif-title { font-size: 14.5px; font-weight: 700; }
+  .notif-body { font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+  /* панель в режиме «читаю» (экран 6) */
+  .panel .lines { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+  .panel .line { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+  .panel .line .st { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 2px solid rgba(255,255,255,.5); position: relative; }
+  .panel .line.run .st { border-top-color: #fff; animation: spin .8s linear infinite; }
+  .panel .line.done .st { background: #fff; border-color: #fff; }
+  .panel .line.done .st::after { content: "✓"; position: absolute; inset: 0; color: var(--primary); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .panel .line.skip { opacity: .7; }
+  .panel .line.skip .st { border-style: dashed; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .spacer { flex: 1; min-height: 8px; }
+
+  .sheet { width: 100%; background: color-mix(in srgb, var(--primary-faint) 90%, transparent); border-radius: 16px; padding: 14px; margin-bottom: 12px; font-size: 13.5px; line-height: 1.45; color: var(--muted); text-align: left; display: flex; flex-direction: column; gap: 8px; animation: pop .3s; }
+  .sheet b { color: var(--ink); }
+  .sheet ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .sheet .skip-link { font-size: 12.5px; color: var(--muted); background: none; border: none; text-align: left; padding: 4px 0 0; cursor: pointer; font-family: inherit; }
+  .sheet .skip-link:hover { color: var(--ink); }
+  .linkbtn { font: inherit; font-size: 13px; font-weight: 600; color: var(--primary); background: none; border: none; cursor: pointer; padding: 6px 8px; margin-bottom: 4px; border-radius: 8px; }
+
+  .cta {
+    width: 100%; font: inherit; font-size: 16px; font-weight: 700; padding: 16px; border-radius: 18px; border: none; cursor: pointer;
+    background: var(--primary); color: var(--on-primary); transition: transform .08s;
+  }
+  .cta:active { transform: scale(.97); }
+  .cta .bar { position: absolute; inset: 0; background: rgba(255,255,255,.22); transform-origin: left; transform: scaleX(0); }
+  .cta { position: relative; overflow: hidden; }
+  .cta span { position: relative; }
+  .skip { margin-top: 8px; font: inherit; font-size: 14px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 6px 12px; height: 32px; }
+  .skip:hover { color: var(--ink); }
+  .skip.gone { visibility: hidden; }
+
+  .final { position: absolute; inset: 0; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 30px; text-align: center; }
+  .final.show { display: flex; animation: pop .5s; }
+  .final h2 { margin: 0; font-size: 22px; }
+  .final p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+
+  .phone { overflow-y: auto; }
+  @media (max-height: 900px) {
+    .orb-wrap { height: 110px; width: 130px; }
+    .orb { width: 84px; height: 84px; }
+    .copy { margin-top: 14px; }
+    h1 { font-size: 23px; }
+    .body { font-size: 15px; margin-top: 10px; }
+    .panel-text { font-size: 15px; line-height: 1.6; }
+    .phone { padding-top: 18px; }
+  }
+  .flow { margin-top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .flow-i { width: 100%; background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 11px 16px; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+  .flow-i b { font-size: 15px; }
+  .flow-i span { font-size: 13.5px; color: var(--muted); }
+  .flow-i.hl { background: var(--primary-faint); border-color: var(--primary-2); }
+  .flow-a { color: var(--primary); font-size: 16px; line-height: 1; }
+  .line-t + .line-t::before { content: ' '; }
+  .legend { max-width: 390px; font-size: 12px; line-height: 1.5; color: var(--muted); text-align: center; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; margin-top: 2px; }
+  .bars i { flex: 1; background: rgba(255,255,255,.28); border-radius: 3px 3px 0 0; height: 0; transition: height .6s cubic-bezier(.3,1.2,.5,1); }
+  .bars i.hi { background: #fff; }
+  .bars-ax { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,.7); margin-top: -4px; }
+  .cards { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; text-align: left; }
+  .card div { flex: 1; font-size: 14px; line-height: 1.4; } .card b { display: block; font-size: 14.5px; }
+  .card span { color: var(--muted); font-size: 13px; }
+  .card button { font: inherit; font-size: 13px; font-weight: 600; color: var(--primary); background: var(--primary-faint); border: none; border-radius: 20px; padding: 7px 14px; cursor: pointer; }
+  .bars i.now { background: transparent; border-right: 2px dashed rgba(255,255,255,.7); border-radius: 0; }
+  .bars i.future { background: rgba(255,255,255,.1); height: 4% !important; }
+  .stat { font-size: 13px; color: rgba(255,255,255,.88); margin-top: 2px; }
+  .opts { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .opt { background: var(--surface); border: 1.5px solid var(--outline); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; font: inherit; color: inherit; transition: border-color .2s, background .2s; }
+  .opt.on { border-color: var(--primary); background: var(--primary-faint); }
+  .opt .t { flex: 1; font-size: 14px; line-height: 1.4; } .opt b { display: block; font-size: 14.5px; } .opt .t span { color: var(--muted); font-size: 13px; }
+  .opt .sw { width: 40px; height: 24px; border-radius: 20px; background: var(--outline); position: relative; transition: background .2s; flex: none; }
+  .opt .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .opt.on .sw { background: var(--primary); } .opt.on .sw::after { transform: translateX(16px); }
+  .tag { font-size: 11.5px; color: var(--muted); margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>Вариант B+A · 3 экрана + «точнее?» по желанию</span>
+    <button id="prev">‹ назад</button>
+    <button id="reset">↺ сначала</button>
+    <button id="theme">◐ тема</button>
+    <button id="tod">время: вечер</button>
+    <a href="../" style="color:var(--primary)">← прошлый вариант</a>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="orb-wrap"><div class="orb" id="orb"></div></div>
+    <div class="dots" id="dots"></div>
+    <div class="copy in" id="copy"></div>
+    <div class="panel-slot" id="panelSlot"></div>
+    <div class="spacer"></div>
+    <div id="sheetSlot" style="width:100%"></div>
+    <button class="cta" id="cta"><span class="bar" id="ctabar"></span><span id="ctatext"></span></button>
+    <button class="skip" id="skip"></button>
+
+    <div class="final" id="final" style="justify-content:flex-start;padding-top:46px">
+      <div class="orb" style="width:84px;height:84px"></div>
+      <h2>Добрый вечер</h2>
+      <p id="finalText"></p>
+      <div class="cards" id="finalAccess" style="display:none">
+        <div class="card"><div><b>Доступ к экрану</b><span>Нужен, чтобы прогноз заработал</span></div><button>Разрешить</button></div>
+      </div>
+      <div class="cards" id="finalCards">
+        <div class="card"><div><b>Шаги</b><span>Прогноз станет точнее</span></div><button>Добавить</button></div>
+        <div class="card"><div><b>Сон</b><span>Точное время вместо пауз экрана</span></div><button>Добавить</button></div>
+      </div>
+      <div class="tag" id="finalTag">Эти карточки появятся на главном экране на второй день, не сразу</div>
+      <button class="cta" id="again" style="max-width:240px;margin-top:auto">Пройти ещё раз</button>
+    </div>
+  </div>
+
+  <p class="legend">Идея: просим только то, без чего нельзя, и сразу показываем пользу — вчерашний день по данным экрана. Шаги и сон — последним необязательным экраном (один системный запрос), а кто пропустил — карточками на главной; уведомления — когда человек уже увидел, что получит. Данные в разборе — пример. Вечером показываем сегодня до текущего часа, утром (сегодня почти пусто) — вчера: переключатель «время» в шапке.</p>
+
+<script>
+(function () {
+  const STEPS = [
+    { id: 'hello', orb: 'calm', title: 'Познакомимся?',
+      body: 'Каждое утро — одна фраза о том, чего ждать от дня.\nБез дневников и ручного ввода.', cta: 'Дальше' },
+    { id: 'access', orb: 'data', title: 'Один доступ — и начнём',
+      body: 'Нужно видеть, сколько минут был включён экран. Ни переписок, ни фото.',
+      cta: 'Разрешить', more: true },
+    { id: 'reveal', orb: 'ping', title: 'Вот твой день',
+      body: '',
+      cta: 'Да, присылай', skip: 'Не сейчас' },
+    { id: 'accuracy', orb: 'data', title: 'Сделать прогноз точнее?',
+      body: 'По желанию. Передаём только число шагов и время сна — без пульса и стадий.\nБез них прогноз чуть грубее, но работает.',
+      cta: 'Добавить и начать', skip: 'Пропустить' },
+  ];
+  const LAST = 4;
+  const opt = { steps: true, sleep: true };
+  let added = false;
+  const SAMPLE = 'После спокойных вечеров у тебя обычно лёгкое утро — сегодня хороший день для важных дел.';
+  const YESTERDAY = [1,0,0,0,0,0,1,3,6,8,9,12,5,4,6,9,7,8,10,6,4,3,2,1];
+  const TODAY = [0,0,0,0,0,1,2,5,8,10,6,7,9,4,6,8,7,9,5,8,6]; // до 21:00, сегодня вечером
+  let evening = true;               // демо: вечер → «сегодня», утро → «вчера»
+  const NOW_H = 21;
+  const $ = id => document.getElementById(id);
+  let step = 0, timers = [];
+  const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+
+  function renderDots() { const d = $('dots'); d.innerHTML = ''; for (let i = 0; i < LAST; i++) { const el = document.createElement('i'); if (i === step) el.className = 'on'; d.appendChild(el); } }
+
+  function renderCopy(back) {
+    const st = STEPS[step], c = $('copy');
+    if (st.id === 'reveal') {
+      st.title = evening ? 'Вот твой сегодняшний день' : 'Вот твой вчерашний день';
+      st.body = (evening ? 'Это уже видно по истории экрана — ждать неделю не нужно.' : 'Сегодня только началось, поэтому показываю вчера. Ждать неделю не нужно.') + '\nПрислать такую фразу завтра утром?';
+    }
+    c.className = 'copy in' + (back ? ' back' : '');
+    c.innerHTML = '<h1>' + st.title + '</h1><p class="body">' + st.body + '</p>' + (st.more ? '<button class="more">Подробнее о данных</button>' : '');
+    const m = c.querySelector('.more'); if (m) m.onclick = () => alert('В приложении откроется страница про данные: companion-app.ru/privacy');
+    $('ctatext').textContent = st.cta;
+    const sk = $('skip'); sk.textContent = st.skip || '·'; sk.classList.toggle('gone', !st.skip);
+  }
+
+  function renderPanel() {
+    const slot = $('panelSlot'); let html = '';
+    if (step === 0) {
+      html = '<div class="panel"><div class="panel-head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="panel-text">' + SAMPLE + '</div></div>';
+    } else if (step === 3) {
+      html = '<div class="opts">' +
+        '<button class="opt' + (opt.steps ? ' on' : '') + '" data-k="steps"><div class="t"><b>Шаги</b><span>сколько ты двигался за день</span></div><i class="sw"></i></button>' +
+        '<button class="opt' + (opt.sleep ? ' on' : '') + '" data-k="sleep"><div class="t"><b>Сон</b><span>точное время вместо пауз экрана</span></div><i class="sw"></i></button></div>';
+    } else if (step === 2) {
+      const data = evening ? TODAY : YESTERDAY;
+      const mx = Math.max(...YESTERDAY);
+      const cells = Array.from({ length: 24 }, (_, i) => {
+        if (evening && i > NOW_H - 1) return '<i class="' + (i === NOW_H ? 'now ' : '') + 'future" data-h="4"></i>';
+        const v = data[i] || 0;
+        return '<i data-h="' + Math.round(v / mx * 100) + '"' + (!evening && i >= 22 ? ' class="hi"' : '') + '></i>';
+      }).join('');
+      const stat = evening
+        ? '3 ч 05 мин у экрана · 48 разблокировок'
+        : 'Вчера: 2 ч 40 мин у экрана · 36 разблокировок';
+      html = '<div class="panel"><div class="panel-head"><span>' + (evening ? 'Сегодня по часам, до сих пор' : 'Вчера по часам') + '</span><span class="chip">пример</span></div>' +
+        '<div class="bars">' + cells + '</div>' +
+        '<div class="bars-ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>' +
+        '<div class="stat">' + stat + '</div>' +
+        '<div class="panel-text" style="margin-top:4px">Вчера экран гас в 23:40, без позднего скролла — после таких вечеров утро у тебя обычно лёгкое.</div></div>';
+    }
+    slot.innerHTML = html;
+    slot.querySelectorAll('.opt').forEach(b => b.onclick = () => { opt[b.dataset.k] = !opt[b.dataset.k]; b.classList.toggle('on', opt[b.dataset.k]); $('ctatext').textContent = opt.steps || opt.sleep ? 'Добавить и начать' : 'Начать'; });
+    slot.querySelectorAll('.bars i').forEach((b, i) => later(() => { b.style.height = b.dataset.h + '%'; }, 80 + i * 25));
+  }
+
+  let helpOpen = false, skippedAccess = false;
+  function renderSheet() {
+    const s = $('sheetSlot');
+    if (step !== 1) { s.innerHTML = ''; return; }
+    if (helpOpen) {
+      s.innerHTML =
+        '<div class="sheet"><b>Android пишет «Доступ запрещен»?</b>' +
+        'Так бывает с приложениями не из магазина — это защита Android, разблокировать нужно один раз.' +
+        '<ol><li>Открой «О приложении» кнопкой ниже</li><li>Нажми ⋮ справа вверху → «Разрешить ограниченные настройки»</li><li>Вернись сюда и снова нажми «Разрешить»</li></ol>' +
+        '<button class="linkbtn" id="openApp" style="margin:6px 0 0">Открыть «О приложении»</button>' +
+        '<button class="skip-link" id="skipAccess">Позже — без доступа прогноз не заработает</button></div>';
+      $('openApp').onclick = () => alert('В приложении откроются системные настройки Companion («О приложении»).');
+      $('skipAccess').onclick = () => { skippedAccess = true; helpOpen = false; finish(); };
+    } else {
+      s.innerHTML = '<button class="linkbtn" id="help">Не получается разрешить? Подсказать, как</button>';
+      $('help').onclick = () => { helpOpen = true; renderSheet(); };
+    }
+  }
+
+  function render(back) {
+    timers.forEach(clearTimeout); timers = [];
+    renderDots(); renderCopy(back); renderPanel(); renderSheet();
+    $('orb').className = 'orb ' + STEPS[step].orb;
+  }
+  function goto(n, back) { step = n; helpOpen = false; render(back); }
+  function finish() {
+    $('finalText').innerHTML = skippedAccess
+      ? 'Без доступа к экрану прогноза не будет — приложению не на чем его строить.'
+      : added ? 'Первый прогноз придёт завтра утром.<br>Шаги и сон уже учтём.'
+      : 'Первый прогноз придёт завтра утром.<br>Пока приложение просто собирает картину.';
+    const cardsOn = !skippedAccess && !added;
+    $('finalCards').style.display = cardsOn ? '' : 'none';
+    $('finalTag').style.display = cardsOn ? '' : 'none';
+    $('finalAccess').style.display = skippedAccess ? '' : 'none';
+    $('final').classList.add('show');
+  }
+
+  $('cta').onclick = () => {
+    const id = STEPS[step].id;
+    if (id === 'hello') return goto(1);
+    if (id === 'access') {
+      $('ctatext').textContent = 'Читаю историю…'; $('orb').className = 'orb thinking';
+      const b = $('ctabar'); requestAnimationFrame(() => { b.style.transition = 'transform 1.2s cubic-bezier(.4,0,.2,1)'; b.style.transform = 'scaleX(1)'; });
+      return later(() => { b.style.transition = 'none'; b.style.transform = 'scaleX(0)'; goto(2); }, 1300);
+    }
+    if (id === 'reveal') return goto(3);
+    if (id === 'accuracy') { added = opt.steps || opt.sleep; finish(); }
+  };
+  $('skip').onclick = () => { if (STEPS[step].id === 'reveal') return goto(3); added = false; finish(); };
+  $('prev').onclick = () => { if (step > 0) { $('final').classList.remove('show'); goto(step - 1, true); } };
+  const reset = () => { $('final').classList.remove('show'); helpOpen = false; skippedAccess = false; added = false; opt.steps = opt.sleep = true; step = 0; render(true); };
+  $('reset').onclick = reset; $('again').onclick = reset;
+  $('tod').onclick = () => { evening = !evening; $('tod').textContent = 'время: ' + (evening ? 'вечер' : 'утро'); if (step === 2) render(); };
+  $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
+  render();
+})();
+</script>
+</body>
+</html>

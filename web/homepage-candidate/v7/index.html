@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>v7 · Главный экран — v3 с шторками</title>
+<style>
+  /* Цвета — как в приложении (Theme.kt). Цифры — пример, но форма взята со скринов 0.9.8. */
+  :root {
+    --page: #e9e7f5; --bg: #f7f6ff; --surface: #ffffff; --ink: #1a1525; --muted: #6e6a85;
+    --outline: #ddd9f8; --primary: #6b5ce7; --primary-2: #8b7cf8; --primary-faint: #ede9ff;
+    --wave-1: #f1e3f6; --wave-2: #e3c4ee;
+    --shadow: 0 14px 40px rgba(26,21,37,.14);
+  }
+  :root[data-theme="dark"] {
+    --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+    --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+    --wave-1: #3a1745; --wave-2: #55207a;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0b0a10; --bg: #121019; --surface: #1c1926; --ink: #f1eefc; --muted: #a39fbd;
+      --outline: #34304a; --primary: #9b8aff; --primary-2: #8b7cf8; --primary-faint: #26213f;
+      --wave-1: #3a1745; --wave-2: #55207a; --shadow: 0 14px 40px rgba(0,0,0,.55);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; padding: 20px 16px 40px; gap: 14px;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); max-width: 720px; }
+  .toolbar button { font: inherit; color: var(--muted); background: var(--surface); border: 1px solid var(--outline); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .toolbar button:hover { color: var(--ink); }
+  .toolbar a { color: var(--primary); }
+
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 360px; }
+  .cap { font-size: 13px; color: var(--muted); text-align: center; max-width: 340px; line-height: 1.45; }
+  .cap b { color: var(--ink); display: block; font-size: 15px; margin-bottom: 2px; }
+
+  .ph { position: relative; width: 100%; height: 760px; border-radius: 34px; overflow: hidden; border: 1px solid var(--outline); box-shadow: var(--shadow); }
+  .hp {
+    height: 100%; background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 22%, var(--wave-1) 62%, var(--wave-2) 100%);
+    overflow-y: auto; scrollbar-width: none; padding: 22px 18px 24px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .hp::-webkit-scrollbar { display: none; }
+
+  .top { display: flex; align-items: flex-start; justify-content: space-between; padding: 0 2px; gap: 8px; }
+  .greet { font-size: 34px; font-weight: 300; letter-spacing: -.8px; line-height: 1.12; min-width: 0; overflow-wrap: anywhere; }
+  .orb {
+    width: 46px; height: 46px; flex: none; margin-top: 4px;
+    background: radial-gradient(circle at 35% 30%, #c7bdff 0%, var(--primary) 55%, #4a3dc4 100%);
+    border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 45%, transparent);
+    animation: morph 7s ease-in-out infinite, breathe 4.5s ease-in-out infinite;
+  }
+  @keyframes morph { 0%,100% { border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%; } 33% { border-radius: 45% 55% 42% 58% / 56% 44% 56% 44%; } 66% { border-radius: 52% 48% 60% 40% / 42% 58% 42% 58%; } }
+  @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: 1.06; } }
+  @media (prefers-reduced-motion: reduce) { .orb { animation: none; } }
+
+  .grad { border-radius: 22px; padding: 16px 18px 16px; color: #fff; text-align: left;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2)); display: flex; flex-direction: column; gap: 9px; }
+  .grad .head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.78); }
+  .chip { background: rgba(255,255,255,.22); color: #fff; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+  .grad .text { font-size: 16px; line-height: 1.55; }
+  .grad .sub { font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.92); }
+  .grad .stat { font-size: 13px; color: rgba(255,255,255,.9); }
+  .grad .go { font-size: 13.5px; font-weight: 600; color: #fff; cursor: pointer; user-select: none; }
+  .divider { height: 1px; background: rgba(255,255,255,.22); margin: 4px 0 2px; }
+  .links { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 2px; }
+
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; margin-top: 2px; }
+  .bars.sm { height: 34px; }
+  .bars i { flex: 1; background: rgba(255,255,255,.28); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .bars i.hi { background: #fff; }
+  .bars i.now { background: transparent; border-right: 2px dashed rgba(255,255,255,.75); border-radius: 0; }
+  .bars i.future { background: rgba(255,255,255,.1); height: 4% !important; }
+  .ax { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,.7); margin-top: -3px; }
+
+  .card { background: var(--surface); border: 1px solid var(--outline); border-radius: 20px; padding: 14px 16px; }
+  .card h4 { margin: 0 0 4px; font-size: 15px; }
+  .card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--outline); border-radius: 16px; padding: 11px 12px; }
+  .tile b { display: block; font-size: 17px; letter-spacing: -.3px; }
+  .tile span { font-size: 10.5px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .feels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .feel { background: var(--primary-faint); border-radius: 14px; padding: 10px 4px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .feel i { display: block; font-style: normal; font-size: 22px; margin-bottom: 3px; }
+  .note { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; padding: 0 6px; }
+
+  /* Нижняя панель: история + кнопка */
+  .sh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+  .sh h4 { margin: 0; font-size: 15px; }
+  .lnk { font-size: 14px; font-weight: 600; color: var(--primary); cursor: pointer; user-select: none; }
+  .hrow { padding: 9px 0; border-top: 1px solid var(--outline); }
+  .hrow.first { border-top: 0; }
+  .hrow .d { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; gap: 8px; }
+  .hrow .t { font-size: 13.5px; line-height: 1.45; color: var(--muted); margin-top: 2px; }
+  .mk { font-size: 12.5px; font-weight: 600; color: var(--primary); } .mk.no { color: var(--muted); font-weight: 500; }
+  .btnw { font: inherit; width: 100%; font-size: 14.5px; font-weight: 600; background: var(--primary); color: #fff; border: 0; border-radius: 26px; padding: 13px; cursor: pointer; }
+  :root[data-theme="dark"] .btnw { color: #1a1525; }
+
+  .acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 2px; }
+  .pillb { font-size: 13.5px; font-weight: 600; color: var(--primary); background: var(--surface); border: 1px solid var(--outline); border-radius: 20px; padding: 8px 14px; cursor: pointer; user-select: none; }
+
+  /* Шторки */
+  .scrim { position: absolute; inset: 0; background: rgba(20,16,40,.4); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 6; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--surface); border-radius: 28px 28px 0 0;
+    padding: 18px 18px 20px; box-shadow: 0 -8px 40px rgba(20,16,40,.3); transform: translateY(105%);
+    transition: transform .32s cubic-bezier(.22,.9,.3,1); display: flex; flex-direction: column; gap: 10px; max-height: 80%;
+  }
+    .sheet.on { transform: none; }
+  .sheet .bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex: none; }
+  .sheet h4 { margin: 0; font-size: 18px; }
+  .x { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-faint); color: var(--primary); border: 0; font-size: 18px; line-height: 1; cursor: pointer; flex: none; display: grid; place-items: center; }
+  .sbody { overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 12px; }
+  .sbody::-webkit-scrollbar { display: none; }
+  .sbody .why { font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .sum { display: grid; grid-template-columns: 1fr auto auto; gap: 8px 14px; font-size: 13.5px; align-items: baseline; }
+  .sum .k { color: var(--muted); } .sum .u { color: var(--muted); font-size: 12.5px; text-align: right; }
+  .seg { display: inline-flex; background: var(--primary-faint); border-radius: 20px; padding: 2px; align-self: flex-start; }
+  .seg span { padding: 5px 14px; border-radius: 18px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+  .seg span.on { background: var(--primary); color: #fff; }
+  :root[data-theme="dark"] .seg span.on { color: #1a1525; }
+  .hours { display: flex; align-items: flex-end; gap: 3px; height: 96px; }
+  .hours i { flex: 1; background: color-mix(in srgb, var(--primary) 30%, transparent); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .hours i.hi { background: var(--primary); }
+  .hours i.future { background: color-mix(in srgb, var(--primary) 10%, transparent); height: 4% !important; }
+  .hours-ax { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .rate { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .rate .chips { display: flex; gap: 6px; }
+  .chipb { font: inherit; font-size: 13px; font-weight: 600; color: var(--primary); background: transparent; border: 1.5px solid var(--outline); border-radius: 20px; padding: 5px 13px; cursor: pointer; }
+  .chipb.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  :root[data-theme="dark"] .chipb.on { color: #1a1525; }
+  .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 9px 0; border-top: 1px solid var(--outline); }
+  .kv:first-child { border-top: 0; } .kv span { color: var(--muted); } .kv b { text-align: right; }
+
+  .legend { max-width: 780px; font-size: 12.5px; line-height: 1.6; color: var(--muted); text-align: center; }
+  .legend b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>v7 · v3 с шторками (цифры — пример, форма реальная)</span>
+    <a href="../v3/">← v3</a>
+    <button id="tod">B: день</button>
+    <button id="theme">◐ тема</button>
+  </div>
+
+  <div class="row">
+    <div class="col"><div class="ph" id="phA"><div class="hp" id="A"></div></div>
+      <div class="cap"><b>A · Утро</b>Панель с прогнозом целиком и лентой часов. «Почему» и «Разбор дня» открывают шторки.</div></div>
+    <div class="col"><div class="ph" id="phB"><div class="hp" id="B"></div></div>
+      <div class="cap"><b>B · День / вечер</b>«Сегодня по часам» в панели. Вечером чек-ин поднят.</div></div>
+    <div class="col"><div class="ph" id="phC"><div class="hp" id="C"></div></div>
+      <div class="cap"><b>C · Лёгкий</b>Прогноз и компактная лента часов в одной карточке.</div></div>
+  </div>
+
+  <p class="legend"><b>Что изменилось относительно v3.</b> «Почему такой прогноз» и «Разбор дня» теперь шторки снизу (как в v5), а не раскрытие внутри панели — фиолетовая панель не растёт. В каждой шторке крестик справа вверху вместо «Понятно». Внизу две маленькие кнопки: «Прошлые прогнозы» и «Разбор недели»; раньше был блок с последними прогнозами и кнопка «Разбор недели»; «Прошлые прогнозы» и «Итоги недели» открываются полноэкранными шторками. Оценка «Совпало / Не совсем» живёт в шторке «Прошлые прогнозы» (первая строка — сегодняшний прогноз).<br><br>
+  <b>Убрано.</b> Режим «данные: пример» и «история: первые дни» — остались реальные данные с накопленной историей. Это значит, что макет не показывает состояние первых дней (пустая история, фраза без закономерности); оно остаётся в v3.<br><br>
+  <b>Что условно.</b> Содержимое «Разбора дня» и «Итогов недели» — моя заготовка (первый и последний разблок и топ-приложения в данных есть, но как их показывать — не решено). Все цифры — пример.</p>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const D = {
+    name: ', Вячеслав',
+    yest:  [0,0,0,0,9,8,0,0,0,0,3,11,2,0,0,0,0,0,0,0,0,0,0,0],
+    today: [0,0,0,0,9,8,0,0,0,0,3,11,2,0,0,0,0,0,0,0,0,0,0,0],
+    forecast: 'Вчера был день с минимумом обращений к телефону — 14 минут и 5 разблокировок при твоей норме 16 минут и 8 раз. После таких дней у тебя обычно сохраняется ровное настроение и быстрое восстановление к середине дня.',
+    fact: 'Ночью экран включался около 4 и 5 часов.',
+    stat: { yest: '14 мин у экрана · 5 разблокировок', day: '3 ч 07 мин у экрана · 8 разблокировок' },
+    why: 'Сравнил вчерашний день с твоими обычными днями за последние недели.',
+    sum: [['Экран вчера','14 мин','обычно 16 мин'], ['Разблокировки','5','обычно 8'], ['Сон','6 ч 38 мин','обычно 7 ч'], ['Шаги','4 120','обычно 6 000']],
+    tiles: [['3ч 7м','экран'], ['4ч 55м','без телефона'], ['8','разблок.']],
+    howDay: 'Экран выше обычного: почти 3 часа против 41 минуты.',
+  };
+  const HIST = [
+    ['Сб, 8 ноября', 'После спокойного вечера утро лёгкое — так и вышло.', 'совпало ✓', ''],
+    ['Пт, 7 ноября', 'После короткой ночи день тяжелее, но собрался к обеду.', 'не совсем', ' no'],
+    ['Чт, 6 ноября', 'День звонков накануне — утром темп медленнее, фокус ближе к обеду.', 'совпало ✓', ''],
+    ['Ср, 5 ноября', 'Поздний экран два вечера подряд — утро спокойное.', 'совпало ✓', ''],
+    ['Вт, 4 ноября', 'Длинный экран вечером — утром фокус приходит позже.', 'не совсем', ' no'],
+    ['Пн, 3 ноября', 'После прогулки вечером проще выдохнуть — так и было.', 'совпало ✓', ''],
+  ];
+  let evening = false, open = null, rated = null, breakdown = 'вчера';
+  const MAX = () => Math.max(...D.yest, ...D.today, 1);
+  const night = i => i >= 23 || i < 6;
+
+  function bars(type, nowH, small) {
+    let h = '<div class="bars' + (small ? ' sm' : '') + '">';
+    for (let i = 0; i < 24; i++) {
+      if (type === 'today' && i >= nowH) { h += '<i class="' + (i === nowH ? 'now ' : '') + 'future"></i>'; continue; }
+      const v = (type === 'today' ? D.today : D.yest)[i];
+      h += '<i' + (night(i) && v > 0 ? ' class="hi"' : '') + ' style="height:' + (v ? Math.max(8, Math.round(v / MAX() * 100)) : 4) + '%"></i>';
+    }
+    return h + '</div><div class="ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>';
+  }
+  const op = (p, k) => 'data-open="' + k + '" data-p="' + p + '"';
+  const top = g => '<div class="top"><div class="greet">' + g + D.name + '</div><div class="orb"></div></div>';
+  const tiles = '<div class="tiles">' + D.tiles.map(t => '<div class="tile"><b>' + t[0] + '</b><span>' + t[1] + '</span></div>').join('') + '</div>';
+  const whyL = p => '<span class="go" ' + op(p, 'why') + '>Почему такой прогноз ›</span>';
+  const links = p => '<div class="links"><span class="go" ' + op(p, 'day') + '>Разбор дня →</span></div>';
+
+  function bottom(p) {
+    return '<div class="acts"><span class="pillb" ' + op(p, 'past') + '>Прошлые прогнозы</span><span class="pillb" ' + op(p, 'week') + '>Разбор недели</span></div>';
+  }
+
+  function renderA() {
+    $('A').innerHTML = top('Доброе утро') +
+      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('A') +
+      '<div class="divider"></div><div class="head"><span>Вчера по часам</span></div>' + bars('yest') +
+      '<div class="stat">' + D.stat.yest + '</div><div class="sub">' + D.fact + '</div>' + links('A') + '</div>' + tiles + bottom('A');
+  }
+  function renderB() {
+    const nowH = evening ? 21 : 13;
+    const checkin = '<div class="card"><h4>Как прошёл день?</h4><div class="feels"><div class="feel"><i>😊</i>Отлично</div><div class="feel"><i>😐</i>Нормально</div><div class="feel"><i>😮‍💨</i>Тяжело</div></div></div>';
+    const how = '<div class="card"><h4>Как идёт день</h4><p>' + D.howDay + '</p></div>';
+    const panel = '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('B') +
+      '<div class="divider"></div><div class="head"><span>Сегодня по часам</span></div>' + bars('today', nowH) + '<div class="stat">' + D.stat.day + '</div>' + links('B') + '</div>';
+    $('B').innerHTML = top(evening ? 'Добрый вечер' : 'Добрый день') + (evening ? checkin + panel + tiles : how + panel + tiles) + bottom('B');
+  }
+  function renderC() {
+    $('C').innerHTML = top('Доброе утро') +
+      '<div class="grad"><div class="head"><span>Прогноз на сегодня</span><span class="chip">пример</span></div><div class="text">' + D.forecast + '</div>' + whyL('C') +
+      '<div class="head" style="margin-top:4px"><span>Вчера по часам</span></div>' + bars('yest', 0, true) +
+      '<div class="sub" style="font-size:13px">' + D.fact + '</div>' + links('C') + '</div>' + bottom('C');
+  }
+
+  function sheet(kind) {
+    if (kind === 'why') {
+      return ['Почему такой прогноз', '<div class="why">' + D.why + '</div><div class="sum">' + D.sum.map(r => '<span class="k">' + r[0] + '</span><b>' + r[1] + '</b><span class="u">' + r[2] + '</span>').join('') + '</div><span class="chipb" style="align-self:flex-start">Хочу ещё ✦</span>', false];
+    }
+    if (kind === 'day') {
+      const y = breakdown === 'вчера', data = y ? D.yest : D.today, mx = MAX(), nowH = 13;
+      let h = '<div class="hours">';
+      for (let i = 0; i < 24; i++) { if (!y && i >= nowH) { h += '<i class="future"></i>'; continue; } const v = data[i]; h += '<i' + (night(i) && v > 0 ? ' class="hi"' : '') + ' style="height:' + (v ? Math.max(8, Math.round(v / mx * 100)) : 4) + '%"></i>'; }
+      h += '</div><div class="hours-ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>';
+      return ['Разбор дня', '<div class="seg"><span data-b="вчера" class="' + (y ? 'on' : '') + '">вчера</span><span data-b="сегодня" class="' + (!y ? 'on' : '') + '">сегодня</span></div>' +
+        '<div class="card" style="padding:12px 14px"><h4>Экран по часам</h4>' + h + '</div>' +
+        '<div><div class="kv"><span>Время у экрана</span><b>' + (y ? '14 мин' : '3 ч 07 мин') + '</b></div><div class="kv"><span>Разблокировки</span><b>' + (y ? '5' : '8') + '</b></div>' +
+        '<div class="kv"><span>Первый / последний разблок</span><b>' + (y ? '04:12 / 11:30' : '04:10 / 12:55') + '</b></div><div class="kv"><span>Чаще всего открывал</span><b>Telegram, Почта</b></div></div>' +
+        '<div class="why">' + D.fact + ' Цифры — пример.</div>', false];
+    }
+    if (kind === 'past') {
+      const today = '<div class="hrow first"><div class="d"><span>Сегодня</span><span class="rate"><span class="chips"><button class="chipb' + (rated === 'yes' ? ' on' : '') + '" data-r="yes">Совпало</button><button class="chipb' + (rated === 'no' ? ' on' : '') + '" data-r="no">Не совсем</button></span></span></div><div class="t">Ровное настроение и быстрое восстановление к середине дня.</div></div>';
+      return ['Прошлые прогнозы', '<div class="card" style="padding:6px 16px">' + today + HIST.map(r => '<div class="hrow"><div class="d"><span>' + r[0] + '</span><span class="mk' + r[3] + '">' + r[2] + '</span></div><div class="t">' + r[1] + '</div></div>').join('') + '</div>', true];
+    }
+    return ['Итоги недели', '<div class="card"><div class="kv"><span>Прогнозов совпало</span><b>4 из 6</b></div><div class="kv"><span>Экран в среднем</span><b>2 ч 50 мин</b></div><div class="kv"><span>Разблокировок в день</span><b>18</b></div><div class="kv"><span>Ночью экран включался</span><b>3 раза</b></div><div class="kv"><span>Самый ровный день</span><b>вторник</b></div></div>' +
+      '<div class="why">Сводка по твоим данным за последние семь дней. Цифры — пример.</div>', true];
+  }
+
+  function renderSheets() {
+    ['A', 'B', 'C'].forEach(p => {
+      const ph = $('ph' + p); let s = ph.querySelector('.sheet'), c = ph.querySelector('.scrim');
+      if (!s) { c = document.createElement('div'); c.className = 'scrim'; c.dataset.close = '1'; s = document.createElement('div'); s.className = 'sheet'; ph.appendChild(c); ph.appendChild(s); }
+      if (open && open.p === p) {
+        const [title, body, full] = sheet(open.k);
+        s.className = 'sheet';
+        s.innerHTML = '<div class="bar"><h4>' + title + '</h4><button class="x" data-close="1" aria-label="Закрыть">×</button></div><div class="sbody">' + body + '</div>';
+        requestAnimationFrame(() => { s.classList.add('on'); c.classList.add('on'); });
+      } else { s.classList.remove('on'); c.classList.remove('on'); }
+    });
+  }
+  function render() { renderA(); renderB(); renderC(); renderSheets(); }
+
+  document.addEventListener('click', e => {
+    const o = e.target.closest('[data-open]');
+    if (o) { open = { p: o.dataset.p, k: o.dataset.open }; renderSheets(); return; }
+    if (e.target.closest('[data-close]')) { open = null; renderSheets(); return; }
+    const b = e.target.closest('.seg span'); if (b) { breakdown = b.dataset.b; renderSheets(); return; }
+    const r = e.target.closest('[data-r]'); if (r) { rated = r.dataset.r; renderSheets(); }
+  });
+  $('tod').onclick = () => { evening = !evening; $('tod').textContent = 'B: ' + (evening ? 'вечер' : 'день'); renderB(); };
+  $('theme').onclick = () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); };
+  render();
+})();
+</script>
+</body>
+</html>
