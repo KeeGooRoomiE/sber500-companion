@@ -156,3 +156,21 @@ tail -f /var/log/caddy/companion.log    # access logs
 # go install github.com/rakyll/hey@latest
 hey -n 1000 -c 50 https://api.companion.keegooroomie.ru/health
 ```
+
+## Daily metrics for the programme (`GET /api/v1/metrics/daily`)
+
+`?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` (inclusive, up to 90 days), `Authorization: Bearer <token>`.
+One record per Moscow calendar day: `dau`, `llm_requests`, `tool_requests`, `total_users`,
+`new_users`, `is_final`. Counted exactly like the public `/metrics` page; the rules are in the
+header of `backend/internal/api/metrics_daily.go`.
+
+- The token is `METRICS_DAILY_TOKEN` in `/opt/companion/.env`, at least 32 characters; without it
+  the method answers 401 to everyone. The deploy workflow writes it from the repository secret of
+  the same name. To reissue: set a new secret, run «Deploy backend», hand the new token over
+  through the programme's form.
+- `METRICS_STARTUP_ID` (optional) changes `startup_id`, default `sber500-companion`.
+- Limit: 30 requests a minute per IP. Errors are `{"error": "…"}` with 400 / 401 / 429 / 500.
+- Check: `curl -H "Authorization: Bearer $TOKEN" "https://api.94-183-236-169.sslip.io/api/v1/metrics/daily?date_from=2026-11-08&date_to=2026-11-14"`
+- The queries are covered by tests that need a throwaway PostgreSQL:
+  `TEST_DATABASE_URL=postgres://… go test ./internal/api ./internal/repo -run OnDatabase -p 1`.
+

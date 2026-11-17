@@ -53,6 +53,10 @@ func Mount(r chi.Router, d Deps) {
 
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)
+		// Daily numbers for the programme's collector: Bearer token, aggregates only, 30 rpm per IP
+		// (their spec asks for at least 10).
+		r.With(httprate.Limit(30, time.Minute, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
+			Method(http.MethodGet, "/metrics/daily", NewDailyMetrics(d.DB, d.DevUserIDs))
 		// shields.io endpoint badge for the README («Скачать vX · N пользователей»).
 		r.Get("/badge/download", metricsH.Badge)
 

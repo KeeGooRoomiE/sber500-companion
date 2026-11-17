@@ -68,13 +68,15 @@ jobs:
           echo "SERVER=$HOST" >> "$GITHUB_ENV"
           ssh "root@$HOST" 'echo "connected: $(hostname), $(uptime -p)"'
 
-      - name: RuStore push credentials
+      - name: Server secrets (RuStore push, metrics token)
         env:
           RUSTORE_PUSH_PROJECT_ID: ${{ secrets.RUSTORE_PUSH_PROJECT_ID }}
           RUSTORE_PUSH_TOKEN: ${{ secrets.RUSTORE_PUSH_TOKEN }}
+          # Access token of GET /api/v1/metrics/daily (the programme's metrics collector).
+          METRICS_DAILY_TOKEN: ${{ secrets.METRICS_DAILY_TOKEN }}
         run: |
           # Written into the server's .env only when the secret is set; an existing line is replaced.
-          for name in RUSTORE_PUSH_PROJECT_ID RUSTORE_PUSH_TOKEN; do
+          for name in RUSTORE_PUSH_PROJECT_ID RUSTORE_PUSH_TOKEN METRICS_DAILY_TOKEN; do
             value="$(printf '%s' "${!name}" | tr -d '\r\n')"
             [ -z "$value" ] && { echo "$name: secret not set, left as is"; continue; }
             printf '%s=%s\n' "$name" "$value" | ssh "root@$SERVER" "
