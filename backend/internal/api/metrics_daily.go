@@ -73,7 +73,7 @@ func NewDailyMetrics(db *pgxpool.Pool, devIDs []string) *DailyMetrics {
 	}
 	id := strings.TrimSpace(os.Getenv("METRICS_STARTUP_ID"))
 	if id == "" {
-		id = "sber500-companion"
+		id = "29754" // the participant id in the programme
 	}
 	return &DailyMetrics{db: db, devIDs: devIDs, token: token, startupID: id}
 }

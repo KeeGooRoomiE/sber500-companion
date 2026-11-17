@@ -168,7 +168,7 @@ header of `backend/internal/api/metrics_daily.go`.
   the method answers 401 to everyone. The deploy workflow writes it from the repository secret of
   the same name. To reissue: set a new secret, run «Deploy backend», hand the new token over
   through the programme's form.
-- `METRICS_STARTUP_ID` (optional) changes `startup_id`, default `sber500-companion`.
+- `METRICS_STARTUP_ID` (optional) changes `startup_id`, default `29754` (the participant id).
 - Limit: 30 requests a minute per IP. Errors are `{"error": "…"}` with 400 / 401 / 429 / 500.
 - Check: `curl -H "Authorization: Bearer $TOKEN" "https://api.94-183-236-169.sslip.io/api/v1/metrics/daily?date_from=2026-11-08&date_to=2026-11-14"`
 - The queries are covered by tests that need a throwaway PostgreSQL:
