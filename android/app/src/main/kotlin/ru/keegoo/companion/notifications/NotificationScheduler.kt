@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.keegoo.companion.data.collector.firstUnlockBetween
 import ru.keegoo.companion.data.collector.hasUsageAccess
+import ru.keegoo.companion.data.prefs.ActivityMarker
+import ru.keegoo.companion.data.prefs.ReminderConfig
 import ru.keegoo.companion.data.prefs.isMorningDeliveredToday
+import ru.keegoo.companion.data.prefs.isOnboarded
 import ru.keegoo.companion.data.prefs.markMorningDelivered
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.todayCheckIn
@@ -33,7 +36,7 @@ private const val TAG = "Reminders"
 /** How long the alarm path waits for the server before falling back to the local forecast. */
 private const val SERVER_TEXT_BUDGET_MS = 7_000L
 
-enum class ReminderKind { Morning, Evening }
+enum class ReminderKind { Morning, Evening, Midday }
 
 /**
  * Daily reminders, on AlarmManager rather than WorkManager.
@@ -72,7 +75,33 @@ object NotificationScheduler {
     suspend fun ensureScheduled(context: Context) {
         val answers = context.profileAnswersNow()
         applyMorning(context, answers[ProfileIds.MORNING_TIME])
-        schedule(context, ReminderKind.Evening, parseTime(answers[ProfileIds.EVENING_TIME]) ?: DefaultEveningTime)
+        schedule(context, ReminderKind.Evening, parseTime(answers[ProfileIds.EVENING_TIME]) ?: ReminderConfig.eveningDefault(context))
+        scheduleMidday(context)
+    }
+
+    /**
+     * Arms the midday notification for its next moment, or disarms it when the config turns it
+     * off. The moment is deterministic per day and install, so calling this on every app start
+     * lands on the same minute instead of pushing the alarm around.
+     */
+    fun scheduleMidday(context: Context) {
+        if (!ReminderConfig.midday(context).enabled) {
+            (context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager)
+                ?.cancel(pendingIntent(context, ReminderKind.Midday))
+            return
+        }
+        scheduleAt(context, ReminderKind.Midday, nextMiddayAfter(context, LocalDateTime.now()))
+    }
+
+    /** The first midday moment after [now]: today's if still ahead, otherwise tomorrow's. */
+    internal fun nextMiddayAfter(context: Context, now: LocalDateTime): LocalDateTime {
+        val cfg = ReminderConfig.midday(context)
+        val salt = ReminderConfig.salt(context)
+        val today = MiddayPlan.timeFor(now.toLocalDate(), cfg.centerMin, cfg.deltaMin, salt)
+            .let { now.toLocalDate().atTime(it) }
+        if (today.isAfter(now)) return today
+        val tomorrow = now.toLocalDate().plusDays(1)
+        return tomorrow.atTime(MiddayPlan.timeFor(tomorrow, cfg.centerMin, cfg.deltaMin, salt))
     }
 
     /**
@@ -188,7 +217,7 @@ object NotificationScheduler {
 
     internal suspend fun nextEvening(context: Context): LocalDateTime {
         val answers = context.profileAnswersNow()
-        return tomorrowAt(parseTime(answers[ProfileIds.EVENING_TIME]) ?: DefaultEveningTime)
+        return tomorrowAt(parseTime(answers[ProfileIds.EVENING_TIME]) ?: ReminderConfig.eveningDefault(context))
     }
 }
 
@@ -200,14 +229,39 @@ suspend fun postMorningForecast(context: Context) {
     // A BroadcastReceiver gets roughly ten seconds, while the API client allows 15 s to connect
     // and 30 s to read. Waiting the full time risks the process dying with nothing shown, so the
     // server text gets a short window and the local forecast goes out if it misses it.
-    val llmText = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
-        repo.getMorning()
-            .getOrNull()
-            ?.takeIf { it.message.isNotBlank() }
-            ?.let { NotificationCopy("Прогноз на сегодня", it.message) }
+    val morning = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
+        repo.getMorning().getOrNull()?.takeIf { it.message.isNotBlank() }
     }
-    showMorningNotification(context, llmText ?: MorningCopies.forToday())
+    if (morning == null) {
+        showMorningNotification(context)
+    } else {
+        // Follow-up buttons only under a real server forecast: there is nothing to ask a local copy about.
+        val chips = if (ReminderConfig.flag(context, "shade_followup", true)) morning.followups.orEmpty() else emptyList()
+        showMorningNotification(
+            context, NotificationCopy("Прогноз на сегодня", morning.message),
+            date = morning.date, chips = chips,
+        )
+    }
     context.markMorningDelivered()
+}
+
+/**
+ * The midday notification: the server's «how the day is going» when it arrives within the
+ * budget, otherwise a neutral local line. The request says it comes from an alarm, so the
+ * server logs the model call as background work, not as the person asking.
+ */
+suspend fun postMiddayNotification(context: Context) {
+    val repo = dagger.hilt.android.EntryPointAccessors
+        .fromApplication(context.applicationContext, CheckInEntryPoint::class.java)
+        .repository()
+    val serverText = withTimeoutOrNull(SERVER_TEXT_BUDGET_MS) {
+        repo.insight("midday", background = true)
+            .getOrNull()
+            ?.text
+            ?.takeIf { it.isNotBlank() }
+            ?.let { NotificationCopy("Как идёт день?", it) }
+    }
+    showMiddayNotification(context, serverText ?: middayCopyFor(context))
 }
 
 /** Fires the reminder and immediately arms the next one — an alarm is a one-shot. */
@@ -236,6 +290,19 @@ class ReminderReceiver : BroadcastReceiver() {
                             DailyCollectWorker.enqueueOnce(app)
                             postMorningForecast(app)
                         }
+                    }
+                    ReminderKind.Midday -> {
+                        // Next link first, as for the others: the chain must survive a killed process.
+                        NotificationScheduler.scheduleAt(
+                            app, kind, NotificationScheduler.nextMiddayAfter(app, LocalDateTime.now()),
+                        )
+                        val skip = MiddayPlan.skipReason(
+                            enabled = ReminderConfig.midday(app).enabled,
+                            onboarded = app.isOnboarded(),
+                            activeToday = ActivityMarker.wasActiveToday(app),
+                        )
+                        if (skip == null) postMiddayNotification(app)
+                        else Log.d(TAG, "midday skipped: $skip")
                     }
                     ReminderKind.Evening -> {
                         NotificationScheduler.scheduleAt(app, kind, NotificationScheduler.nextEvening(app))

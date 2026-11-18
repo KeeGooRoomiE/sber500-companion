@@ -8,6 +8,29 @@ data class VersionResponse(
     @SerializedName("download_url") val downloadUrl: String,
 )
 
+/** Remote values (plan 1.1.0, item 7). Every key may be absent: the app then keeps its defaults. */
+data class RemoteConfigResponse(
+    val version: Int? = null,
+    val midday: MiddayDto? = null,
+    val evening: EveningDto? = null,
+    val silence: SilenceDto? = null,
+    val update: UpdateDto? = null,
+    val flags: Map<String, Boolean>? = null,
+    val texts: Map<String, List<String>>? = null,
+)
+
+data class MiddayDto(
+    val enabled: Boolean? = null,
+    @SerializedName("center_min") val centerMin: Int? = null,
+    @SerializedName("delta_min") val deltaMin: Int? = null,
+)
+
+data class EveningDto(@SerializedName("default_min") val defaultMin: Int? = null)
+
+data class SilenceDto(val days: Int? = null)
+
+data class UpdateDto(val latest: String? = null, @SerializedName("download_url") val downloadUrl: String? = null)
+
 data class PassiveDataRequest(
     val date: String,             // "2006-01-02"
     val screen_min: Int?,
@@ -118,6 +141,12 @@ data class EventRequest(val type: String)
 /** Sent with every ping: the server cannot otherwise tell which build a phone is on. */
 data class PingRequest(@SerializedName("app_version") val appVersion: String)
 
+/** Where the server can reach this phone with a notification (RuStore Push token). */
+data class PushTokenRequest(
+    @SerializedName("token") val token: String,
+    @SerializedName("provider") val provider: String = "rustore",
+)
+
 /**
  * One line about a single slice of the person's own data: how today is going, one tile, a past
  * forecast, a tag from the check-in, or a question generated for them.
@@ -128,6 +157,8 @@ data class PingRequest(@SerializedName("app_version") val appVersion: String)
 data class InsightRequest(
     @SerializedName("kind") val kind: String,  // midday | stat | retro | tag | question
     @SerializedName("arg") val arg: String,    // tile name, date, tag, or "1".."3" for question slot
+    /** True when an alarm, not a tap, asks (the midday notification): logged as background work. */
+    @SerializedName("background") val background: Boolean = false,
 )
 
 data class InsightResponse(

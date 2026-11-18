@@ -34,6 +34,7 @@ import (
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/llm"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/mock"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/prompts"
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/push"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/repo"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/signals"
 )
@@ -49,9 +50,10 @@ type Server struct {
 	feedback *repo.FeedbackRepo
 	devIDs   []string
 	notify   *telegram
+	push     *push.Sender
 }
 
-func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog *analytics.Logger, devIDs []string) *Server {
+func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog *analytics.Logger, devIDs []string, sender *push.Sender) *Server {
 	return &Server{
 		token:    os.Getenv("ADMIN_TOKEN"),
 		store:    store,
@@ -63,6 +65,7 @@ func New(db *pgxpool.Pool, store *prompts.Store, llmClient *llm.Client, callLog 
 		feedback: repo.NewFeedbackRepo(db),
 		devIDs:   devIDs,
 		notify:   newTelegram(),
+		push:     sender,
 	}
 }
 
@@ -94,6 +97,7 @@ func (s *Server) Start(ctx context.Context) {
 	r.Get("/admin/export/call_log.csv", s.exportCallLog)
 	r.Get("/admin/accuracy", s.accuracy)
 	r.Post("/admin/reset-errors", s.resetErrors)
+	r.Post("/admin/push", s.sendPush)
 
 	srv := &http.Server{Addr: addr, Handler: r, ReadTimeout: 10 * time.Second, WriteTimeout: 150 * time.Second} // eval runs several LLM calls
 	go func() {

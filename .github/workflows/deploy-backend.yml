@@ -68,12 +68,40 @@ jobs:
           echo "SERVER=$HOST" >> "$GITHUB_ENV"
           ssh "root@$HOST" 'echo "connected: $(hostname), $(uptime -p)"'
 
+      - name: Server secrets (RuStore push, metrics token)
+        env:
+          RUSTORE_PUSH_PROJECT_ID: ${{ secrets.RUSTORE_PUSH_PROJECT_ID }}
+          RUSTORE_PUSH_TOKEN: ${{ secrets.RUSTORE_PUSH_TOKEN }}
+          # Access token of GET /api/v1/metrics/daily (the programme's metrics collector).
+          METRICS_DAILY_TOKEN: ${{ secrets.METRICS_DAILY_TOKEN }}
+        run: |
+          # Written into the server's .env only when the secret is set; an existing line is replaced.
+          for name in RUSTORE_PUSH_PROJECT_ID RUSTORE_PUSH_TOKEN METRICS_DAILY_TOKEN; do
+            value="$(printf '%s' "${!name}" | tr -d '\r\n')"
+            [ -z "$value" ] && { echo "$name: secret not set, left as is"; continue; }
+            printf '%s=%s\n' "$name" "$value" | ssh "root@$SERVER" "
+              set -e
+              f=/opt/companion/.env
+              grep -v '^$name=' \$f > \$f.tmp || true
+              cat >> \$f.tmp
+              chmod --reference=\$f \$f.tmp && chown --reference=\$f \$f.tmp
+              mv \$f.tmp \$f"
+            echo "$name: written"
+          done
+
       - name: Deploy (backup, migrations, restart, health)
         run: bash deploy/deploy.sh "$SERVER"
 
       - name: Applied migrations
         run: |
           ssh "root@$SERVER" 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -c "SELECT name, applied_at FROM schema_migrations ORDER BY name"'
+
+      - name: Push log (last 24 h)
+        continue-on-error: true
+        run: |
+          # What the automatic notifications did: journal lines and the per-campaign send count.
+          ssh "root@$SERVER" 'journalctl -u companion --since "-24 hours" --no-pager | grep -i "push" | tail -40 || echo "no push lines in the journal"'
+          ssh "root@$SERVER" 'set -a; . /opt/companion/.env; set +a; psql "$DATABASE_URL" -c "SELECT campaign, COUNT(*) AS sends, MAX(sent_at) AS last FROM push_campaign_sends GROUP BY 1"'
 
       - name: Prompt versions
         continue-on-error: true
@@ -95,23 +123,9 @@ jobs:
           bash deploy/prompt.sh "$SERVER" seed > /dev/null
           for p in morning_system day_review_system weekly_system; do PROMPT=$p bash deploy/prompt.sh "$SERVER" eval; done
 
-      - name: Tell the server the latest app version
-        # The VPS can't always reach api.github.com; /api/v1/version reads this file first.
-        continue-on-error: true
-        env:
-          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          HOST=$(printf '%s' "$HOST" | tr -d '\r' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?DEPLOY_HOST[[:space:]]*=[[:space:]]*//; s/^["'"'"']//; s/["'"'"'][[:space:]]*$//; s/[[:space:]]//g')
-          KEY=$(printf '%s' "$KEY" | tr -d '\r' | sed -E '1s/^[[:space:]]*DEPLOY_SSH_KEY[[:space:]]*=[[:space:]]*//; 1s/^["'"'"']//; $s/["'"'"'][[:space:]]*$//')
-          [ -z "$KEY" ] || [ -z "$HOST" ] && { echo "no deploy secrets — skipping"; exit 0; }
-          VERSION=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)
-          [ -z "$VERSION" ] && { echo "no published release"; exit 0; }
-          mkdir -p ~/.ssh && printf '%s\n' "$KEY" > ~/.ssh/id_version && chmod 600 ~/.ssh/id_version
-          ssh-keyscan -T 10 "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          printf '%s\n' "${VERSION#v}" | ssh -i ~/.ssh/id_version "root@$HOST" 'cat > /opt/companion/latest_version && chmod 644 /opt/companion/latest_version'
-          echo "latest app version on the server: ${VERSION#v}"
+      # The server is no longer told about the new version here (plan 1.1.0, item 8): a tag means
+      # «built», not «published», and the update offer must not lead to a store that still has the
+      # old build. On the day the store publishes, set update.latest in /opt/companion/app_config.json.
 
       - name: Public smoke check
         continue-on-error: true

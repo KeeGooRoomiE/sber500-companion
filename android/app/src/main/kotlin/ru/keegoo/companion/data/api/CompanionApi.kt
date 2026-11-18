@@ -11,6 +11,7 @@ import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
 import ru.keegoo.companion.data.api.model.FollowupRequest
 import ru.keegoo.companion.data.api.model.FollowupResponse
+import ru.keegoo.companion.data.api.model.RemoteConfigResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.InsightRequest
 import ru.keegoo.companion.data.api.model.InsightResponse
@@ -21,6 +22,7 @@ import ru.keegoo.companion.data.api.model.EventRequest
 import ru.keegoo.companion.data.api.model.MorningMessageResponse
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.PingRequest
+import ru.keegoo.companion.data.api.model.PushTokenRequest
 
 interface CompanionApi {
     @POST("api/v1/data/passive")
@@ -37,6 +39,9 @@ interface CompanionApi {
 
     @POST("api/v1/ping")
     suspend fun ping(@Body body: PingRequest)
+
+    @PUT("api/v1/push-token")
+    suspend fun putPushToken(@Body body: PushTokenRequest)
 
     @POST("api/v1/followup")
     suspend fun postFollowup(@Body body: FollowupRequest): FollowupResponse
@@ -58,6 +63,9 @@ interface CompanionApi {
 
     @POST("api/v1/explore")
     suspend fun postExplore(@Body body: ExploreRequest): ExploreResponse
+
+    @GET("api/v1/config")
+    suspend fun getConfig(): RemoteConfigResponse
 
     @GET("api/v1/version")
     suspend fun getVersion(): VersionResponse

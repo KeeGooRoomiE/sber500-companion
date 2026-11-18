@@ -48,9 +48,15 @@ func Mount(r chi.Router, d Deps) {
 		metricsH := NewMetrics(d.DB, d.DevUserIDs)
 		// Newest APK version for the in-app «Меня можно обновить» (public, cached 5 min).
 		r.Get("/version", Version)
+		// Remote values for reminders, silence threshold, update offer, flags (public, cached 5 min).
+		r.Get("/config", Config)
 
 		r.Method(http.MethodGet, "/metrics", metricsH)
 		r.Method(http.MethodOptions, "/metrics", metricsH)
+		// Daily numbers for the programme's collector: Bearer token, aggregates only, 30 rpm per IP
+		// (their spec asks for at least 10).
+		r.With(httprate.Limit(30, time.Minute, httprate.WithKeyFuncs(httprate.KeyByRealIP), httprate.WithLimitHandler(rateLimited))).
+			Method(http.MethodGet, "/metrics/daily", NewDailyMetrics(d.DB, d.DevUserIDs))
 		// shields.io endpoint badge for the README («Скачать vX · N пользователей»).
 		r.Get("/badge/download", metricsH.Badge)
 
@@ -74,6 +80,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/checkin", h.Checkin)
 			r.Get("/morning", h.MorningMessage)
 			r.Post("/ping", h.Ping)
+			r.Put("/push-token", h.PutPushToken)
 			r.Put("/profile", h.PutProfile)
 			r.Get("/profile", h.GetProfile)
 			r.Get("/history", h.History)

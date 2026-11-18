@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/analytics"
 	"github.com/KeeGooRoomiE/sber500-companion/backend/internal/forecast"
 )
 
@@ -15,6 +16,18 @@ type InsightRequest struct {
 	// (up to 3 fresh ones a day), "1"/"2" for profile (base, then after «Уточнить»), or "1".."5"
 	// for orbtap. Empty for midday and profile_clarify, and elsewhere means slot "1".
 	Arg string `json:"arg"`
+	// Background is set when the request comes from an alarm rather than a tap — only the midday
+	// notification does this. Honoured for kind=midday alone, so a client cannot relabel a
+	// person's own question as background work.
+	Background bool `json:"background"`
+}
+
+// insightTrigger names who initiated the call for call_log.
+func insightTrigger(kind string, background bool) analytics.Trigger {
+	if background && kind == forecast.InsightMidday {
+		return analytics.TriggerScheduled
+	}
+	return analytics.TriggerUserAction
 }
 
 type InsightResponse struct {
@@ -39,7 +52,7 @@ func (h *Handler) Insight(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uid := userIDFrom(r)
-	rv, err := h.generator.Insight(r.Context(), uid, req.Kind, req.Arg)
+	rv, err := h.generator.InsightAs(r.Context(), uid, req.Kind, req.Arg, insightTrigger(req.Kind, req.Background))
 	if errors.Is(err, forecast.ErrBadInsight) {
 		writeError(w, http.StatusNotFound, "unknown insight")
 		return

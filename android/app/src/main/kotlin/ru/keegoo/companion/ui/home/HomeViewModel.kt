@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui.home
 
+import ru.keegoo.companion.data.prefs.checkInCount
 import ru.keegoo.companion.data.prefs.checkInDay
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -129,7 +130,13 @@ data class HomeUiState(
      * that fetched it succeeds.
      */
     val dailyQuestion: String? = null,
-)
+    /** Day marks counted on this phone; with [history] decides the «День 0» lines. */
+    val checkIns: Int = 0,
+    /** No source writes sleep and steps (no watch, band or health app). */
+    val noHealthSource: Boolean = false,
+) {
+    val day0: Day0 get() = day0(checkIns, history.size, noHealthSource)
+}
 
 /** One question in «Хочу ещё»: waiting for the answer, answered, or failed. */
 data class ExploreItemUi(
@@ -199,6 +206,9 @@ class HomeViewModel @Inject constructor(
     init {
         refresh()
         viewModelScope.launch {
+            context.checkInCount().collect { n -> _state.update { it.copy(checkIns = n) } }
+        }
+        viewModelScope.launch {
             context.todayCheckIn().collect { saved ->
                 _state.update { it.copy(checkedIn = saved?.feel, tags = saved?.tags.orEmpty()) }
             }
@@ -240,6 +250,8 @@ class HomeViewModel @Inject constructor(
     /** Re-read today's data — on start and every time Home comes back to the foreground. */
     fun refresh() {
         viewModelScope.launch { repository.ping() }
+        ru.keegoo.companion.push.PushTokenSync.sync(context)
+        viewModelScope.launch { ru.keegoo.companion.data.prefs.ReminderConfig.sync(context, repository) }
         if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             val data = runCatching { today.load() }.getOrNull()
@@ -356,7 +368,14 @@ class HomeViewModel @Inject constructor(
             else -> "Разбор дня"
         }
         Events.dayReviewOpen()
-        runReview(ReviewUi(ReviewKind.Day, title)) { repository.dayReview(date) }
+        runReview(ReviewUi(ReviewKind.Day, title)) {
+            // Today's review is built from today's data: without a fresh snapshot the server answers
+            // from the morning upload or 404s (PR-09). Past days are already there.
+            if (date == today) {
+                ru.keegoo.companion.work.DailyCollectWorker.runNowAndWait(context, pastDays = 1, timeoutMs = 8_000)
+            }
+            repository.dayReview(date)
+        }
     }
 
     /** «Итоги недели»: the last 7 days summed up. */
@@ -574,6 +593,7 @@ private fun HomeUiState.withData(d: TodayData): HomeUiState {
         unlocks = d.unlocks,
         sleepMin = d.sleepMin,
         sleepLabel = if (phoneFree) "Без телефона" else "Сон",
+        noHealthSource = phoneFree || d.sleepMin == null,
         hourlyScreen = d.hourlyScreen,
         details = mapOf(
             StatKind.Screen to StatDetail(

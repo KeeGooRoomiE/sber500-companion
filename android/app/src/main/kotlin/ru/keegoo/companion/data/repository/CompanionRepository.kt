@@ -11,11 +11,13 @@ import ru.keegoo.companion.data.api.model.FollowupResponse
 import ru.keegoo.companion.BuildConfig
 import ru.keegoo.companion.data.api.model.PassiveDataRequest
 import ru.keegoo.companion.data.api.model.PingRequest
+import ru.keegoo.companion.data.api.model.PushTokenRequest
 import ru.keegoo.companion.data.api.model.ProfileRequest
 import ru.keegoo.companion.data.api.model.DayReviewRequest
 import ru.keegoo.companion.data.api.model.ExploreRequest
 import ru.keegoo.companion.data.api.model.ExploreResponse
 import ru.keegoo.companion.data.api.model.FeedbackRequest
+import ru.keegoo.companion.data.api.model.RemoteConfigResponse
 import ru.keegoo.companion.data.api.model.VersionResponse
 import ru.keegoo.companion.data.api.model.InsightRequest
 import ru.keegoo.companion.data.api.model.InsightResponse
@@ -84,6 +86,9 @@ class CompanionRepository @Inject constructor(
     /** Also reports which build this phone is on — nothing else tells the server. */
     suspend fun ping(): Result<Unit> = runCatching { api.ping(PingRequest(BuildConfig.VERSION_NAME)) }
 
+    /** Tells the server where a notification can reach this phone. */
+    suspend fun registerPushToken(token: String): Result<Unit> = runCatching { api.putPushToken(PushTokenRequest(token)) }
+
     suspend fun getHistory(): Result<HistoryResponse> = runCatching { api.getHistory() }
 
     suspend fun dayReview(date: java.time.LocalDate?): Result<ReviewResponse> = runCatching {
@@ -105,8 +110,10 @@ class CompanionRepository @Inject constructor(
      * One line about one slice of the data. The server caches it per (kind, argument, day), so
      * re-opening the same screen costs nothing and only a new slice costs a call.
      */
-    suspend fun insight(kind: String, arg: String = ""): Result<InsightResponse> =
-        runCatching { api.postInsight(InsightRequest(kind, arg)) }
+    suspend fun insight(kind: String, arg: String = "", background: Boolean = false): Result<InsightResponse> =
+        runCatching { api.postInsight(InsightRequest(kind, arg, background)) }
+
+    suspend fun remoteConfig(): Result<RemoteConfigResponse> = runCatching { api.getConfig() }
 
     suspend fun latestVersion(): Result<VersionResponse> = runCatching { api.getVersion() }
 

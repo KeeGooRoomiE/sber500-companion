@@ -152,3 +152,134 @@ func (r *UserRepo) Profile(ctx context.Context, userID string) (map[string]strin
 	}
 	return p, err
 }
+
+// SetPushToken records where this phone can be reached by a server-sent notification.
+// Called by the app whenever its push client gives out a token (first start, rotation).
+func (r *UserRepo) SetPushToken(ctx context.Context, userID, provider, token string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE users SET push_token = $3, push_provider = $2, push_token_seen_at = NOW()
+		WHERE id = $1`, userID, provider, token)
+	return err
+}
+
+// ClearPushToken drops a token the provider says is dead (app removed, token rotated). It only
+// matches the exact token, so a fresh one registered in the meantime is left alone.
+func (r *UserRepo) ClearPushToken(ctx context.Context, userID, token string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE users SET push_token = NULL, push_provider = NULL
+		WHERE id = $1 AND push_token = $2`, userID, token)
+	return err
+}
+
+// PushTarget is one reachable phone.
+type PushTarget struct {
+	UserID string
+	Token  string
+}
+
+// PushTargetsByIDs returns the registered phones among the given users. Dev users are included
+// on purpose: naming someone explicitly is how the owner tests on their own phone.
+func (r *UserRepo) PushTargetsByIDs(ctx context.Context, ids []string) ([]PushTarget, error) {
+	return r.pushTargets(ctx, `
+		SELECT id, push_token FROM users
+		WHERE id = ANY($1) AND push_token IS NOT NULL`, ids)
+}
+
+// PushTargetsSilent returns the registered phones of people with no activity for the last
+// [days] days (today included): the audience of a «come back» notification. Dev users and
+// anyone who never produced a day of activity are out — the first have no use for it, the
+// second were never a user in the first place.
+func (r *UserRepo) PushTargetsSilent(ctx context.Context, days int) ([]PushTarget, error) {
+	return r.pushTargets(ctx, `
+		SELECT u.id, u.push_token FROM users u
+		WHERE u.push_token IS NOT NULL AND NOT u.is_dev
+		  AND EXISTS (SELECT 1 FROM user_activity a WHERE a.user_id = u.id)
+		  AND NOT EXISTS (
+		      SELECT 1 FROM user_activity a
+		      WHERE a.user_id = u.id AND a.date > CURRENT_DATE - $1::int)`, days)
+}
+
+func (r *UserRepo) pushTargets(ctx context.Context, query string, arg any) ([]PushTarget, error) {
+	rows, err := r.db.Query(ctx, query, arg)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PushTarget
+	for rows.Next() {
+		var t PushTarget
+		if err := rows.Scan(&t.UserID, &t.Token); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// CampaignQuery picks the audience of one automatic notification at this very hour.
+type CampaignQuery struct {
+	Campaign string
+	// Silence is counted in the person's own calendar days since the last day in user_activity
+	// (app opened, check-in, forecast read: requests a person caused, not background uploads).
+	MinSilentDays int
+	MaxSilentDays int // beyond this the person is gone, not silent: no more notifications
+	LocalHour     int // the hour of the person's own clock at which the campaign goes out
+	Weekday       int // 0 = Sunday … 6 = Saturday in the person's zone; -1 = any day
+	// OncePerStreak: never again until the person shows up and goes silent anew.
+	// Otherwise the campaign repeats, but not sooner than MinGapDays after its last send.
+	OncePerStreak bool
+	MinGapDays    int
+}
+
+// defaultOffsetMin is Moscow: where a phone that never reported its zone most likely is.
+const defaultOffsetMin = 180
+
+// PushTargetsCampaign returns the phones [q] applies to right now. Dev users are out, people
+// who were never active are out, and nobody gets two automatic notifications within 20 hours,
+// whatever the campaigns.
+func (r *UserRepo) PushTargetsCampaign(ctx context.Context, q CampaignQuery) ([]PushTarget, error) {
+	rows, err := r.db.Query(ctx, `
+		WITH u AS (
+		    SELECT u.id, u.push_token,
+		           (NOW() AT TIME ZONE 'UTC') + make_interval(mins => COALESCE(u.tz_offset_min, $8)) AS local_ts,
+		           (SELECT MAX(a.date) FROM user_activity a WHERE a.user_id = u.id) AS last_active
+		    FROM users u
+		    WHERE u.push_token IS NOT NULL AND NOT u.is_dev
+		)
+		SELECT u.id, u.push_token FROM u
+		WHERE u.last_active IS NOT NULL
+		  AND (u.local_ts::date - u.last_active) BETWEEN $2 AND $3
+		  AND EXTRACT(HOUR FROM u.local_ts)::int = $4
+		  AND ($5 < 0 OR EXTRACT(DOW FROM u.local_ts)::int = $5)
+		  AND NOT EXISTS (
+		      SELECT 1 FROM push_campaign_sends s
+		      WHERE s.user_id = u.id AND s.sent_at > NOW() - INTERVAL '20 hours')
+		  AND NOT EXISTS (
+		      SELECT 1 FROM push_campaign_sends s
+		      WHERE s.user_id = u.id AND s.campaign = $1
+		        AND CASE WHEN $6 THEN s.sent_at::date > u.last_active
+		                 ELSE s.sent_at > NOW() - make_interval(days => $7) END)`,
+		q.Campaign, q.MinSilentDays, q.MaxSilentDays, q.LocalHour, q.Weekday, q.OncePerStreak, q.MinGapDays, defaultOffsetMin)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PushTarget
+	for rows.Next() {
+		var t PushTarget
+		if err := rows.Scan(&t.UserID, &t.Token); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// MarkCampaignSent records the send before it happens: a crash mid-batch then costs a person
+// one missed notification rather than a repeated one.
+func (r *UserRepo) MarkCampaignSent(ctx context.Context, campaign string, userIDs []string) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO push_campaign_sends (user_id, campaign)
+		SELECT unnest($2::text[]), $1::text`, campaign, userIDs)
+	return err
+}

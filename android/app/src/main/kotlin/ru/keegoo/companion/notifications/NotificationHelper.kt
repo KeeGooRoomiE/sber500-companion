@@ -1,9 +1,11 @@
 package ru.keegoo.companion.notifications
 
+import ru.keegoo.companion.data.api.model.FollowupQuestionDto
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import ru.keegoo.companion.analytics.Events
 import android.content.Intent
 import android.net.Uri
 import androidx.core.app.NotificationCompat
@@ -15,6 +17,7 @@ const val CHANNEL_MORNING  = "ch_morning"
 const val CHANNEL_CHECKIN  = "ch_checkin"
 const val CHANNEL_REVIEW   = "ch_review"
 const val CHANNEL_UPDATE   = "ch_update"
+const val CHANNEL_MIDDAY   = "ch_midday"
 
 const val EXTRA_FEEL = "feel"
 const val EXTRA_NOTIF_SOURCE = "notif_source"
@@ -22,11 +25,22 @@ const val ACTION_CHECKIN = "ru.keegoo.companion.ACTION_CHECKIN"
 const val ACTION_RATE_MORNING = "ru.keegoo.companion.ACTION_RATE_MORNING"
 const val EXTRA_HIT = "hit"
 const val EXTRA_FORECAST_DATE = "forecast_date"
+const val ACTION_SHADE_FOLLOWUP = "ru.keegoo.companion.ACTION_SHADE_FOLLOWUP"
+const val EXTRA_FU_DATE = "fu_date"
+const val EXTRA_FU_ID = "fu_id"
+const val EXTRA_FU_LABEL = "fu_label"
+const val EXTRA_FU_TITLE = "fu_title"
+const val EXTRA_FU_TEXT = "fu_text"
+const val EXTRA_FU_REST_IDS = "fu_rest_ids"
+const val EXTRA_FU_REST_LABELS = "fu_rest_labels"
+/** Android shows at most three actions and long labels get cut, so two chips ride along. */
+const val SHADE_FOLLOWUP_MAX = 2
 
 const val NOTIF_ID_MORNING = 1001
 const val NOTIF_ID_CHECKIN = 1002
 const val NOTIF_ID_UPDATE  = 1003
 const val NOTIF_ID_REVIEW  = 1004
+const val NOTIF_ID_MIDDAY  = 1005
 
 data class NotificationCopy(val title: String, val body: String)
 
@@ -55,6 +69,14 @@ val EveningCopies = listOf(
     NotificationCopy("Подведём итог", "Отлично, нормально или тяжело — выбери, и всё"),
 )
 
+// Midday: only for someone who has not looked at the app today, so the text must carry no
+// reproach and no news that has to be read — one open question. Used when the server text is
+// not there in time.
+val MiddayCopies = listOf(
+    NotificationCopy("Половина дня прошла", "Хочешь увидеть, что заметно по твоему дню?"),
+    NotificationCopy("Как идёт день?", "Днём у тебя обычно что-то меняется. Загляни, расскажу что."),
+)
+
 /** Deterministic pick per day, so the same text doesn't repeat two days in a row. */
 fun <T> List<T>.forToday(): T = this[LocalDate.now().dayOfYear % size]
 
@@ -73,6 +95,11 @@ fun createNotificationChannels(context: Context) {
     nm.createNotificationChannel(
         NotificationChannel(CHANNEL_REVIEW, "Разбор дня", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Объяснение прошедшего дня сразу после чек-ина"
+        }
+    )
+    nm.createNotificationChannel(
+        NotificationChannel(CHANNEL_MIDDAY, "Дневная мысль", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Одна мысль про день, если с утра ты не заглядывал в приложение"
         }
     )
     nm.createNotificationChannel(
@@ -120,18 +147,103 @@ private fun openAppIntent(context: Context, source: String): PendingIntent = Pen
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-fun showMorningNotification(context: Context, copy: NotificationCopy = MorningCopies.forToday()) {
-    val notif = NotificationCompat.Builder(context, CHANNEL_MORNING)
+/**
+ * Local notification texts the server can replace without a build: texts.<key> in the config,
+ * each «Заголовок | текст». Built-ins when the config has none or they are malformed.
+ * Keys: morning, midday, evening.
+ */
+fun copyFor(context: Context, key: String, builtIn: List<NotificationCopy>): NotificationCopy {
+    val remote = ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, key).mapNotNull(::parseCopy)
+    return (remote.ifEmpty { builtIn }).forToday()
+}
+
+internal fun parseCopy(line: String): NotificationCopy? {
+    val parts = line.split("|", limit = 2).map(String::trim)
+    if (parts.size != 2 || parts[0].isEmpty() || parts[1].isEmpty()) return null
+    return NotificationCopy(parts[0], parts[1])
+}
+
+fun middayCopyFor(context: Context): NotificationCopy = copyFor(context, "midday", MiddayCopies)
+
+fun showMiddayNotification(context: Context, copy: NotificationCopy = middayCopyFor(context)) {
+    val notif = NotificationCompat.Builder(context, CHANNEL_MIDDAY)
+        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setContentTitle(copy.title)
+        .setContentText(copy.body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(openAppIntent(context, "midday"))
+        .setDeleteIntent(dismissIntent(context, "midday"))
+        .setAutoCancel(true)
+        .build()
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MIDDAY, notif) }
+    Events.notificationShown("midday")
+}
+
+/** Fires when the notification is swiped away (not when it is tapped or its buttons are used). */
+private fun dismissIntent(context: Context, kind: String): PendingIntent = PendingIntent.getBroadcast(
+    context,
+    "dismiss_$kind".hashCode(),
+    Intent(context, NotificationDismissReceiver::class.java)
+        .setAction(ACTION_NOTIF_DISMISSED)
+        .putExtra(EXTRA_DISMISS_KIND, kind),
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+)
+
+/**
+ * The morning forecast. With [chips] it also carries follow-up questions as buttons: a tap asks
+ * the server and the answer replaces the text right here, without opening the app (plan 1.1.0,
+ * item 2). Follow-up was found by under a fifth of active people while it sat only on Home.
+ *
+ * [alert] is false when the same notification is being rewritten (thinking, answer, failure):
+ * no second sound, and no second «shown» event.
+ */
+fun showMorningNotification(
+    context: Context,
+    copy: NotificationCopy = copyFor(context, "morning", MorningCopies),
+    date: String? = null,
+    chips: List<FollowupQuestionDto> = emptyList(),
+    note: String? = null,
+    alert: Boolean = true,
+) {
+    val builder = NotificationCompat.Builder(context, CHANNEL_MORNING)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle(copy.title)
         .setContentText(copy.body)
         .setStyle(NotificationCompat.BigTextStyle().bigText(copy.body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "morning"))
+        .setDeleteIntent(dismissIntent(context, "morning"))
+        .setOnlyAlertOnce(!alert)
         .setAutoCancel(true)
-        .build()
+    if (note != null) builder.setSubText(note)
 
-    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, notif) }
+    if (date != null) {
+        chips.take(SHADE_FOLLOWUP_MAX).forEachIndexed { i, chip ->
+            val rest = chips.filterNot { it.id == chip.id }
+            val intent = Intent(ACTION_SHADE_FOLLOWUP).apply {
+                setPackage(context.packageName)
+                putExtra(EXTRA_FU_DATE, date)
+                putExtra(EXTRA_FU_ID, chip.id)
+                putExtra(EXTRA_FU_LABEL, chip.label)
+                putExtra(EXTRA_FU_TITLE, copy.title)
+                putExtra(EXTRA_FU_TEXT, copy.body)
+                putExtra(EXTRA_FU_REST_IDS, rest.map { it.id }.toTypedArray())
+                putExtra(EXTRA_FU_REST_LABELS, rest.map { it.label }.toTypedArray())
+            }
+            builder.addAction(
+                0, chip.label,
+                PendingIntent.getBroadcast(
+                    context, 300 + i, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+        }
+    }
+
+    runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_MORNING, builder.build()) }
+    if (alert) Events.notificationShown("morning")
 }
 
 /**
@@ -170,6 +282,7 @@ fun showReviewNotification(context: Context, text: String, forecastDate: String?
         .setStyle(NotificationCompat.BigTextStyle().bigText(text))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "review"))
+        .setDeleteIntent(dismissIntent(context, "review"))
         .setAutoCancel(true)
 
     if (forecastDate != null) {
@@ -180,9 +293,10 @@ fun showReviewNotification(context: Context, text: String, forecastDate: String?
     }
 
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_REVIEW, builder.build()) }
+    Events.notificationShown("review")
 }
 
-fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCopies.forToday()) {
+fun showCheckinNotification(context: Context, copy: NotificationCopy = copyFor(context, "evening", EveningCopies)) {
     fun actionIntent(feel: String): PendingIntent {
         val intent = Intent(ACTION_CHECKIN).apply {
             setPackage(context.packageName)
@@ -201,6 +315,7 @@ fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCo
         .setContentText(copy.body)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(openAppIntent(context, "checkin"))
+        .setDeleteIntent(dismissIntent(context, "checkin"))
         .setAutoCancel(true)
         .addAction(0, "😊 Отлично",   actionIntent("OK"))
         .addAction(0, "😐 Нормально", actionIntent("MEH"))
@@ -209,4 +324,5 @@ fun showCheckinNotification(context: Context, copy: NotificationCopy = EveningCo
 
     // POST_NOTIFICATIONS may be denied — notify() then throws SecurityException on some OEMs
     runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID_CHECKIN, notif) }
+    Events.notificationShown("checkin")
 }

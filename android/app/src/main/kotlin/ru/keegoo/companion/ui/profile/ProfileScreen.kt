@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -141,7 +143,7 @@ private val OrbDockEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
  * opens the next. One-time questions fold away 5 s after the answer and don't come back
  * (except through «Изменить прошлые ответы»).
  */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
     sharedScope: SharedTransitionScope,
@@ -150,6 +152,8 @@ fun ProfileScreen(
     vm: ProfileViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    var showPushDebug by remember { mutableStateOf(false) }
+    if (showPushDebug) ru.keegoo.companion.push.PushDebugDialog { showPushDebug = false }
     val scope = rememberCoroutineScope()
     val answersFlow = remember { context.profileAnswers() }
     val loaded by answersFlow.collectAsState(initial = null)
@@ -373,17 +377,30 @@ fun ProfileScreen(
                 top = bars.calculateTopPadding() + ORB_BAR_HEIGHT + 8.dp,
                 bottom = bars.calculateBottomPadding() + 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            // No spacedBy here: a folded-away question is still an item, and every such item
+            // would keep its 10 dp, which added up to a hole in the middle of the list. Each
+            // visible block carries its own gap instead, so a hidden one takes no room at all.
         ) {
             item(key = "header") {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     // The orb used to sit inline here; it is a floating overlay now (below),
                     // so the title doesn't jump up — this just holds its old place open.
                     Spacer(Modifier.height(ORB_SLOT_HEIGHT))
+                    // 25 taps open the diagnostics a person can send to the author. No ripple: the
+                    // title must not look like a button to everyone else.
+                    var titleTaps by remember { mutableStateOf(0) }
+                    val titleSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                     Text(
                         text = "Расскажи о себе",
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.clickable(interactionSource = titleSource, indication = null) {
+                            titleTaps++
+                            if (titleTaps >= ru.keegoo.companion.push.DIAGNOSTICS_TAPS) {
+                                titleTaps = 0
+                                showPushDebug = true
+                            }
+                        },
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -400,6 +417,7 @@ fun ProfileScreen(
                         ProgressLine(progress = progress, label = "$answered из ${questions.size}")
                         Spacer(Modifier.height(6.dp))
                     }
+                    Spacer(Modifier.height(10.dp))
                 }
             }
 
@@ -418,7 +436,7 @@ fun ProfileScreen(
             }
             // A plain function call: inside LazyItemScope a scoped AnimatedVisibility overload would not apply
             FoldAway(visible = visible(q)) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     QuestionCard(
                         modifier = rise,
                         question = q,
@@ -455,6 +473,8 @@ fun ProfileScreen(
                 )
             }
         }
+        // The very bottom of the questions: whoever scrolled this far is the person worth hearing from.
+        item(key = "contact") { ContactAuthor() }
         }
 
         // Fixed back button, pinned above the list — it also doubles as the "camera" the orb
@@ -914,6 +934,59 @@ private fun AnswerChip(text: String, on: Boolean, onClick: () -> Unit) {
             text = text,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = if (on) primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+const val AUTHOR_CONTACT_DEFAULT = "spartan.dgs.121@icloud.com"
+
+/** An e-mail address becomes a mailto link; anything with a scheme (a bot link later) opens as is. */
+internal fun contactUri(target: String): String =
+    if ("://" in target || target.startsWith("mailto:")) target
+    else "mailto:$target?subject=" + android.net.Uri.encode("Компаньон: отзыв")
+
+/**
+ * «Написать автору» under the last question (plan 1.1.0, item 6). The target comes from the
+ * server config (texts.contact) so the e-mail can become a Telegram bot without a new build.
+ */
+@Composable
+private fun ContactAuthor() {
+    val context = LocalContext.current
+    val target = remember {
+        ru.keegoo.companion.data.prefs.ReminderConfig.texts(context, "contact").firstOrNull() ?: AUTHOR_CONTACT_DEFAULT
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Это приложение делает один человек. Если что-то непонятно, мешает или не хватает, мне правда важно это услышать.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "Написать автору",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .clip(AppShapes.chip)
+                .clickable {
+                    ru.keegoo.companion.analytics.Events.contactAuthor()
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(contactUri(target)))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }.onFailure {
+                        // No mail app on the phone: at least show where to write.
+                        android.widget.Toast.makeText(context, target, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         )
     }
 }

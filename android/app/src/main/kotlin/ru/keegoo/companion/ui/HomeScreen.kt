@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui
 
+import ru.keegoo.companion.ui.home.Day0Copy
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.Settings
@@ -284,11 +285,13 @@ fun HomeScreen(
                             hourlyScreen = state.hourlyScreen,
                             onReviewYesterday = { vm.openDayReview(LocalDate.now().minusDays(1)) },
                             onReviewToday = { vm.openDayReview(LocalDate.now()) },
+                            reviewHint = Day0Copy.NO_REVIEW.takeIf { state.day0.noCheckInsYet },
                         )
                         HomeBlock.CheckIn -> CheckInSection(
                             modifier = rise,
                             selected = state.checkedIn,
                             tags = state.tags,
+                            valueLine = Day0Copy.CHECKIN_VALUE.takeIf { state.day0.acquaintance },
                             highlighted = evening,
                             insight = CheckInTags.firstOrNull { it in state.tags }
                                 ?.let { state.insights[insightKey(Insights.TAG, it)] },
@@ -598,7 +601,7 @@ private fun MorningCard(
             }
             !state.hasUsageAccess && state.forecast == null -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Чтобы видеть экран и разблокировки, нужен доступ к истории использования.",
+                    text = "Без доступа к экрану прогноза не будет — приложению не на чем его строить.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                 )
@@ -609,7 +612,7 @@ private fun MorningCard(
                         .clickable(onClick = onOpenUsageAccess)
                         .padding(horizontal = 14.dp, vertical = 9.dp)
                 ) {
-                    Text("Открыть настройки", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    Text("Разрешить", style = MaterialTheme.typography.labelLarge, color = Color.White)
                 }
                 // Sideloaded APK on Android 13+: the switch is blocked until «restricted settings» are allowed
                 var showHelp by rememberSaveable { mutableStateOf(false) }
@@ -676,6 +679,14 @@ private fun MorningCard(
             }
         }
 
+        if (state.day0.acquaintance && state.forecast != null) {
+            Text(
+                text = Day0Copy.ACQUAINTANCE,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = .75f),
+            )
+        }
+
         if (state.facts.isNotEmpty() || state.signals.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -703,6 +714,13 @@ private fun MorningCard(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // What the server found in yesterday's data — the same list the model got
+                    if (state.day0.noHealthSource) {
+                        Text(
+                            text = Day0Copy.NO_HEALTH,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = .75f),
+                        )
+                    }
                     if (state.signals.isNotEmpty()) {
                         Text(
                             text = "Что было заметно вчера",

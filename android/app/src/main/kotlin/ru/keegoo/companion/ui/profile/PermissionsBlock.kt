@@ -166,7 +166,8 @@ internal fun MissingPermissions(modifier: Modifier = Modifier) {
 
     if (rows.isEmpty()) return
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // The list above has no spacing of its own (see ProfileScreen), so the block ends with its gap.
+    Column(modifier = modifier.fillMaxWidth().padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "Что ещё можно включить",
             style = MaterialTheme.typography.labelMedium,

@@ -79,6 +79,41 @@ object Events {
      */
     fun checkInDone(source: String) = report("checkin_done", mapOf("source" to source))
 
+    // ─── Opens and notifications ─────────────────────────────────────────────
+    //
+    // The same three signs of life that the on-device activity marker counts (open, swipe,
+    // button), reported so that «DAU» can be read from the app side too. Nothing from the
+    // person's data travels with them.
+
+    /**
+     * The app came to the foreground and it starts a new session (30 minutes since the last
+     * open). [source] is launcher | morning | checkin | review | update | link.
+     */
+    fun appOpen(source: String, hasUsageStats: Boolean, hasHealthData: Boolean?) = report(
+        "app_open",
+        buildMap {
+            put("source", source)
+            put("has_usage_stats", hasUsageStats)
+            // null = Health Connect could not be asked (not installed, error): say nothing rather than «no».
+            if (hasHealthData != null) put("has_health_connect_data", hasHealthData)
+        },
+    )
+
+    /** «Написать автору» tapped at the bottom of the questions. */
+    fun contactAuthor() = report("contact_author")
+
+    /** A screen came to the front (onboarding, home, profile). */
+    fun screenView(screen: String) = report("screen_view", mapOf("screen" to screen))
+
+    /** A notification was drawn. [kind] is morning | checkin | review | update | midday. */
+    fun notificationShown(kind: String) = report("notification_shown", mapOf("kind" to kind))
+
+    /** A notification was swiped away without opening the app. */
+    fun notificationDismissed(kind: String) = report("notification_dismissed", mapOf("kind" to kind))
+
+    /** A button inside a notification was pressed (check-in answer, «Совпало / Не совсем»). */
+    fun notificationAction(kind: String) = report("notification_action", mapOf("kind" to kind))
+
     // ─── Engagement with the mechanics ───────────────────────────────────────
     //
     // Unlike the daily markers above these are not capped at one a day: how often a mechanic
@@ -96,6 +131,9 @@ object Events {
      * A follow-up chip under a review was tapped. [kind] is day | week — never the question
      * itself, which is generated from the person's own data.
      */
+    /** The answer to a follow-up asked from the notification reached the shade. */
+    fun shadeFollowupAnswered() = report("shade_followup_answered", emptyMap())
+
     fun followupClick(kind: String) = report("followup_click", mapOf("kind" to kind))
 
     /** «Хочу ещё» was opened — the moment the explore mechanic is discovered at all. */

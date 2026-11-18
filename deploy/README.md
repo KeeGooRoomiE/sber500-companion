@@ -65,9 +65,17 @@ app build keeps working against a newer server, so the server can go out before 
 3. Built-in prompts only apply when no DB version is active (`prompt.sh list` → `active_version: 0`).
    If an older version is active, `prompt.sh reset` (per prompt) or push a new one.
 4. Smoke: `curl https://…/api/v1/metrics`; open the app → forecast, «Разбор вчера», «Итоги недели».
-5. Publish the APK after the server is up (push the tag). The in-app «Меня можно обновить» toast
-   follows by itself: `/api/v1/version` reads the latest GitHub release (cached 10 min). So it never
-   points to a build that isn't downloadable yet. `APP_LATEST_VERSION` in `.env` overrides it.
+5. Publish the APK after the server is up (push the tag). CI no longer writes
+   `/opt/companion/latest_version`. Without an override `/api/v1/version` still follows the latest
+   GitHub release (cached 10 min), i.e. the moment of the build, not of store publication. The
+   override lives in the repo: `deploy/app_config.json` is copied to `/opt/companion/app_config.json`
+   on every deploy (the server copy is replaced, do not edit it by hand). To hold the in-app
+   «Меня можно обновить» until the store has the build: BEFORE tagging keep the version that is
+   live in the store in `update.latest` there, and change it to the new one (commit, push to main)
+   on the day the store publishes. `update.latest` beats `APP_LATEST_VERSION`, the file and GitHub.
+6. RuStore push: the deploy workflow writes `RUSTORE_PUSH_PROJECT_ID` and `RUSTORE_PUSH_TOKEN`
+   from the repository secrets into `/opt/companion/.env` (a secret that is not set leaves the
+   line alone). After reissuing the service token: update the secret, run «Deploy backend».
 
 Rollback: the previous binary is not kept. Check out the previous tag and run `deploy.sh`; new tables
 stay and are harmless. Restore the dump only if data itself is broken.
@@ -148,3 +156,21 @@ tail -f /var/log/caddy/companion.log    # access logs
 # go install github.com/rakyll/hey@latest
 hey -n 1000 -c 50 https://api.companion.keegooroomie.ru/health
 ```
+
+## Daily metrics for the programme (`GET /api/v1/metrics/daily`)
+
+`?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD` (inclusive, up to 90 days), `Authorization: Bearer <token>`.
+One record per Moscow calendar day: `dau`, `llm_requests`, `tool_requests`, `total_users`,
+`new_users`, `is_final`. Counted exactly like the public `/metrics` page; the rules are in the
+header of `backend/internal/api/metrics_daily.go`.
+
+- The token is `METRICS_DAILY_TOKEN` in `/opt/companion/.env`, at least 32 characters; without it
+  the method answers 401 to everyone. The deploy workflow writes it from the repository secret of
+  the same name. To reissue: set a new secret, run «Deploy backend», hand the new token over
+  through the programme's form.
+- `METRICS_STARTUP_ID` (optional) changes `startup_id`, default `29754` (the participant id).
+- Limit: 30 requests a minute per IP. Errors are `{"error": "…"}` with 400 / 401 / 429 / 500.
+- Check: `curl -H "Authorization: Bearer $TOKEN" "https://api.94-183-236-169.sslip.io/api/v1/metrics/daily?date_from=2026-11-08&date_to=2026-11-14"`
+- The queries are covered by tests that need a throwaway PostgreSQL:
+  `TEST_DATABASE_URL=postgres://… go test ./internal/api ./internal/repo -run OnDatabase -p 1`.
+

@@ -202,8 +202,20 @@ fun Context.todayCheckIn(): Flow<LocalCheckIn?> = appPrefs.data.map { p ->
     LocalCheckIn(feel, p[KEY_CHECKIN_TAGS].orEmpty())
 }
 
+private val KEY_CHECKIN_COUNT = androidx.datastore.preferences.core.intPreferencesKey("checkin_count")
+private val KEY_CHECKIN_COUNTED = stringPreferencesKey("checkin_counted_date")
+
+/** How many different days were marked on this phone (since the build that started counting). */
+fun Context.checkInCount(): Flow<Int> = appPrefs.data.map { it[KEY_CHECKIN_COUNT] ?: 0 }
+
 suspend fun Context.saveCheckIn(feel: DayFeel, tags: Set<String>) {
     appPrefs.edit {
+        // One per day: changing the answer or adding tags is the same mark.
+        val day = checkInDay().toString()
+        if (it[KEY_CHECKIN_COUNTED] != day) {
+            it[KEY_CHECKIN_COUNTED] = day
+            it[KEY_CHECKIN_COUNT] = (it[KEY_CHECKIN_COUNT] ?: 0) + 1
+        }
         it[KEY_CHECKIN_DATE] = checkInDay().toString()
         it[KEY_CHECKIN_FEEL] = feel.name
         it[KEY_CHECKIN_TAGS] = tags

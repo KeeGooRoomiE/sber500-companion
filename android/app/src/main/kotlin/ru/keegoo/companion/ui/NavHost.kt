@@ -1,5 +1,6 @@
 package ru.keegoo.companion.ui
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -58,6 +59,13 @@ fun CompanionNavHost() {
             val start = onboarded
             if (start != null) {
                 val navController = rememberNavController()
+                DisposableEffect(navController) {
+                    val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, dest, _ ->
+                        dest.route?.let(ru.keegoo.companion.analytics.Events::screenView)
+                    }
+                    navController.addOnDestinationChangedListener(listener)
+                    onDispose { navController.removeOnDestinationChangedListener(listener) }
+                }
                 SharedTransitionLayout {
                     NavHost(
                         navController = navController,

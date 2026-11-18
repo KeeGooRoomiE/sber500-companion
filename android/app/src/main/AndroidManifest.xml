@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- WorkManager network constraints -->
@@ -75,6 +76,16 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- RuStore Push: server-initiated wake-ups -->
+        <service
+            android:name=".push.MyRuStoreMessagingService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="ru.rustore.sdk.pushclient.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <!-- Check-in notification actions -->
         <receiver
             android:name=".notifications.CheckInReceiver"
@@ -84,12 +95,26 @@
             </intent-filter>
         </receiver>
 
+        <!-- A notification swiped away: counts as a sign of life -->
+        <receiver
+            android:name=".notifications.NotificationDismissReceiver"
+            android:exported="false" />
+
         <!-- «Совпало?» for the morning forecast, from the day-review notification -->
         <receiver
             android:name=".notifications.MorningFeedbackReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="ru.keegoo.companion.ACTION_RATE_MORNING" />
+            </intent-filter>
+        </receiver>
+
+        <!-- A follow-up question asked from the morning forecast notification -->
+        <receiver
+            android:name=".notifications.ShadeFollowupReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ru.keegoo.companion.ACTION_SHADE_FOLLOWUP" />
             </intent-filter>
         </receiver>
 
