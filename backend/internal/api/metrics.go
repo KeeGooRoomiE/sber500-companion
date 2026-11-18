@@ -157,9 +157,20 @@ type MetricsResponse struct {
 	// Averaged over the whole chart window, not just today: with a handful of users a
 	// single active person swings the daily figure, and this is a competition KPI.
 	CallsPerDAUAvg *float64 `json:"calls_per_dau_avg"`
-	// Tool calls per active user — same shape (today + window average) as the LLM figure, but
-	// call_type='tool' (the app reading its own data: usagestats, checkin, scenario). Shown so
-	// the broad per-component number (Прил. 2 п.2.2) is visible next to the LLM-only KPI.
+	// The same window average, but counted the way the competition's own methodology counts a
+	// request: calls the person set off. All LLM calls except the nightly batch, plus the batch
+	// forecasts they actually came and picked up. A forecast is written at 03:00 and fetched
+	// when the phone is first unlocked — the model call is an optimisation of a request the
+	// person does make — but one generated and never collected was nobody's request. This is
+	// the figure reported to the organisers' collector; CallsPerDAUAvg above is every LLM call
+	// the product makes, which is the number that matters for cost.
+	ScoredCallsPerDAUAvg *float64 `json:"scored_calls_per_dau_avg"`
+	// Service calls per active user — same shape (today + window average) as the LLM figure, but
+	// call_type='tool': the app talking to its own backend (usagestats upload, reading the
+	// prepared forecast, saving a check-in). NOT tool/function calls in the competition's
+	// sense — this product has no function calling, the prompt is assembled in Go and the model
+	// returns text, so tool_requests reported to the collector is 0. Kept on the page because
+	// it is a real load figure, under a label that says what it is.
 	ToolCallsPerDAU    *float64 `json:"tool_calls_per_dau"`
 	ToolCallsPerDAUAvg *float64 `json:"tool_calls_per_dau_avg"`
 	// LLM calls split by mechanic over the chart window — engagement spread across features.
@@ -578,6 +589,30 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 	}
 	out.CallsPerDAUAvg = ratio(float64(callsWindow), dauDays, 1)
 
+	// Scoring definition over the same window: drop nightly forecasts nobody collected.
+	// A batch call counts when that person fetched a forecast that day (component =
+	// 'morning_api'). Same filters otherwise, so the two figures are comparable.
+	var scoredWindow int
+	if err := m.db.QueryRow(ctx, `
+		WITH scoped AS (
+		    SELECT user_id, call_type, component, trigger, ts::date AS day
+		    FROM call_log
+		    WHERE ts >= $2::date - $3::int
+		      AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		), fetched AS (
+		    SELECT DISTINCT user_id, day FROM scoped
+		    WHERE call_type = 'tool' AND component = 'morning_api'
+		)
+		SELECT count(*) FROM scoped s
+		WHERE s.call_type = 'llm' AND (
+		    s.trigger <> 'scheduled'
+		    OR EXISTS (SELECT 1 FROM fetched f WHERE f.user_id = s.user_id AND f.day = s.day)
+		)
+	`, devs, today, historyDays-1).Scan(&scoredWindow); err != nil {
+		return nil, err
+	}
+	out.ScoredCallsPerDAUAvg = ratio(float64(scoredWindow), dauDays, 1)
+
 	// Tool calls per active user — same today/window shape as the LLM figure, call_type='tool'.
 	var toolToday, toolWindow int
 	if err := m.db.QueryRow(ctx, `
@@ -994,13 +1029,36 @@ func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, t
 		end = today
 	}
 
+	// Requests are counted the way the competition's methodology counts them: calls the person
+	// set off. Every LLM call except the nightly batch, plus the batch forecasts they came and
+	// collected — a forecast is written at 03:00 and fetched when the phone is first unlocked,
+	// so that model call stands in for a request the person does make, while one generated and
+	// never collected was nobody's request. This is the judged figure and it has to match what
+	// /api/v1/metrics/daily hands the organisers' collector; the page's own LLM-calls/DAU tile
+	// keeps counting every call, because that is what the product actually spends.
 	rows, err := m.db.Query(ctx, `
+		WITH scoped AS (
+		    SELECT user_id, call_type, component, trigger,
+		           (ts AT TIME ZONE $4)::date AS day
+		    FROM call_log
+		    WHERE (ts AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
+		      AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		), fetched AS (
+		    SELECT DISTINCT user_id, day FROM scoped
+		    WHERE call_type = 'tool' AND component = 'morning_api'
+		), calls AS (
+		    SELECT s.day, count(*) AS n FROM scoped s
+		    WHERE s.call_type = 'llm' AND (
+		        s.trigger <> 'scheduled'
+		        OR EXISTS (SELECT 1 FROM fetched f
+		                   WHERE f.user_id = s.user_id AND f.day = s.day)
+		    )
+		    GROUP BY s.day
+		)
 		SELECT d::date,
 		       (SELECT count(DISTINCT a.user_id) FROM user_activity a
 		         WHERE a.date = d::date AND NOT (a.user_id = ANY($1))),
-		       (SELECT count(*) FROM call_log c
-		         WHERE (c.ts AT TIME ZONE $4)::date = d::date AND c.call_type = 'llm'
-		           AND c.user_id <> 'admin' AND NOT (c.user_id = ANY($1)))
+		       coalesce((SELECT n FROM calls WHERE calls.day = d::date), 0)
 		FROM generate_series($2::date, $3::date, interval '1 day') d
 		ORDER BY d
 	`, devs, from, end, tz)

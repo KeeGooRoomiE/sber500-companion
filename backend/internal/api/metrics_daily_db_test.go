@@ -43,18 +43,24 @@ func TestDailyComputeOnDatabase(t *testing.T) {
 	exec(`INSERT INTO user_activity (user_id, date) VALUES
 	        ('u1', '2026-11-02'), ('u1', '2026-11-03'), ('u2', '2026-11-03'),
 	        ('dbdev', '2026-11-03'), ('envdev', '2026-11-03'), ('mock_a', '2026-11-03')`)
-	call := func(user, ts, typ string) {
+	full := func(user, ts, typ, component, trigger string) {
 		exec(`INSERT INTO call_log (user_id, ts, call_type, component, trigger, user_visible, result)
-		      VALUES ($1, $2::timestamptz, $3, 'x', 'user_action', true, 'ok')`, user, ts, typ)
+		      VALUES ($1, $2::timestamptz, $3, $4, $5, true, 'ok')`, user, ts, typ, component, trigger)
 	}
+	call := func(user, ts, typ string) { full(user, ts, typ, "x", "user_action") }
 	call("u1", "2026-11-02T20:30:00Z", "llm")        // 23:30 Moscow, the 2nd
 	call("u1", "2026-11-02T21:30:00Z", "llm")        // 00:30 Moscow, the 3rd
-	call("u1", "2026-11-03T09:00:00Z", "tool")       // the 3rd
 	call("u2", "2026-11-03T09:00:00Z", "background") // neither llm nor tool
 	call("admin", "2026-11-03T09:00:00Z", "llm")     // operator
 	call("dbdev", "2026-11-03T09:00:00Z", "llm")     // debug build
 	call("envdev", "2026-11-03T09:00:00Z", "tool")   // DEV_USER_IDS
 	call("mock_a", "2026-11-03T09:00:00Z", "llm")    // mock persona
+
+	// The nightly forecast counts as a request only when the person came and collected it.
+	// u1 fetched theirs (morning_api on the same Moscow day), u2 never did.
+	full("u1", "2026-11-03T00:10:00Z", "llm", "llm_morning", "scheduled")
+	full("u1", "2026-11-03T09:00:00Z", "tool", "morning_api", "user_action")
+	full("u2", "2026-11-03T00:10:00Z", "llm", "llm_morning", "scheduled")
 
 	m := &DailyMetrics{db: db, devIDs: []string{"envdev"}}
 	day := func(s string) time.Time { d, _ := time.Parse(dailyDateLayout, s); return d }
@@ -65,7 +71,9 @@ func TestDailyComputeOnDatabase(t *testing.T) {
 	want := []DailyRecord{
 		{Date: "2026-11-01", TotalUsers: 1, NewUsers: 1, IsFinal: true},
 		{Date: "2026-11-02", DAU: 1, LLMRequests: 1, TotalUsers: 1, IsFinal: true},
-		{Date: "2026-11-03", DAU: 2, LLMRequests: 1, ToolRequests: 1, TotalUsers: 2, NewUsers: 1, IsFinal: true},
+		// u1's 00:30 call plus u1's collected forecast; u2's uncollected one is nobody's request.
+		// ToolRequests is always 0: the product makes no tool/function calls.
+		{Date: "2026-11-03", DAU: 2, LLMRequests: 2, TotalUsers: 2, NewUsers: 1, IsFinal: true},
 		{Date: "2026-11-04", TotalUsers: 2, IsFinal: true}, // a quiet day is a record of zeros, not a gap
 	}
 	if len(got) != len(want) {

@@ -366,7 +366,7 @@
         pct: sc.dau_avg == null ? 0 : Math.min(100, sc.dau_avg / sc.dau_threshold * 100),
         ok: sc.dau_avg != null && sc.dau_avg >= sc.dau_threshold, color: '#F59E0B' },
       { label: 'Обращений на 1 DAU', value: sc.calls_per_dau == null ? '—' : nf(sc.calls_per_dau, 1),
-        target: `среднесуточно за период · порог ≥ ${sc.calls_target}`,
+        target: `по методике: запросы человека · порог ≥ ${sc.calls_target}`,
         pct: sc.calls_per_dau == null ? 0 : Math.min(100, sc.calls_per_dau / sc.calls_target * 100),
         ok: sc.calls_per_dau != null && sc.calls_per_dau >= sc.calls_target, color: '#10B981' },
       { label: 'Дней с обращениями ≥ 10', value: `${sc.days_calls_reached} / ${sc.days}`,
@@ -398,9 +398,14 @@
     const callsAvg = d.calls_per_dau_avg;
     const callsToday = d.calls_per_dau;
     const calls = callsAvg ?? callsToday;
+    // Same window, counted the organisers' way: the person's own requests, nightly forecasts
+    // only when collected. Shown beside the raw figure so the page and the collector agree.
+    const scored = d.scored_calls_per_dau_avg;
     const llm   = d.llm_calls_total ?? 0;
-    // Tool-call activity per DAU — same today/period shape as LLM, but call_type='tool'
-    // (the app reading its own data: usagestats, checkin, scenario). Informational, no KPI gate.
+    // Service traffic per DAU — the app talking to its own backend (usagestats upload, reading
+    // the prepared forecast, saving a check-in). These are NOT tool/function calls in the
+    // competition's sense: the product has no function calling, so tool_requests in the
+    // organisers' collector is 0. Informational load figure, no KPI gate.
     const toolAvg = d.tool_calls_per_dau_avg;
     const toolToday = d.tool_calls_per_dau;
     const tool = toolAvg ?? toolToday;
@@ -426,22 +431,25 @@
         label: 'LLM-вызовов / DAU',
         value: calls == null ? '—' : nf(calls, 1),
         // Only claim a period average when one actually arrived: an older backend sends
-        // today's figure alone, and labelling that as the average would be a lie.
-        target: callsAvg == null
-          ? `цель ≥ ${KPI_CALLS_TARGET} · за сегодня`
-          : `цель ≥ ${KPI_CALLS_TARGET} · в среднем за период` +
-            (callsToday == null ? '' : ` (сегодня ${nf(callsToday, 1)})`),
+        // today's figure alone, and labelling that as the average would be a lie. The scored
+        // figure is only mentioned when the backend sends it — older ones do not.
+        target: (callsAvg == null
+          ? `все вызовы · за сегодня`
+          : `все вызовы · в среднем за период` +
+            (callsToday == null ? '' : ` (сегодня ${nf(callsToday, 1)})`))
+          + (scored == null ? '' : ` · по зачётной методике ${nf(scored, 1)}`),
         pct: calls == null ? 0 : Math.min(100, calls / KPI_CALLS_TARGET * 100),
         ok: calls != null && calls >= KPI_CALLS_TARGET,
         color: '#10B981',
       },
       {
-        label: 'Tool-вызовов / DAU',
+        label: 'Сервисных запросов / DAU',
         value: tool == null ? '—' : nf(tool, 1),
-        target: toolAvg == null
-          ? 'сбор данных + фон · за сегодня'
-          : 'сбор данных + фон · в среднем за период' +
-            (toolToday == null ? '' : ` (сегодня ${nf(toolToday, 1)})`),
+        target: (toolAvg == null
+          ? 'приложение ↔ свой бэкенд · за сегодня'
+          : 'приложение ↔ свой бэкенд · в среднем за период' +
+            (toolToday == null ? '' : ` (сегодня ${nf(toolToday, 1)})`))
+          + ' · tool-вызовов по методике нет',
         pct: 100,
         ok: true,
         color: '#6B5CE7',

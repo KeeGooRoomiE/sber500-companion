@@ -25,9 +25,17 @@ import (
 // never disagree. Where this differs from the spec's wording it is stated at connection:
 //   - dau: people with a row in user_activity that day — the app was opened or an action was
 //     taken (check-in, forecast read, review, question). Background uploads do not count.
-//   - llm_requests: every call_log row with call_type = 'llm', scheduled ones included
-//     (the morning forecast is prepared ahead of the person opening the app).
-//   - tool_requests: every call_log row with call_type = 'tool'.
+//   - llm_requests: calls the person set off. Everything with call_type = 'llm' except the
+//     nightly batch, plus the batch forecasts they actually picked up — a forecast is written
+//     at 03:00 and fetched when the phone is first unlocked, so the model call is an
+//     optimisation of a request the person does make. Generated and never fetched does not
+//     count: over the week before this was written, 52% of batch forecasts were never
+//     collected, and the people they belonged to did nothing in the app that day.
+//   - tool_requests: 0. The spec counts tool/function calls made by an agent; this product
+//     has no function calling at all — the prompt is assembled in Go and the model returns
+//     text. The spec covers this case: «если инструментов нет, передаётся 0». What we log as
+//     call_type = 'tool' is the app talking to its own backend (usage upload, reading the
+//     prepared forecast, saving a check-in), which the spec excludes by name.
 //   - total_users / new_users: users by registration date.
 //
 // Everywhere: dev users (DEV_USER_IDS, debug builds), mock personas and the operator's own
@@ -158,14 +166,26 @@ func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]Daily
 	rows, err := m.db.Query(ctx, `
 		WITH days AS (
 		    SELECT d::date AS day FROM generate_series($2::date, $3::date, interval '1 day') d
-		), calls AS (
-		    SELECT (ts AT TIME ZONE $4)::date AS day,
-		           count(*) FILTER (WHERE call_type = 'llm')  AS llm,
-		           count(*) FILTER (WHERE call_type = 'tool') AS tool
+		), scoped AS (
+		    SELECT user_id, call_type, component, trigger, (ts AT TIME ZONE $4)::date AS day
 		    FROM call_log
 		    WHERE ts >= ($2::date::timestamp AT TIME ZONE $4)
 		      AND ts <  (($3::date + 1)::timestamp AT TIME ZONE $4)
 		      AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		), fetched AS (
+		    -- (person, day) pairs where the prepared forecast was actually collected
+		    SELECT DISTINCT user_id, day FROM scoped
+		    WHERE call_type = 'tool' AND component = 'morning_api'
+		), calls AS (
+		    SELECT s.day,
+		           count(*) FILTER (
+		               WHERE s.call_type = 'llm' AND (
+		                   s.trigger <> 'scheduled'
+		                   OR EXISTS (SELECT 1 FROM fetched f
+		                              WHERE f.user_id = s.user_id AND f.day = s.day)
+		               )
+		           ) AS llm
+		    FROM scoped s
 		    GROUP BY 1
 		), active AS (
 		    SELECT date AS day, count(*) AS dau
@@ -180,7 +200,7 @@ func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]Daily
 		SELECT days.day,
 		       coalesce(active.dau, 0),
 		       coalesce(calls.llm, 0),
-		       coalesce(calls.tool, 0),
+		       0,
 		       (SELECT coalesce(sum(reg.n), 0)::bigint FROM reg WHERE reg.day <= days.day),
 		       coalesce((SELECT reg.n FROM reg WHERE reg.day = days.day), 0)
 		FROM days
