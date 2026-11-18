@@ -390,7 +390,12 @@
 
   // ─── KPI row ───────────────────────────────────────────────────────────────
   function renderKpis(d) {
-    const dau   = d.dau_today ?? 0;
+    // Peak DAU over the last two weeks, not today's figure: today is already the first tile of
+    // the scoring block above, and repeating it here said nothing new. The peak is also the
+    // honest thing to show against a 1 000 goal — it is the best the product has actually
+    // reached, while today depends on what hour the page is opened.
+    const hist = (Array.isArray(d.dau_history) ? d.dau_history : []).slice(-14);
+    const peak = hist.reduce((b, p) => (b == null || p.dau > b.dau ? p : b), null);
     const stick = d.stickiness_pct;
     const mau   = d.mau ?? 0;
     // Averaged over the chart window. The daily figure swings wildly while the user count is
@@ -412,11 +417,14 @@
 
     const cards = [
       {
-        label: 'DAU сегодня',
-        value: nf(dau),
-        target: `цель ≥ ${nf(KPI_DAU_TARGET)}`,
-        pct: Math.min(100, dau / KPI_DAU_TARGET * 100),
-        ok: dau >= KPI_DAU_TARGET,
+        label: 'Пиковый DAU за 14 дней',
+        value: peak == null ? '—' : nf(peak.dau),
+        target: peak == null
+          ? `цель ≥ ${nf(KPI_DAU_TARGET)}`
+          : `цель ≥ ${nf(KPI_DAU_TARGET)} · максимум ${ruDate(peak.date)}` +
+            (hist.length < 14 ? ` (данных ${hist.length} ${plural(hist.length, 'день', 'дня', 'дней')})` : ''),
+        pct: peak == null ? 0 : Math.min(100, peak.dau / KPI_DAU_TARGET * 100),
+        ok: peak != null && peak.dau >= KPI_DAU_TARGET,
         color: '#6B5CE7',
       },
       {
