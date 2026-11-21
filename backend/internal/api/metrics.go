@@ -100,16 +100,26 @@ type Scoring struct {
 	Day   int    `json:"day"`  // 0 before the start; 1..Days during and after
 	Days  int    `json:"days"` // length of the window
 
-	DAUThreshold   int      `json:"dau_threshold"`     // 1000
-	DAURequired    int      `json:"dau_required_days"` // 14
-	DaysDAUReached int      `json:"days_dau_reached"`  // days with DAU >= threshold
-	DAUToday       int      `json:"dau_today"`
-	DAUAvg         *float64 `json:"dau_avg"` // over days that have started
+	// «Устойчиво» is 14 qualifying days inside ANY 28 consecutive days, confirmed by the owner
+	// on 21.11 — the extension to 08.12 lengthened the period but left this rule alone. So the
+	// count is not "qualifying days in the period": with a 34-day period, 05.11 and 08.12 never
+	// share a 28-day window. DaysDAUReached is the best such window, DaysDAUReachedTotal every
+	// qualifying day, and WindowFrom/WindowTo name the window that scored best.
+	DAUThreshold        int      `json:"dau_threshold"`     // 1000
+	DAURequired         int      `json:"dau_required_days"` // 14
+	WindowDays          int      `json:"window_days"`       // 28
+	DaysDAUReached      int      `json:"days_dau_reached"`  // best 28-day window
+	DaysDAUReachedTotal int      `json:"days_dau_reached_total"`
+	WindowFrom          string   `json:"window_from"`
+	WindowTo            string   `json:"window_to"`
+	DAUToday            int      `json:"dau_today"`
+	DAUAvg              *float64 `json:"dau_avg"` // over days that have started
 
-	CallsTarget        int      `json:"calls_target"`       // 10
-	CallsPerDAU        *float64 `json:"calls_per_dau"`      // LLM calls / sum of daily DAU over the window
-	DaysCallsReached   int      `json:"days_calls_reached"` // days with calls/DAU >= target
-	DaysCallsReached35 int      `json:"days_calls_reached_35"`
+	CallsTarget int      `json:"calls_target"`  // 10
+	CallsPerDAU *float64 `json:"calls_per_dau"` // LLM calls / sum of daily DAU over the window
+	// Same best-28-day-window reading as the DAU count above.
+	DaysCallsReached   int `json:"days_calls_reached"` // best 28-day window
+	DaysCallsReached35 int `json:"days_calls_reached_35"`
 }
 
 // MetricsResponse matches the keys web/metrics.html renders. Null = not enough data yet.
@@ -957,7 +967,11 @@ func scoringWindow() (from, to time.Time) {
 		t, _ := time.Parse("2006-01-02", def)
 		return t
 	}
-	return parse("SCORING_FROM", "2026-11-05"), parse("SCORING_TO", "2026-12-02")
+	// Extended from 02.12 to 08.12 by the organisers on 21.11, across every scored metric.
+	// DAURequired stays 14: the Положение says «не менее чем в 14 из 28 календарных дней», and
+	// the extension moved the end date without restating the count. Worth confirming — a
+	// proportional reading would make it 17 of 34.
+	return parse("SCORING_FROM", "2026-11-05"), parse("SCORING_TO", "2026-12-08")
 }
 
 // scoring counts, per day of the window that has started, DAU and LLM calls (same filters as
@@ -1008,12 +1022,77 @@ func (m *Metrics) retentionCurve(ctx context.Context, devs []string, today time.
 	return out, rows.Err()
 }
 
+// dayRow is one day of the scoring period reduced to the three thresholds it either met or
+// did not. Only the flags matter to the window scan, so the counts themselves stay behind.
+type dayRow struct {
+	date            time.Time
+	dauOK, c10, c35 bool
+}
+
+type windowScore struct {
+	dau, c10, c35 int
+	from, to      string
+}
+
+// bestWindow finds the best run of `size` consecutive days inside [from, to].
+//
+// «Устойчиво» means 14 qualifying days within ANY 28 consecutive days, not 14 days anywhere in
+// the period: once the period runs longer than 28 days — it is 34 after the 08.12 extension —
+// the first and last days can no longer be counted together. Every window start that leaves a
+// full window inside the period is tried; a window reaching into days that have not happened
+// yet is still valid, those days just contribute nothing, so the result is the best window
+// achieved so far. A period shorter than the window has exactly one window: itself.
+//
+// The scan is quadratic in the number of days, which for a month-long period is nothing.
+func bestWindow(series []dayRow, from, to time.Time, size int) windowScore {
+	var best windowScore
+	for off := 0; ; off++ {
+		wStart := from.AddDate(0, 0, off)
+		wEnd := wStart.AddDate(0, 0, size-1)
+		if off > 0 && wEnd.After(to) {
+			break
+		}
+		var cur windowScore
+		for _, r := range series {
+			if r.date.Before(wStart) || r.date.After(wEnd) {
+				continue
+			}
+			if r.dauOK {
+				cur.dau++
+			}
+			if r.c10 {
+				cur.c10++
+			}
+			if r.c35 {
+				cur.c35++
+			}
+		}
+		// The window reported is the one that scored best on DAU, the gating metric; the call
+		// counts take their own maximum, which may come from a different window. Windows often
+		// tie, and the earliest of them is kept — arbitrary, but stable between requests.
+		if cur.dau > best.dau || best.from == "" {
+			best.dau = cur.dau
+			best.from, best.to = wStart.Format("2006-01-02"), wEnd.Format("2006-01-02")
+		}
+		if cur.c10 > best.c10 {
+			best.c10 = cur.c10
+		}
+		if cur.c35 > best.c35 {
+			best.c35 = cur.c35
+		}
+		if !wEnd.Before(to) {
+			break
+		}
+	}
+	return best
+}
+
 func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, tz string) (*Scoring, error) {
 	from, to := scoringWindow()
 	days := int(to.Sub(from).Hours()/24) + 1
 	sc := &Scoring{
 		From: from.Format("2006-01-02"), To: to.Format("2006-01-02"), Days: days,
-		DAUThreshold: 1000, DAURequired: 14, CallsTarget: 10,
+		DAUThreshold: 1000, DAURequired: 14, WindowDays: 28, CallsTarget: 10,
 	}
 	switch {
 	case today.Before(from):
@@ -1067,6 +1146,8 @@ func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, t
 	}
 	defer rows.Close()
 
+	// Per-day flags are kept so the 28-day windows can be scanned afterwards.
+	var series []dayRow
 	var sumDAU, sumCalls, elapsed int
 	for rows.Next() {
 		var d time.Time
@@ -1077,17 +1158,14 @@ func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, t
 		elapsed++
 		sumDAU += dau
 		sumCalls += calls
-		if dau >= sc.DAUThreshold {
-			sc.DaysDAUReached++
-		}
+		r := dayRow{date: d, dauOK: dau >= sc.DAUThreshold}
 		if dau > 0 {
 			per := float64(calls) / float64(dau)
-			if per >= 10 {
-				sc.DaysCallsReached++
-			}
-			if per >= 35 {
-				sc.DaysCallsReached35++
-			}
+			r.c10, r.c35 = per >= 10, per >= 35
+		}
+		series = append(series, r)
+		if r.dauOK {
+			sc.DaysDAUReachedTotal++
 		}
 		if d.Equal(today) || d.Equal(end) {
 			sc.DAUToday = dau
@@ -1100,6 +1178,10 @@ func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, t
 		avg := round(float64(sumDAU)/float64(elapsed), 1)
 		sc.DAUAvg = &avg
 	}
+
+	best := bestWindow(series, from, to, sc.WindowDays)
+	sc.DaysDAUReached, sc.DaysCallsReached, sc.DaysCallsReached35 = best.dau, best.c10, best.c35
+	sc.WindowFrom, sc.WindowTo = best.from, best.to
 	sc.CallsPerDAU = ratio(float64(sumCalls), sumDAU, 1)
 	return sc, nil
 }

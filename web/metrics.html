@@ -350,7 +350,11 @@
         только внутри окна (${sc.days} ${plural(sc.days, 'день', 'дня', 'дней')}).</p>
       </div>`;
     }
+    // «Устойчиво» = 14 дней в ЛЮБОМ окне 28 дней, а не 14 за весь период: после продления до
+    // 08.12 период 34 дня, и 05.11 с 08.12 в одно окно уже не попадают. Бэкенд присылает
+    // лучшее окно, а всего набранных дней — отдельным полем, чтобы разница была видна.
     const reached = sc.days_dau_reached, req = sc.dau_required_days;
+    const wDays = sc.window_days, total = sc.days_dau_reached_total;
     const cards = [
       { label: 'День периода', value: `${sc.day} / ${sc.days}`,
         target: sc.state === 'finished' ? 'период завершён' : period,
@@ -359,7 +363,13 @@
         target: `порог ≥ ${nf(sc.dau_threshold)}`,
         pct: Math.min(100, sc.dau_today / sc.dau_threshold * 100), ok: sc.dau_today >= sc.dau_threshold, color: '#6B5CE7' },
       { label: 'DAU устойчиво', value: `${reached} / ${req}`,
-        target: `дней с DAU ≥ ${nf(sc.dau_threshold)}, нужно ${req} из ${sc.days}`,
+        // Older backends send neither window_days nor the total, so the old wording stays
+        // available rather than printing "undefined" at people.
+        target: wDays == null
+          ? `дней с DAU ≥ ${nf(sc.dau_threshold)}, нужно ${req} из ${sc.days}`
+          : `дней с DAU ≥ ${nf(sc.dau_threshold)} в лучшем окне ${wDays} дн` +
+            (sc.window_from ? ` (${ruDate(sc.window_from)} — ${ruDate(sc.window_to)})` : '') +
+            (total != null && total !== reached ? ` · всего за период ${total}` : ''),
         pct: Math.min(100, reached / req * 100), ok: reached >= req, color: '#10B981' },
       { label: 'Среднее DAU за период', value: sc.dau_avg == null ? '—' : nf(sc.dau_avg, 1),
         target: `по ${sc.day} ${plural(sc.day, 'дню', 'дням', 'дням')} · порог ≥ ${nf(sc.dau_threshold)}`,
@@ -369,8 +379,9 @@
         target: `по методике: запросы человека · порог ≥ ${sc.calls_target}`,
         pct: sc.calls_per_dau == null ? 0 : Math.min(100, sc.calls_per_dau / sc.calls_target * 100),
         ok: sc.calls_per_dau != null && sc.calls_per_dau >= sc.calls_target, color: '#10B981' },
-      { label: 'Дней с обращениями ≥ 10', value: `${sc.days_calls_reached} / ${sc.days}`,
-        target: `стабильность · с ≥ 35: ${sc.days_calls_reached_35}`,
+      { label: 'Дней с обращениями ≥ 10', value: `${sc.days_calls_reached} / ${req}`,
+        target: (wDays == null ? 'стабильность' : `в лучшем окне ${wDays} дн`) +
+          ` · с ≥ 35: ${sc.days_calls_reached_35}`,
         pct: Math.min(100, sc.days_calls_reached / sc.days * 100), ok: sc.days_calls_reached >= req, color: '#6B5CE7' },
     ];
     const html = cards.map(k => `
