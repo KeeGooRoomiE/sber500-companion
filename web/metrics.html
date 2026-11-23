@@ -50,6 +50,11 @@
     .page-header p { font-size: 13px; color: var(--muted); line-height: 1.6; }
     .page-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
     #updated-at { font-size: 13px; color: var(--muted); }
+    .refresh-status:not(:empty) { margin-top: 8px; }
+    .refresh-status[data-state="error"]:not(:empty) {
+      padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: 10px; background: var(--primary-light);
+    }
     footer { max-width: 1100px; margin: 48px auto 0; padding: 0 20px 32px; font-size: 13px; color: var(--muted); }
     footer a { color: var(--muted); }
     .btn-refresh {
@@ -59,6 +64,7 @@
       padding: 6px 14px; cursor: pointer; transition: opacity .15s;
     }
     .btn-refresh:hover { opacity: .8; }
+    .btn-refresh:disabled { opacity: .65; cursor: wait; }
     .btn-refresh svg { width: 13px; height: 13px; }
 
     .btn-icon {
@@ -237,7 +243,6 @@
     <p id="subtitle">Живые данные с продакшена · обновление каждые 2 минуты</p>
     <div class="page-meta">
       <span id="updated-at"></span>
-      <span id="refresh-status" role="status"></span>
       <button class="btn-refresh" id="refresh-metrics" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/>
@@ -255,6 +260,7 @@
         Скачать сырые данные
       </a>
     </div>
+    <p class="refresh-status" id="refresh-status" role="status"></p>
     <p id="raw-note" style="font-size:12px;color:var(--muted);margin-top:6px;">
       «Скачать сырые данные» — полный журнал LLM/tool-вызовов (call_log, CSV), на котором считаются
       метрики. Анонимно (user_id — хеш), обновляется раз в 20 минут.
@@ -947,7 +953,9 @@
   async function fetchMetrics(manual = false) {
     if (refreshButton.disabled) return;
     refreshButton.disabled = true;
-    refreshStatus.textContent = 'Проверяем данные…';
+    refreshStatus.dataset.state = 'loading';
+    refreshStatus.removeAttribute('title');
+    refreshStatus.textContent = lastSnapshotTime === null ? '' : 'Обновляем данные…';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 32000);
     try {
@@ -958,14 +966,17 @@
       const changed = timestamp !== lastSnapshotTime;
       if (changed) renderMetrics(data);
       lastSnapshotTime = timestamp;
+      refreshStatus.dataset.state = 'ready';
       refreshStatus.textContent = manual
         ? (changed ? 'Данные обновлены' : 'Проверено · снимок ещё не изменился')
         : '';
     } catch (error) {
       const reason = error.name === 'AbortError' ? 'время ожидания истекло' : error.message;
+      refreshStatus.dataset.state = 'error';
+      refreshStatus.title = reason;
       refreshStatus.textContent = lastSnapshotTime === null
-        ? `Не удалось получить метрики · ${reason}`
-        : `Ошибка обновления · ${reason}. Показан последний снимок.`;
+        ? ''
+        : 'Не удалось обновить метрики. Показаны последние доступные данные.';
       if (lastSnapshotTime === null) {
         document.getElementById('content').innerHTML = `
           <div class="error-card">
