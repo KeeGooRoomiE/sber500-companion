@@ -325,11 +325,12 @@ func (m *Metrics) snapshot(w http.ResponseWriter, r *http.Request) (*MetricsResp
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.cached == nil || time.Since(m.cachedAt) > time.Minute {
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 		defer cancel()
+		started := time.Now()
 		resp, err := m.compute(ctx)
 		if err != nil {
-			slog.Error("metrics compute", "err", err)
+			slog.Error("metrics compute", "err", err, "elapsed", time.Since(started))
 			writeError(w, http.StatusInternalServerError, "metrics unavailable")
 			return nil, false
 		}
@@ -469,7 +470,7 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 
 	sc, err := m.scoring(ctx, devs, today, tz)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("competition scoring: %w", err)
 	}
 	out.Scoring = sc
 
@@ -1041,25 +1042,25 @@ func (m *Metrics) scoring(ctx context.Context, devs []string, today time.Time, t
 		    SELECT user_id, call_type, component, trigger,
 		           (ts AT TIME ZONE $4)::date AS day
 		    FROM call_log
-		    WHERE (ts AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
+		    WHERE ts >= ($2::date::timestamp AT TIME ZONE $4)
+		      AND ts < (($3::date + 1)::timestamp AT TIME ZONE $4)
 		      AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		      AND (call_type = 'llm' OR (call_type = 'tool' AND component = 'morning_api'))
 		), fetched AS (
 		    SELECT DISTINCT user_id, day FROM scoped
 		    WHERE call_type = 'tool' AND component = 'morning_api'
-		), calls AS (
+		), calls AS MATERIALIZED (
 		    SELECT s.day, count(*) AS n FROM scoped s
-		    WHERE s.call_type = 'llm' AND (
-		        s.trigger <> 'scheduled'
-		        OR EXISTS (SELECT 1 FROM fetched f
-		                   WHERE f.user_id = s.user_id AND f.day = s.day)
-		    )
+		    LEFT JOIN fetched f ON f.user_id = s.user_id AND f.day = s.day
+		    WHERE s.call_type = 'llm' AND (s.trigger <> 'scheduled' OR f.user_id IS NOT NULL)
 		    GROUP BY s.day
 		)
 		SELECT d::date,
 		       (SELECT count(DISTINCT a.user_id) FROM user_activity a
 		         WHERE a.date = d::date AND NOT (a.user_id = ANY($1))),
-		       coalesce((SELECT n FROM calls WHERE calls.day = d::date), 0)
+		       coalesce(calls.n, 0)
 		FROM generate_series($2::date, $3::date, interval '1 day') d
+		LEFT JOIN calls ON calls.day = d::date
 		ORDER BY d
 	`, devs, from, end, tz)
 	if err != nil {

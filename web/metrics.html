@@ -234,10 +234,11 @@
 <main>
   <div class="page-header">
     <h1>Метрики проекта</h1>
-    <p id="subtitle">Живые данные с продакшена · обновление каждые 30 сек</p>
+    <p id="subtitle">Живые данные с продакшена · обновление каждые 2 минуты</p>
     <div class="page-meta">
       <span id="updated-at"></span>
-      <button class="btn-refresh" onclick="fetchMetrics()">
+      <span id="refresh-status" role="status"></span>
+      <button class="btn-refresh" id="refresh-metrics" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -918,36 +919,69 @@
       renderInfra(d);
 
     document.getElementById('subtitle').innerHTML =
-      `Живые данные с продакшена · <strong>${nf(d.dau_today ?? 0)} DAU</strong> · <strong>${nf(d.users_total ?? 0)}</strong> пользователей · обновление каждые 30 сек`;
+      `Живые данные с продакшена · <strong>${nf(d.dau_today ?? 0)} DAU</strong> · <strong>${nf(d.users_total ?? 0)}</strong> пользователей · обновление каждые 2 минуты`;
 
-    const ts = d.updated_at ? new Date(d.updated_at) : new Date();
+    const ts = new Date(d.updated_at);
     document.getElementById('updated-at').textContent =
-      'Данные на ' + ts.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+      'Данные на ' + ts.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
-  function renderError() {
-    document.getElementById('content').innerHTML = `
-      <div class="error-card">
-        <div class="error-icon">🚧</div>
-        <h2>Не удалось получить данные</h2>
-        <p>Сервер временно недоступен.<br>
-        Страница переобновляется автоматически каждые 30 секунд.</p>
-      </div>`;
-    document.getElementById('updated-at').textContent = '';
+  const refreshButton = document.getElementById('refresh-metrics');
+  const refreshStatus = document.getElementById('refresh-status');
+  let lastSnapshotTime = null;
+
+  function validateMetrics(d) {
+    const timestamp = typeof d?.updated_at === 'string' ? Date.parse(d.updated_at) : NaN;
+    if (!Number.isFinite(timestamp) ||
+        !Number.isInteger(d.users_total) || d.users_total < 0 ||
+        !Number.isInteger(d.dau_today) || d.dau_today < 0 ||
+        !Array.isArray(d.dau_history)) {
+      throw new Error('ответ API не прошёл проверку');
+    }
+    if (lastSnapshotTime !== null && timestamp < lastSnapshotTime) {
+      throw new Error('API вернул более старый снимок');
+    }
+    return timestamp;
   }
 
-  async function fetchMetrics() {
+  async function fetchMetrics(manual = false) {
+    if (refreshButton.disabled) return;
+    refreshButton.disabled = true;
+    refreshStatus.textContent = 'Проверяем данные…';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 32000);
     try {
-      const res = await fetch(API_URL, { cache: 'no-store' });
+      const res = await fetch(API_URL, { cache: 'no-store', signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      renderMetrics(await res.json());
-    } catch {
-      renderError();
+      const data = await res.json();
+      const timestamp = validateMetrics(data);
+      const changed = timestamp !== lastSnapshotTime;
+      if (changed) renderMetrics(data);
+      lastSnapshotTime = timestamp;
+      refreshStatus.textContent = manual
+        ? (changed ? 'Данные обновлены' : 'Проверено · снимок ещё не изменился')
+        : '';
+    } catch (error) {
+      const reason = error.name === 'AbortError' ? 'время ожидания истекло' : error.message;
+      refreshStatus.textContent = lastSnapshotTime === null
+        ? `Не удалось получить метрики · ${reason}`
+        : `Ошибка обновления · ${reason}. Показан последний снимок.`;
+      if (lastSnapshotTime === null) {
+        document.getElementById('content').innerHTML = `
+          <div class="error-card">
+            <h2>Метрики пока недоступны</h2>
+            <p>Следующая автоматическая проверка через 2 минуты.</p>
+          </div>`;
+      }
+    } finally {
+      clearTimeout(timeout);
+      refreshButton.disabled = false;
     }
   }
 
+  refreshButton.addEventListener('click', () => fetchMetrics(true));
   fetchMetrics();
-  setInterval(fetchMetrics, 30000);
+  setInterval(fetchMetrics, 120000);
 </script>
 </body>
 </html>
