@@ -3,6 +3,7 @@
 
 # Android
 android/.gradle/
+android/.kotlin/errors/
 android/local.properties
 android/app/build/
 android/build/
