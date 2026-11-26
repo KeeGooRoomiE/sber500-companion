@@ -94,7 +94,8 @@ func TestDailyTokenTooShortStaysClosed(t *testing.T) {
 func TestDailyRecordFieldNames(t *testing.T) {
 	b, _ := json.Marshal(DailyMetricsResponse{Data: []DailyRecord{{}}})
 	for _, f := range []string{`"startup_id"`, `"timezone"`, `"generated_at"`, `"data"`, `"date"`, `"dau":0`,
-		`"llm_requests":0`, `"tool_requests":0`, `"total_users":0`, `"new_users":0`, `"is_final":false`} {
+		`"llm_requests":0`, `"tool_requests":0`, `"total_users":0`, `"new_users":0`, `"is_final":false`,
+		`"retained_d1":null`, `"retained_d3":null`, `"retained_d7":null`, `"retained_d14":null`} {
 		if !strings.Contains(string(b), f) {
 			t.Errorf("missing %s in %s", f, b)
 		}

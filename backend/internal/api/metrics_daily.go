@@ -37,6 +37,8 @@ import (
 //     call_type = 'tool' is the app talking to its own backend (usage upload, reading the
 //     prepared forecast, saving a check-in), which the spec excludes by name.
 //   - total_users / new_users: users by registration date.
+//   - retained_dN: users registered on this date and active on exactly date + N.
+//     The value is null until the activity date closes.
 //
 // Everywhere: dev users (DEV_USER_IDS, debug builds), mock personas and the operator's own
 // 'admin' rows are out.
@@ -60,6 +62,10 @@ type DailyRecord struct {
 	ToolRequests int    `json:"tool_requests"`
 	TotalUsers   int    `json:"total_users"`
 	NewUsers     int    `json:"new_users"`
+	RetainedD1   *int   `json:"retained_d1"`
+	RetainedD3   *int   `json:"retained_d3"`
+	RetainedD7   *int   `json:"retained_d7"`
+	RetainedD14  *int   `json:"retained_d14"`
 	IsFinal      bool   `json:"is_final"`
 }
 
@@ -132,7 +138,8 @@ func (m *DailyMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	data, err := m.compute(ctx, from, to)
+	now := clock.Now()
+	data, err := m.compute(ctx, from, to, clock.DateOf(now))
 	if err != nil {
 		slog.Error("metrics daily failed", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -142,17 +149,16 @@ func (m *DailyMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, DailyMetricsResponse{
 		StartupID:   m.startupID,
 		Timezone:    clock.Location().String(),
-		GeneratedAt: clock.Now().Format(time.RFC3339),
+		GeneratedAt: now.Format(time.RFC3339),
 		Data:        data,
 	})
 }
 
-func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]DailyRecord, error) {
+func (m *DailyMetrics) compute(ctx context.Context, from, to, today time.Time) ([]DailyRecord, error) {
 	tz := clock.Location().String()
-	today := clock.Today()
 
-	// The same exclusion list as /metrics: DEV_USER_IDS, debug-build users, mock personas.
-	excluded := append([]string{}, m.devIDs...)
+	// Exclude operator, DEV_USER_IDS, debug-build users and mock personas from all metrics.
+	excluded := append([]string{"admin"}, m.devIDs...)
 	var more []string
 	if err := m.db.QueryRow(ctx,
 		`SELECT coalesce(array_agg(id), '{}') FROM users WHERE id LIKE $1 OR is_dev`,
@@ -171,7 +177,7 @@ func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]Daily
 		    FROM call_log
 		    WHERE ts >= ($2::date::timestamp AT TIME ZONE $4)
 		      AND ts <  (($3::date + 1)::timestamp AT TIME ZONE $4)
-		      AND user_id <> 'admin' AND NOT (user_id = ANY($1))
+		      AND NOT (user_id = ANY($1))
 		), fetched AS (
 		    -- (person, day) pairs where the prepared forecast was actually collected
 		    SELECT DISTINCT user_id, day FROM scoped
@@ -192,21 +198,40 @@ func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]Daily
 		    FROM user_activity
 		    WHERE date BETWEEN $2::date AND $3::date AND NOT (user_id = ANY($1))
 		    GROUP BY 1
-		), reg AS (
-		    SELECT (created_at AT TIME ZONE $4)::date AS day, count(*) AS n
+		), registered AS (
+		    SELECT id, (created_at AT TIME ZONE $4)::date AS day
 		    FROM users WHERE NOT (id = ANY($1))
+		), reg AS (
+		    SELECT day, count(*) AS n FROM registered
 		    GROUP BY 1
+		), retention AS (
+		    SELECT r.day,
+		           count(*) FILTER (WHERE a.date = r.day + 1)  AS d1,
+		           count(*) FILTER (WHERE a.date = r.day + 3)  AS d3,
+		           count(*) FILTER (WHERE a.date = r.day + 7)  AS d7,
+		           count(*) FILTER (WHERE a.date = r.day + 14) AS d14
+		    FROM registered r
+		    JOIN user_activity a ON a.user_id = r.id
+		      AND a.date IN (r.day + 1, r.day + 3, r.day + 7, r.day + 14)
+		      AND a.date < $5::date
+		    WHERE r.day BETWEEN $2::date AND $3::date
+		    GROUP BY r.day
 		)
 		SELECT days.day,
 		       coalesce(active.dau, 0),
 		       coalesce(calls.llm, 0),
 		       0,
 		       (SELECT coalesce(sum(reg.n), 0)::bigint FROM reg WHERE reg.day <= days.day),
-		       coalesce((SELECT reg.n FROM reg WHERE reg.day = days.day), 0)
+		       coalesce((SELECT reg.n FROM reg WHERE reg.day = days.day), 0),
+		       CASE WHEN days.day + 1  < $5::date THEN coalesce(retention.d1, 0)  END,
+		       CASE WHEN days.day + 3  < $5::date THEN coalesce(retention.d3, 0)  END,
+		       CASE WHEN days.day + 7  < $5::date THEN coalesce(retention.d7, 0)  END,
+		       CASE WHEN days.day + 14 < $5::date THEN coalesce(retention.d14, 0) END
 		FROM days
 		LEFT JOIN calls  ON calls.day  = days.day
 		LEFT JOIN active ON active.day = days.day
-		ORDER BY days.day`, excluded, from, to, tz)
+		LEFT JOIN retention ON retention.day = days.day
+		ORDER BY days.day`, excluded, from, to, tz, today)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +241,8 @@ func (m *DailyMetrics) compute(ctx context.Context, from, to time.Time) ([]Daily
 	for rows.Next() {
 		var day time.Time
 		var rec DailyRecord
-		if err := rows.Scan(&day, &rec.DAU, &rec.LLMRequests, &rec.ToolRequests, &rec.TotalUsers, &rec.NewUsers); err != nil {
+		if err := rows.Scan(&day, &rec.DAU, &rec.LLMRequests, &rec.ToolRequests, &rec.TotalUsers, &rec.NewUsers,
+			&rec.RetainedD1, &rec.RetainedD3, &rec.RetainedD7, &rec.RetainedD14); err != nil {
 			return nil, err
 		}
 		rec.Date = day.Format(dailyDateLayout)
