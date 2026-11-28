@@ -26,7 +26,7 @@ object ApiModule {
             .addInterceptor(AuthInterceptor(credentials))
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
-                    level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                    level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
                             else HttpLoggingInterceptor.Level.NONE
                     redactHeader("Authorization")
                 }

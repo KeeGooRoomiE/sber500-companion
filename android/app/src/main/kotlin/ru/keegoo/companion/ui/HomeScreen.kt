@@ -97,8 +97,6 @@ import ru.keegoo.companion.ui.permissions.RestrictedSettingsSteps
 import ru.keegoo.companion.ui.permissions.appInfoIntent
 import ru.keegoo.companion.ui.permissions.usageAccessIntent
 import ru.keegoo.companion.ui.home.DayTimelineCard
-import ru.keegoo.companion.ui.home.ExploreSheet
-import ru.keegoo.companion.ui.home.ExploreUi
 import ru.keegoo.companion.ui.home.FeedbackRow
 import ru.keegoo.companion.ui.home.HistorySection
 import ru.keegoo.companion.ui.home.ReviewSheet
@@ -133,6 +131,7 @@ fun HomeScreen(
     sharedScope: SharedTransitionScope,
     animatedScope: AnimatedVisibilityScope,
     onOpenProfile: () -> Unit,
+    onOpenChat: (dailyQuestion: String?, dailyOptions: List<String>) -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -172,9 +171,6 @@ fun HomeScreen(
     var lastStat by rememberSaveable { mutableStateOf(StatKind.Screen) }
     BackHandler(enabled = openStat != null) { openStat = null }
     BackHandler(enabled = state.review != null) { vm.closeReview() }
-    BackHandler(enabled = state.explore != null) { vm.closeExplore() }
-    var shownExplore by remember { mutableStateOf<ExploreUi?>(null) }
-    if (state.explore != null) shownExplore = state.explore
     // Keep the last review around so the sheet can animate out after it's closed
     var shownReview by remember { mutableStateOf<ReviewUi?>(null) }
     if (state.review != null) shownReview = state.review
@@ -242,7 +238,11 @@ fun HomeScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 // Right above the forecast it follows into on a tap — same spot
                                 // regardless of whether CheckIn sits before or after Morning.
-                                state.dailyQuestion?.let { DailyQuestionBanner(modifier = rise, onClick = onOpenProfile) }
+                                state.dailyQuestion?.let { question ->
+                                    DailyQuestionBanner(modifier = rise, onClick = {
+                                        onOpenChat(question, state.dailyQuestionOptions)
+                                    })
+                                }
                                 MorningCard(
                                     modifier = Modifier.sharedBounds(
                                         rememberSharedContentState(SharedKeys.HERO_CARD),
@@ -254,7 +254,7 @@ fun HomeScreen(
                                     state = state,
                                     midday = midday,
                                     onRate = vm::rateMorning,
-                                    onMore = vm::openExplore,
+                                    onOpenChat = { onOpenChat(null, emptyList()) },
                                     onOpenUsageAccess = {
                                         try {
                                             context.startActivity(context.usageAccessIntent(direct = true))
@@ -379,32 +379,6 @@ fun HomeScreen(
             }
         }
 
-        // ── «Хочу ещё» sheet ──
-        AnimatedVisibility(
-            visible = state.explore != null,
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(200)),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = .28f))
-                    .clickable(remember { MutableInteractionSource() }, indication = null) { vm.closeExplore() }
-            )
-        }
-        AnimatedVisibility(
-            visible = state.explore != null,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = 10.dp, end = 10.dp, bottom = bars.calculateBottomPadding() + 10.dp),
-            enter = fadeIn(tween(300)) +
-                slideInVertically(tween(420, easing = EmphasizedDecelerate)) { it / 3 },
-            exit = fadeOut(tween(200)) + slideOutVertically(tween(260)) { it / 4 },
-        ) {
-            shownExplore?.let {
-                ExploreSheet(modifier = Modifier, explore = it, onAsk = vm::askExplore, onClose = vm::closeExplore)
-            }
-        }
     }
 }
 
@@ -559,7 +533,7 @@ private fun MorningCard(
     state: HomeUiState,
     midday: InsightUi?,
     onRate: (Boolean) -> Unit,
-    onMore: () -> Unit,
+    onOpenChat: () -> Unit,
     onOpenUsageAccess: () -> Unit,
 ) {
     var whyOpen by rememberSaveable { mutableStateOf(false) }
@@ -759,8 +733,8 @@ private fun MorningCard(
             }
         }
 
-        // «Хочу ещё» — the first real user asked for it: more about their own data, on demand
-        if (state.forecastDate != null) {
+        // Chat can explain what is available even before the first forecast is ready.
+        run {
             val view = LocalView.current
             Box(
                 Modifier
@@ -769,11 +743,11 @@ private fun MorningCard(
                     .border(1.dp, Color.White.copy(alpha = .5f), AppShapes.button)
                     .clickable {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        onMore()
+                        onOpenChat()
                     }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                Text("Узнать больше", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text("Обсудим?", style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
 

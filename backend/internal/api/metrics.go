@@ -776,6 +776,8 @@ func (m *Metrics) compute(ctx context.Context) (*MetricsResponse, error) {
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM reviews
 		    UNION ALL
 		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM explore_answers
+		    UNION ALL
+		    SELECT user_id, prompt_tokens, completion_tokens, created_at FROM chat_model_usage
 		) t WHERE NOT (user_id = ANY($1)) AND created_at >= $3
 	`, devs, dayStart, m.budgetFrom).Scan(&inTotal, &outTotal, &inToday, &outToday); err != nil {
 		return nil, err

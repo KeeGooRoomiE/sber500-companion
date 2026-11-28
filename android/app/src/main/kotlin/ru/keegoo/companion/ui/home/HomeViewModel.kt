@@ -2,6 +2,8 @@ package ru.keegoo.companion.ui.home
 
 import ru.keegoo.companion.data.prefs.checkInCount
 import ru.keegoo.companion.data.prefs.checkInDay
+import ru.keegoo.companion.data.prefs.MaxGenQuestionSlotsPerDay
+import ru.keegoo.companion.data.prefs.genQuestionSlotToday
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -130,6 +132,7 @@ data class HomeUiState(
      * that fetched it succeeds.
      */
     val dailyQuestion: String? = null,
+    val dailyQuestionOptions: List<String> = emptyList(),
     /** Day marks counted on this phone; with [history] decides the «День 0» lines. */
     val checkIns: Int = 0,
     /** No source writes sleep and steps (no watch, band or health app). */
@@ -230,21 +233,26 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch { loadDailyQuestion() }
     }
 
     /**
      * Idea 1: one extra, visible, opt-in-looking call a day — a banner above the forecast that
-     * leads straight into the same generated question the orb already asks. Slot "1" always,
-     * so it shares the one call a day with the orb flow rather than spending a second one: the
-     * first screen to ask (Home or Profile) pays for it, the other reads the cache.
+     * opens the generated question in chat. The next slot becomes available after an answer.
      */
     private suspend fun loadDailyQuestion() {
-        val text = repository.insight(Insights.QUESTION, "1").getOrNull()?.text?.trim()
+        val slot = context.genQuestionSlotToday()
+        if (slot > MaxGenQuestionSlotsPerDay) return
+        val question = repository.insight(Insights.QUESTION, slot.toString()).getOrNull() ?: return
+        val text = question.text.trim()
         if (text.isNullOrEmpty()) return
         dailyQuestionText = text
         val answers = context.profileAnswersNow()
-        _state.update { it.copy(dailyQuestion = text.takeIf { q -> genQuestionId(q) !in answers }) }
+        _state.update {
+            it.copy(
+                dailyQuestion = text.takeIf { q -> genQuestionId(q) !in answers },
+                dailyQuestionOptions = question.options.orEmpty(),
+            )
+        }
     }
 
     /** Re-read today's data — on start and every time Home comes back to the foreground. */
@@ -257,6 +265,7 @@ class HomeViewModel @Inject constructor(
             val data = runCatching { today.load() }.getOrNull()
             _state.update { s -> if (data == null) s.copy(isLoading = false) else s.withData(data) }
             viewModelScope.launch { loadMiddayIfDue() }
+            viewModelScope.launch { loadDailyQuestion() }
             // End of the onboarding funnel: the app has delivered what it promised. Reported on
             // whichever text got there first — the local one usually wins by several seconds.
             if (_state.value.forecast != null && context.claimFirstForecast()) {

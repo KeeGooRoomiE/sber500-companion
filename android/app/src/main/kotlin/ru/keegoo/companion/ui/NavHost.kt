@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.prefs.isOnboarded
 import ru.keegoo.companion.data.prefs.setOnboarded
+import ru.keegoo.companion.ui.chat.ChatScreen
 import ru.keegoo.companion.ui.motion.BackdropState
 import ru.keegoo.companion.ui.motion.CompanionBackdrop
 import ru.keegoo.companion.ui.motion.LocalBackdrop
@@ -37,6 +38,9 @@ import ru.keegoo.companion.ui.update.UpdateToast
 private const val ROUTE_ONBOARDING = "onboarding"
 private const val ROUTE_HOME = "home"
 private const val ROUTE_PROFILE = "profile"
+private const val ROUTE_CHAT = "chat"
+private const val CHAT_QUESTION = "chat_question"
+private const val CHAT_OPTIONS = "chat_options"
 
 // One backdrop and one SharedTransitionLayout above NavHost: the background never
 // restarts between screens, and the orb / hero card can fly from one screen to the other.
@@ -97,12 +101,29 @@ fun CompanionNavHost() {
                                         navController.navigate(ROUTE_PROFILE) { launchSingleTop = true }
                                     }
                                 },
+                                onOpenChat = { question, options ->
+                                    if (entry.settled()) {
+                                        entry.savedStateHandle[CHAT_QUESTION] = question
+                                        entry.savedStateHandle[CHAT_OPTIONS] = ArrayList(options)
+                                        navController.navigate(ROUTE_CHAT) { launchSingleTop = true }
+                                    }
+                                },
                             )
                         }
                         composable(ROUTE_PROFILE) { entry ->
                             ProfileScreen(
                                 sharedScope = this@SharedTransitionLayout,
                                 animatedScope = this@composable,
+                                onBack = { if (entry.settled()) navController.popBackStack() },
+                            )
+                        }
+                        composable(ROUTE_CHAT) { entry ->
+                            val homeState = navController.previousBackStackEntry?.savedStateHandle
+                            val question = homeState?.get<String>(CHAT_QUESTION)
+                            ChatScreen(
+                                entry = if (question == null) "starter" else "daily",
+                                dailyQuestion = question,
+                                dailyOptions = homeState?.get<ArrayList<String>>(CHAT_OPTIONS).orEmpty(),
                                 onBack = { if (entry.settled()) navController.popBackStack() },
                             )
                         }

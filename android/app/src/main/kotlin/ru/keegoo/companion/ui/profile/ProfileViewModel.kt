@@ -13,9 +13,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.keegoo.companion.data.local.AppOption
 import ru.keegoo.companion.data.local.TodayRepository
-import ru.keegoo.companion.data.prefs.MaxGenQuestionSlotsPerDay
-import ru.keegoo.companion.data.prefs.advanceGenQuestionSlot
-import ru.keegoo.companion.data.prefs.genQuestionSlotToday
 import ru.keegoo.companion.data.prefs.markProfileClarified
 import ru.keegoo.companion.data.prefs.profileAnswersNow
 import ru.keegoo.companion.data.prefs.saveProfileAnswer
@@ -29,9 +26,6 @@ import ru.keegoo.companion.ui.home.Insights
 import ru.keegoo.companion.ui.motion.ORB_REACTION_MS
 import ru.keegoo.companion.ui.motion.resolveOrbReaction
 import javax.inject.Inject
-
-/** One generated question and its answer options, if the model gave a real choice. */
-data class GeneratedQuestionUi(val text: String, val options: List<String> = emptyList())
 
 /**
  * A clarifying question under «Твой профиль», and what happened to it.
@@ -65,19 +59,6 @@ class ProfileViewModel @Inject constructor(
     /** The person's own most used apps — options for the «рабочие приложения» question. */
     val topApps: StateFlow<List<AppOption>> = _topApps
 
-    private val _generated = MutableStateFlow<GeneratedQuestionUi?>(null)
-    /**
-     * One question the model wrote after looking at this person's days — the only question here
-     * that is not from the fixed list.
-     *
-     * The fixed questions run out, and after that the screen has nothing to ask; this is what
-     * keeps «Расскажи о себе» worth opening on day ten. Cached on the server per slot per day,
-     * so re-opening the screen shows the same question rather than a new one every time. Null
-     * until it arrives, and null for good if there is not enough data yet — then the screen is
-     * simply the list it was.
-     */
-    val generated: StateFlow<GeneratedQuestionUi?> = _generated
-
     private val _profileSummary = MutableStateFlow(ProfileSummaryUi())
     /**
      * «Твой профиль» — one line, read fresh once a day. «Уточнить» spends a second call only
@@ -97,32 +78,9 @@ class ProfileViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { _topApps.value = runCatching { today.weekTopApps() }.getOrDefault(emptyList()) }
-        viewModelScope.launch { fetchGenerated() }
         viewModelScope.launch {
             _profileSummary.update { it.copy(clarifyAvailable = !context.wasProfileClarifiedToday()) }
             fetchProfileSummary("1")
-        }
-    }
-
-    private suspend fun fetchGenerated() {
-        val slot = context.genQuestionSlotToday()
-        repository.insight(Insights.QUESTION, slot.toString()).onSuccess { r ->
-            val text = r.text.trim()
-            _generated.value = text.takeIf(String::isNotEmpty)?.let { GeneratedQuestionUi(it, r.options.orEmpty()) }
-        }
-    }
-
-    /**
-     * Called right after the generated question on screen gets an answer. Tries for the next
-     * one in today's budget — up to [MaxGenQuestionSlotsPerDay] — so an engaged visit can use
-     * more than one slot; a visit with no answer never advances past the first.
-     */
-    fun onGeneratedAnswered() {
-        viewModelScope.launch {
-            if (context.advanceGenQuestionSlot() <= MaxGenQuestionSlotsPerDay) {
-                _generated.value = null
-                fetchGenerated()
-            }
         }
     }
 

@@ -58,6 +58,7 @@ func main() {
 		prompts.ExploreSystem:   llm.DefaultExploreSystem,
 		prompts.FollowupSystem:  llm.DefaultFollowupSystem,
 		prompts.InsightSystem:   llm.DefaultInsightSystem,
+		prompts.ChatSystem:      llm.DefaultChatSystem,
 	})
 	generator := forecast.NewGenerator(db, repo.NewDailyRepo(db), repo.NewCheckInRepo(db), morningRepo, llmClient, callLog, promptStore)
 

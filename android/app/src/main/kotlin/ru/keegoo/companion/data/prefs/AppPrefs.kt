@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import ru.keegoo.companion.domain.model.DayFeel
+import ru.keegoo.companion.domain.profile.GenQuestionPrefix
+import ru.keegoo.companion.domain.profile.GenQuestionTextPrefix
+import ru.keegoo.companion.domain.profile.genQuestionId
 import java.time.LocalDate
 
 private val Context.appPrefs by preferencesDataStore(name = "companion_prefs")
@@ -124,18 +127,22 @@ suspend fun Context.genQuestionSlotToday(): Int {
     return if (p[KEY_GEN_SLOT_DATE] == LocalDate.now().toString()) (p[KEY_GEN_SLOT] ?: 1) else 1
 }
 
-/**
- * Moves to the next slot and returns it — called only once the question in the current slot
- * has an answer, so a day with no engagement spends exactly one call, same as before slots
- * existed.
- */
-suspend fun Context.advanceGenQuestionSlot(): Int {
-    val next = genQuestionSlotToday() + 1
-    appPrefs.edit {
-        it[KEY_GEN_SLOT_DATE] = LocalDate.now().toString()
-        it[KEY_GEN_SLOT] = next
+/** Stores the answer and advances the slot together, once even when a message is retried. */
+suspend fun Context.saveGeneratedProfileAnswer(question: String, answer: String, date: LocalDate) {
+    val id = genQuestionId(question)
+    val key = stringPreferencesKey(PROFILE_PREFIX + id)
+    val textKey = stringPreferencesKey(PROFILE_PREFIX + GenQuestionTextPrefix + id.removePrefix(GenQuestionPrefix))
+    val today = LocalDate.now().toString()
+    appPrefs.edit { preferences ->
+        val isFirstAnswer = preferences[key] == null
+        preferences[key] = answer
+        preferences[textKey] = question
+        if (isFirstAnswer && date.toString() == today) {
+            val currentSlot = if (preferences[KEY_GEN_SLOT_DATE] == today) preferences[KEY_GEN_SLOT] ?: 1 else 1
+            preferences[KEY_GEN_SLOT_DATE] = today
+            preferences[KEY_GEN_SLOT] = (currentSlot + 1).coerceAtMost(MaxGenQuestionSlotsPerDay + 1)
+        }
     }
-    return next
 }
 
 /**

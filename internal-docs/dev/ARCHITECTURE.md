@@ -7,7 +7,7 @@
 
 ```
 Android App (Kotlin / Compose)
-  ├── UI (Compose, MVVM) — онбординг → Home → профиль (орб), motion/Backdrop
+  ├── UI (Compose, MVVM) — онбординг → Home → профиль или «Обсудим?», motion/Backdrop
   ├── WorkManager
   │     ├── DailyCollectWorker      — 12h periodic + runNowAndWait: usage/sleep/steps/battery → сервер
   │     ├── ReviewNotificationWorker — после чек-ина: снапшот → /review/day → уведомление «разбор дня»
@@ -37,7 +37,7 @@ Web (GitHub Pages)
   └── privacy.html — политика конфиденциальности
 ```
 
-## HTTP API (`/api/v1`, auth по заголовку X-User-ID кроме публичных)
+## HTTP API (`/api/v1`, защищённые маршруты используют Bearer-токен устройства)
 
 | Метод | Путь | Назначение |
 |---|---|---|
@@ -53,6 +53,7 @@ Web (GitHub Pages)
 | POST | `/followup` | уточнение под инсайтом (follow-up чипы) |
 | POST | `/insight` | 5 кейсов: midday/stat/retro/tag/question |
 | GET/POST | `/explore` | «Хочу ещё» — состояние и ответ на вопрос (`explore_system`) |
+| POST | `/chat` | «Обсудим?» — ответ, подсказки и действия с личной памятью (`chat_system`) |
 | POST | `/feedback` | «Совпало / Не совсем» по прогнозу/разбору |
 | POST | `/event` | продуктовые события (напр. `notification_opened:*`) |
 | GET | `/version` | последняя версия APK (для in-app «обновиться») |
@@ -62,7 +63,7 @@ Web (GitHub Pages)
 Админ (локальный порт на сервере, наружу не торчит): `/admin/prompts/*` — list/push/activate/reset
 промтов (`deploy/prompt.sh`), `/admin/push` (заглушка), `errors_reset`.
 
-## Схема БД (PostgreSQL, миграции 001–014)
+## Схема БД (PostgreSQL, миграции 001–019)
 
 | Таблица | Назначение |
 |---|---|
@@ -113,6 +114,10 @@ Home читает данные **на устройстве** (локальный
   `weekly_system`, `explore_system` (+ встроенные дефолты в бинарнике).
 - Anti-fraud: каждый вызов в `call_log`; dev-пользователи исключаются из метрик (`DEV_USER_IDS`,
   `is_dev`, префикс `mock_`).
+
+### «Обсудим?»
+
+Room хранит переписку на устройстве, читает её страницами и передаёт ограниченный набор связанных реплик. Go добавляет данные текущего пользователя из БД. Таблица `chat_requests` хранит статусы и результаты для безопасного повтора по ID. `chat_memory` хранит явно сохранённые факты. Они доступны чату, прогнозам и разборам. Ежедневный вопрос приходит в ленту от Companion, подтверждённый ответ записывается через существующий профиль. [Спецификация чата](../plan/CHAT_WITH_ME.md)
 
 ## Соответствие метрикам конкурса
 

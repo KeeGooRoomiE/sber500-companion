@@ -25,6 +25,9 @@ import ru.keegoo.companion.data.api.model.PingRequest
 import ru.keegoo.companion.data.api.model.PushTokenRequest
 
 interface CompanionApi {
+    @POST("api/v1/chat")
+    suspend fun postChat(@Body body: ChatRequest): ChatResponse
+
     @POST("api/v1/data/passive")
     suspend fun postPassiveData(@Body body: PassiveDataRequest)
 

@@ -58,6 +58,7 @@ type Generator struct {
 	users    *repo.UserRepo
 	reviews  *repo.ReviewRepo
 	explore  *repo.ExploreRepo
+	chat     *repo.ChatRepo
 	llm      *llm.Client
 	callLog  *analytics.Logger
 	prompts  *prompts.Store
@@ -72,7 +73,7 @@ func NewGenerator(db *pgxpool.Pool, daily *repo.DailyRepo, checkin *repo.CheckIn
 	if err != nil || dailyCap <= 0 {
 		dailyCap = 5000
 	}
-	return &Generator{db: db, users: repo.NewUserRepo(db), reviews: repo.NewReviewRepo(db), explore: repo.NewExploreRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
+	return &Generator{db: db, chat: repo.NewChatRepo(db), users: repo.NewUserRepo(db), reviews: repo.NewReviewRepo(db), explore: repo.NewExploreRepo(db), daily: daily, checkin: checkin, morning: morning, llm: llmClient, callLog: callLog, prompts: store, dailyCap: dailyCap}
 }
 
 // reuseExisting reports whether an existing row for the day is returned as is instead of
@@ -159,6 +160,7 @@ func (g *Generator) Ensure(ctx context.Context, userID string, date time.Time, t
 		Signals: signals.ForLastDay(days, WorkApps(profile), llm.AppLabel),
 		Recent:  recent,
 		Tone:    llm.ToneFromProfile(profile["tone"]),
+		Memory:  g.chatMemoryContext(ctx, userID),
 	})
 	if err == nil && !SafeOutput(result.Message) {
 		// A tampered prompt or a model slip must not put links/phones in front of users
@@ -246,6 +248,7 @@ func (g *Generator) withinBudget(ctx context.Context) (bool, error) {
 		SELECT (SELECT count(*) FROM morning_messages WHERE created_at >= $1)
 		     + (SELECT count(*) FROM reviews WHERE created_at >= $1)
 		     + (SELECT count(*) FROM explore_answers WHERE created_at >= $1)
+		     + (SELECT count(*) FROM chat_model_usage WHERE created_at >= $1)
 	`, dayStart).Scan(&n)
 	return n < g.dailyCap, err
 }

@@ -1,6 +1,8 @@
 package ru.keegoo.companion.data.repository
 
 import android.util.Log
+import ru.keegoo.companion.data.api.ChatRequest
+import ru.keegoo.companion.data.api.ChatResponse
 import ru.keegoo.companion.data.api.CompanionApi
 import ru.keegoo.companion.data.api.model.AppUsageDto
 import ru.keegoo.companion.data.api.model.CheckInRequest
@@ -96,6 +98,8 @@ class CompanionRepository @Inject constructor(
     }
 
     suspend fun weekReview(): Result<ReviewResponse> = runCatching { api.postWeekReview() }
+
+    suspend fun chat(request: ChatRequest): ChatResponse = api.postChat(request)
 
     /** «Хочу ещё»: today's answers + questions that can be asked now. */
     suspend fun exploreState(): Result<ExploreResponse> = runCatching { api.getExplore() }

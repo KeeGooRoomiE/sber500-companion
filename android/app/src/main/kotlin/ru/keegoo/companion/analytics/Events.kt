@@ -138,4 +138,18 @@ object Events {
 
     /** «Хочу ещё» was opened — the moment the explore mechanic is discovered at all. */
     fun exploreMore() = report("explore_more")
+
+    fun chatRequest(id: String, source: String, previous: Long, dailyId: String?) =
+        report("chat_request", buildMap {
+            put("request_id", id)
+            put("source", source)
+            put("previous_messages", previous)
+            put("daily_question", dailyId != null)
+            dailyId?.let { put("question_id", it) }
+        })
+
+    fun chatDailyQuestion(id: String) = report("chat_daily_question", mapOf("question_id" to id))
+
+    fun chatOutcome(id: String, outcome: String, latencyMs: Long) =
+        report("chat_outcome", mapOf("request_id" to id, "outcome" to outcome, "latency_ms" to latencyMs))
 }

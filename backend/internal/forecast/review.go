@@ -89,6 +89,7 @@ func (g *Generator) DayReview(ctx context.Context, userID string, date time.Time
 		return nil, nil, err
 	}
 	user := DayReviewPrompt(days, sig, checkins[date.Format("2006-01-02")], profile, date.Equal(today))
+	user += g.chatMemoryContext(ctx, userID)
 	rv, err := g.complete(ctx, userID, prompts.DayReviewSystem, analytics.ComponentLLMDay, analytics.TriggerUserAction, "day", date, user, DayReviewLimits)
 	return rv, sig, err
 }

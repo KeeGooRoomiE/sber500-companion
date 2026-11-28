@@ -84,10 +84,18 @@ func worthFallback(err error) bool {
 
 // complete walks the model chain, returning the response and the model that produced it.
 func (c *Client) complete(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, string, error) {
+	return c.completeObserved(ctx, req, nil)
+}
+
+func (c *Client) completeObserved(ctx context.Context, req openai.ChatCompletionRequest, observe ChatAttempt) (openai.ChatCompletionResponse, string, error) {
 	var lastErr error
 	for i, m := range c.models {
 		req.Model = m
+		started := time.Now()
 		resp, err := c.ai.CreateChatCompletion(ctx, req)
+		if observe != nil {
+			observe(m, started, resp.Usage, err)
+		}
 		if err == nil {
 			if i > 0 {
 				slog.Warn("llm: answered by fallback model", "model", m, "primary", c.models[0], "err", lastErr)
@@ -134,7 +142,8 @@ type MorningInput struct {
 	// which is what «шаблонность» meant in the interviews.
 	Recent []string
 	// Tone from «Расскажи о себе»: soft | plain | direct. Empty means plain.
-	Tone string
+	Tone   string
+	Memory string
 }
 
 // AppLabel is the human name of a package (same names the prompt uses).
@@ -430,6 +439,7 @@ func buildPrompt(in MorningInput) string {
 		b.WriteString("\n")
 	}
 
+	b.WriteString(in.Memory)
 	if first && len(days) > 1 {
 		// Day 0: the app just backfilled history — the value is "here is your usual week".
 		b.WriteString("\nЭто первое сообщение человеку, он только что установил приложение. " +

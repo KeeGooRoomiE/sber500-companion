@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,6 +13,14 @@ plugins {
 // uninstall (losing local data). CI writes the key from the COMPANION_KEYSTORE_B64 secret;
 // without it (local builds) the usual per-machine debug key is used.
 val sharedKeystore = System.getenv("COMPANION_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+
+val chatTestApiUrl = providers.gradleProperty("chatTestApiUrl").orElse("http://127.0.0.1:18080/").get()
+val chatTestUri = URI(chatTestApiUrl)
+require(
+    chatTestUri.host != null && chatTestUri.userInfo == null && chatTestUri.rawPath == "/" &&
+        chatTestUri.rawQuery == null && chatTestUri.rawFragment == null &&
+        (chatTestUri.scheme == "https" || chatTestUri.scheme == "http" && chatTestUri.host == "127.0.0.1")
+) { "chatTestApiUrl must be an HTTPS origin or http://127.0.0.1:18080/, with a trailing slash" }
 
 // AppMetrica key never lives in the repo: CI passes it as an env var from a secret, local
 // builds read it from local.properties (gitignored). Absent key = SDK stays off, which is how
@@ -67,6 +77,17 @@ android {
             buildConfigField("String", "APPMETRICA_KEY", "\"$appMetricaKey\"")
             buildConfigField("String", "INSTALL_SOURCE", "\"$installSource\"")
             buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"$rustorePushProjectId\"")
+        }
+        create("chatTest") {
+            initWith(getByName("debug"))
+            matchingFallbacks += "debug"
+            applicationIdSuffix = ".chat"
+            versionNameSuffix = "-chat"
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("String", "API_BASE_URL", "\"$chatTestApiUrl\"")
+            buildConfigField("String", "APPMETRICA_KEY", "\"\"")
+            buildConfigField("String", "RUSTORE_PUSH_PROJECT_ID", "\"\"")
+            buildConfigField("String", "INSTALL_SOURCE", "\"chat-test\"")
         }
         release {
             // R8 stays off: it renamed the fields of every Gson/Retrofit model (0.6.1–0.7.0 sent
