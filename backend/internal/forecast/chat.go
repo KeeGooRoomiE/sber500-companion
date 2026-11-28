@@ -117,7 +117,8 @@ func safePills(pills []string) []string {
 	seen := map[string]bool{}
 	for _, p := range pills {
 		p = strings.Join(strings.Fields(p), " ")
-		if p == "" || seen[p] || utf8.RuneCountInString(p) > 54 || !SafeOutput(p) || chatMode(p) == "redirect" {
+		if !strings.HasSuffix(p, "?") || seen[p] || utf8.RuneCountInString(p) > 54 ||
+			!SafeOutput(p) || chatMode(p) == "redirect" {
 			continue
 		}
 		out = append(out, p)
@@ -127,7 +128,7 @@ func safePills(pills []string) []string {
 		}
 	}
 	if len(out) < 2 {
-		for _, p := range []string{"Что известно о моём дне?", "Что ты обо мне помнишь?"} {
+		for _, p := range []string{"Что ещё видно в моих данных?", "Что ты обо мне помнишь?"} {
 			if !seen[p] {
 				out = append(out, p)
 			}
