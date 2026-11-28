@@ -441,12 +441,12 @@ func (g *Generator) Chat(ctx context.Context, uid string, req ChatInput) (*ChatR
 	}
 	var facts []repo.ChatFact
 	input := map[string]any{"mode": mode, "source": req.Source, "message": req.Text}
-	finish := func(reply ChatReply) (*ChatReply, error) {
+	finish := func(reply ChatReply, memoryCursor int64) (*ChatReply, error) {
 		response, err := json.Marshal(reply)
 		if err != nil {
 			return nil, err
 		}
-		if err = g.chat.Finish(ctx, uid, req.ID, attempt, response, 0, nil, false); err != nil {
+		if err = g.chat.Finish(ctx, uid, req.ID, attempt, response, memoryCursor, nil, false); err != nil {
 			return nil, err
 		}
 		done = true
@@ -457,7 +457,7 @@ func (g *Generator) Chat(ctx context.Context, uid string, req ChatInput) (*ChatR
 		if err != nil {
 			return nil, err
 		}
-		return finish(out.reply)
+		return finish(out.reply, 0)
 	}
 	if mode == "memory_list" {
 		facts, err = g.chat.Facts(ctx, uid, cursor, 400)
@@ -486,7 +486,7 @@ func (g *Generator) Chat(ctx context.Context, uid string, req ChatInput) (*ChatR
 				return finish(ChatReply{
 					Kind: "answer", Pills: pills,
 					Text: "За сегодня у меня пока мало данных для разбора. Когда появятся наблюдения, сможем обсудить, как идёт день.",
-				})
+				}, 0)
 			}
 		}
 		input["observations"] = data
@@ -494,11 +494,21 @@ func (g *Generator) Chat(ctx context.Context, uid string, req ChatInput) (*ChatR
 		input["daily_question"] = req.Question != ""
 	}
 	input["facts"] = facts
+	memoryFallback := func() (*ChatReply, error) {
+		out, err := resolveChat("memory_list", req.Text, facts, llm.ChatDecision{}, cursor != 0)
+		if err != nil {
+			return nil, err
+		}
+		return finish(out.reply, cursor)
+	}
 	ok, err := g.withinBudget(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
+		if mode == "memory_list" {
+			return memoryFallback()
+		}
 		return nil, ErrBudget
 	}
 	payload, err := json.Marshal(input)
@@ -535,6 +545,9 @@ func (g *Generator) Chat(ctx context.Context, uid string, req ChatInput) (*ChatR
 		}
 	})
 	if err != nil {
+		if mode == "memory_list" && ctx.Err() == nil {
+			return memoryFallback()
+		}
 		// Provider messages can echo input; the API logs only a stable error category.
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err

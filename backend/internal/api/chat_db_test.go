@@ -61,6 +61,10 @@ func TestChatFlowOnDatabase(t *testing.T) {
 				decision.Fact = "работаю днём"
 			}
 		case "memory_list":
+			if strings.Contains(input.Message, "точно") {
+				http.Error(w, "temporary provider failure", http.StatusServiceUnavailable)
+				return
+			}
 			decision.Kind = "memory_list"
 		case "forget":
 			decision.Kind = "forget"
@@ -120,6 +124,9 @@ func TestChatFlowOnDatabase(t *testing.T) {
 	post("chat", first.Token, msg("save", "Другой вопрос"), 409)
 	if got := string(post("chat", first.Token, read, 200)); !strings.Contains(got, "работаю по ночам") {
 		t.Fatal("fact missing")
+	}
+	if got := string(post("chat", first.Token, msg("read_fallback", "Что ты точно обо мне помнишь?"), 200)); !strings.Contains(got, "работаю по ночам") {
+		t.Fatal("fact missing during provider failure")
 	}
 	if got := string(post("chat", second.Token, msg("read_again", read.Text), 200)); strings.Contains(got, "работаю по ночам") {
 		t.Fatal("other user's fact")
